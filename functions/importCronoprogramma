@@ -1,0 +1,180 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import * as XLSX from 'npm:xlsx@0.18.5';
+
+Deno.serve(async (req) => {
+    console.log('=== IMPORTAZIONE CRONOPROGRAMMA SEMPLIFICATA ===');
+    
+    try {
+        const base44 = createClientFromRequest(req);
+        const user = await base44.auth.me();
+        if (!user) {
+            return Response.json({ success: false, error: 'Non autorizzato' }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const { file_name, file_type, file_base64, cantiere_id } = body;
+
+        if (!file_base64 || !cantiere_id) {
+            return Response.json({ success: false, error: 'Dati mancanti' }, { status: 400 });
+        }
+
+        // Converti base64 in buffer
+        const binaryString = atob(file_base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const workbook = XLSX.read(bytes, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        console.log('Righe trovate:', data.length);
+        console.log('Prima riga:', JSON.stringify(data[0], null, 2));
+
+        if (data.length === 0) {
+            return Response.json({ success: false, error: 'File vuoto' }, { status: 400 });
+        }
+
+        // Trova le colonne automaticamente
+        const primaRiga = data[0];
+        const colonne = Object.keys(primaRiga);
+        
+        console.log('Colonne trovate:', colonne);
+
+        let colDescrizione = colonne.find(c => 
+            c.toLowerCase().includes('descri') || 
+            c.toLowerCase().includes('attiv') || 
+            c.toLowerCase().includes('nome')
+        );
+        
+        let colGruppo = colonne.find(c => 
+            c.toLowerCase().includes('gruppo') || 
+            c.toLowerCase().includes('fase')
+        );
+        
+        let colDataInizio = colonne.find(c => 
+            c.toLowerCase().includes('inizio') || 
+            c.toLowerCase().includes('start') ||
+            c.toLowerCase() === 'data inizio'
+        );
+        
+        let colDataFine = colonne.find(c => 
+            c.toLowerCase().includes('fine') || 
+            c.toLowerCase().includes('end') ||
+            c.toLowerCase() === 'data fine'
+        );
+
+        // Se non trova, usa prime colonne disponibili
+        if (!colDescrizione) colDescrizione = colonne[0];
+        if (!colDataInizio) colDataInizio = colonne[1];
+        if (!colDataFine) colDataFine = colonne[2];
+
+        console.log('Mapping colonne:', { colDescrizione, colGruppo, colDataInizio, colDataFine });
+
+        const attivita = [];
+        const scartate = [];
+
+        for (const riga of data) {
+            const descrizione = riga[colDescrizione];
+            let dataInizio = riga[colDataInizio];
+            let dataFine = riga[colDataFine];
+            const gruppo = colGruppo ? riga[colGruppo] : '';
+
+            if (!descrizione) continue;
+
+            // Parsing date ROBUSTO
+            const parseDate = (val) => {
+                if (!val) return null;
+                
+                // Se è già un oggetto Date
+                if (val instanceof Date) {
+                    return val.toISOString().split('T')[0];
+                }
+                
+                // Se è una stringa in formato ISO
+                if (typeof val === 'string') {
+                    const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+                    
+                    // Formato DD/MM/YYYY
+                    const match2 = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                    if (match2) {
+                        const [_, day, month, year] = match2;
+                        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    }
+                }
+                
+                // Se è un numero (Excel serial)
+                if (typeof val === 'number' && val > 1 && val < 100000) {
+                    const date = new Date((val - 25569) * 86400 * 1000);
+                    return date.toISOString().split('T')[0];
+                }
+                
+                return null;
+            };
+
+            dataInizio = parseDate(dataInizio);
+            dataFine = parseDate(dataFine);
+
+            if (!dataInizio || !dataFine) {
+                scartate.push(descrizione);
+                continue;
+            }
+
+            const durataMs = new Date(dataFine) - new Date(dataInizio);
+            const durataGiorni = Math.max(Math.ceil(durataMs / (1000 * 60 * 60 * 24)) + 1, 1);
+
+            attivita.push({
+                cantiere_id,
+                gruppo_fase: gruppo || '',
+                descrizione: descrizione.toString(),
+                data_inizio: dataInizio,
+                data_fine: dataFine,
+                durata_giorni: durataGiorni,
+                percentuale_completamento: 0,
+                colore: '#3b82f6',
+                categoria: 'altro',
+                predecessori: [],
+                responsabile: '',
+                note: '',
+                stato: 'pianificata'
+            });
+        }
+
+        console.log(`Attività valide: ${attivita.length}, Scartate: ${scartate.length}`);
+
+        if (attivita.length === 0) {
+            return Response.json({ 
+                success: false, 
+                error: 'Nessuna attività valida trovata',
+                dettagli: `Formato richiesto:\n- Colonna "Descrizione"\n- Colonna "Data Inizio" (formato YYYY-MM-DD o DD/MM/YYYY)\n- Colonna "Data Fine"\n- Opzionale: colonna "Gruppo"`
+            }, { status: 400 });
+        }
+
+        // Crea attività
+        await base44.asServiceRole.entities.Attivita.bulkCreate(attivita);
+
+        const range = {
+            data_inizio: Math.min(...attivita.map(a => new Date(a.data_inizio))).toISOString().split('T')[0],
+            data_fine: Math.max(...attivita.map(a => new Date(a.data_fine))).toISOString().split('T')[0]
+        };
+
+        return Response.json({
+            success: true,
+            message: `${attivita.length} attività importate con successo`,
+            attivita_importate: attivita.length,
+            attivita_scartate: scartate.length,
+            range_temporale: range,
+            nota_categorie: 'Tutte le attività hanno categoria "altro". Puoi modificarle dopo.'
+        });
+
+    } catch (error) {
+        console.error('Errore:', error);
+        return Response.json({ 
+            success: false,
+            error: 'Errore durante l\'importazione',
+            dettagli: error.message 
+        }, { status: 500 });
+    }
+});

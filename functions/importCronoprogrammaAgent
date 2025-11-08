@@ -1,0 +1,179 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+
+Deno.serve(async (req) => {
+    console.log('=== IMPORTAZIONE CRONOPROGRAMMA CON AI ===');
+    
+    try {
+        const base44 = createClientFromRequest(req);
+        
+        console.log('Step 1: Verifica autenticazione...');
+        const user = await base44.auth.me();
+        if (!user) {
+            console.error('Utente non autenticato');
+            return Response.json({ 
+                success: false,
+                error: 'Non autorizzato' 
+            }, { status: 401 });
+        }
+
+        console.log('✅ Utente autenticato:', user.email);
+
+        console.log('Step 2: Parsing body request...');
+        const body = await req.json();
+        console.log('Body ricevuto:', JSON.stringify(body, null, 2));
+
+        const { file_url, cantiere_id } = body;
+
+        if (!file_url) {
+            console.error('File URL mancante');
+            return Response.json({ 
+                success: false,
+                error: 'File non fornito'
+            }, { status: 400 });
+        }
+
+        if (!cantiere_id) {
+            console.error('Cantiere ID mancante');
+            return Response.json({ 
+                success: false,
+                error: 'Cantiere non selezionato'
+            }, { status: 400 });
+        }
+
+        console.log('✅ File URL:', file_url);
+        console.log('✅ Cantiere ID:', cantiere_id);
+
+        console.log('Step 3: Estrazione dati da file Excel con AI...');
+        
+        // Schema JSON per le attività del cronoprogramma
+        const jsonSchema = {
+            type: "object",
+            properties: {
+                attivita: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            descrizione: { type: "string" },
+                            gruppo_fase: { type: "string" },
+                            data_inizio: { type: "string" },
+                            data_fine: { type: "string" },
+                            durata_giorni: { type: "number" }
+                        }
+                    }
+                },
+                range_temporale: {
+                    type: "object",
+                    properties: {
+                        data_inizio: { type: "string" },
+                        data_fine: { type: "string" }
+                    }
+                },
+                note: { type: "string" }
+            }
+        };
+
+        let extractResult;
+        try {
+            console.log('Chiamata ExtractDataFromUploadedFile in corso...');
+            extractResult = await base44.integrations.Core.ExtractDataFromUploadedFile({
+                file_url: file_url,
+                json_schema: jsonSchema
+            });
+            console.log('✅ Dati estratti:', JSON.stringify(extractResult, null, 2));
+        } catch (extractError) {
+            console.error('❌ Errore estrazione dati:', extractError);
+            console.error('Extract Error message:', extractError.message);
+            console.error('Extract Error stack:', extractError.stack);
+            throw extractError;
+        }
+
+        if (extractResult.status !== 'success') {
+            return Response.json({ 
+                success: false,
+                error: 'Errore nell\'estrazione dei dati',
+                dettagli: extractResult.details || 'Impossibile estrarre i dati dal file'
+            }, { status: 400 });
+        }
+
+        const parsedData = extractResult.output;
+        console.log('Step 4: Dati parsati:', JSON.stringify(parsedData, null, 2));
+
+        if (!parsedData.attivita || parsedData.attivita.length === 0) {
+            console.error('Nessuna attività trovata nel risultato');
+            return Response.json({ 
+                success: false,
+                error: 'Nessuna attività trovata',
+                dettagli: 'L\'AI non è riuscita a estrarre attività dal file',
+                note: parsedData.note
+            }, { status: 400 });
+        }
+
+        console.log(`Trovate ${parsedData.attivita.length} attività totali`);
+
+        // Prepara le attività per l'inserimento
+        const attivitaDaCreare = parsedData.attivita
+            .filter(att => att.data_inizio && att.data_fine) // Solo attività con date
+            .map(att => ({
+                cantiere_id: cantiere_id,
+                gruppo_fase: att.gruppo_fase || '',
+                descrizione: att.descrizione,
+                data_inizio: att.data_inizio,
+                data_fine: att.data_fine,
+                durata_giorni: att.durata_giorni || 1,
+                percentuale_completamento: 0,
+                colore: '#3b82f6',
+                categoria: 'altro',
+                predecessori: [],
+                responsabile: '',
+                note: '',
+                stato: 'pianificata'
+            }));
+
+        console.log(`Attività con date valide: ${attivitaDaCreare.length}`);
+
+        if (attivitaDaCreare.length === 0) {
+            console.error('Nessuna attività con date valide');
+            return Response.json({ 
+                success: false,
+                error: 'Nessuna attività con date valide',
+                dettagli: 'Tutte le attività estratte non hanno date valide',
+                attivita_trovate: parsedData.attivita.length,
+                note: parsedData.note
+            }, { status: 400 });
+        }
+
+        console.log('Step 5: Creazione attività nel database...');
+        try {
+            const attivitaCreate = await base44.asServiceRole.entities.Attivita.bulkCreate(attivitaDaCreare);
+            console.log(`✅ Create ${attivitaCreate.length} attività con successo`);
+
+            return Response.json({
+                success: true,
+                message: `${attivitaCreate.length} attività importate con successo`,
+                attivita_importate: attivitaCreate.length,
+                attivita_scartate: parsedData.attivita.length - attivitaCreate.length,
+                range_temporale: parsedData.range_temporale,
+                nota_categorie: 'Tutte le attività importate hanno categoria "altro". Potrai modificare le categorie e i dettagli dopo l\'importazione.',
+                note_agent: parsedData.note
+            });
+        } catch (dbError) {
+            console.error('❌ Errore creazione nel database:', dbError);
+            console.error('DB Error message:', dbError.message);
+            console.error('DB Error stack:', dbError.stack);
+            throw dbError;
+        }
+
+    } catch (error) {
+        console.error('=== ERRORE GENERALE ===');
+        console.error('Errore:', error);
+        console.error('Message:', error.message);
+        console.error('Stack:', error.stack);
+        
+        return Response.json({ 
+            success: false,
+            error: 'Errore durante l\'importazione',
+            dettagli: error.message || 'Errore sconosciuto'
+        }, { status: 500 });
+    }
+});

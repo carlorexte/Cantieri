@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Building2, Euro, TrendingUp, Calendar, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
@@ -47,11 +48,21 @@ export default function Dashboard() {
       base44.entities.SAL.list()
     ]);
 
+    // Calcola il totale certificato per ogni cantiere
     const salByCantiere = salData.reduce((acc, sal) => {
       if (!acc[sal.cantiere_id]) {
         acc[sal.cantiere_id] = 0;
       }
-      acc[sal.cantiere_id] += sal.importo_sal || 0;
+      
+      // Per SAL progressivi/finali usa totale_fattura, per anticipazioni usa importo_anticipo_erogato
+      let importoSal = 0;
+      if (sal.tipo_sal_dettaglio === 'anticipazione') {
+        importoSal = sal.importo_anticipo_erogato || 0;
+      } else {
+        importoSal = sal.totale_fattura || sal.imponibile || 0;
+      }
+      
+      acc[sal.cantiere_id] += importoSal;
       return acc;
     }, {});
 

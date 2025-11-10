@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { Cantiere } from '@/entities/Cantiere';
 import { Subappalto } from '@/entities/Subappalto';
 import { Documento } from '@/entities/Documento';
 import { Impresa } from '@/entities/Impresa';
-import { User } from '@/entities/User'; // Keep User import as it might be used elsewhere, although auth method changes
+import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users } from 'lucide-react';
+import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, StickyNote } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -17,9 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { format, differenceInDays } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { CreateFileSignedUrl, base44 } from '@/integrations/Core'; // Added base44
 import { toast } from "sonner";
 import { Badge } from '@/components/ui/badge';
 
@@ -44,15 +48,18 @@ export default function CantiereDashboardPage() {
   const [showCantiereForm, setShowCantiereForm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  // Stati per il visualizzatore - AGGIORNATI
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
   const [signedUrl, setSignedUrl] = useState(null);
   const [isLoadingViewer, setIsLoadingViewer] = useState(false);
 
+  const [responsabileSicurezza, setResponsabileSicurezza] = useState(null);
+  const [direttoreLavori, setDirettoreLavori] = useState(null);
+  const [responsabileUnico, setResponsabileUnico] = useState(null);
+
   const loadUser = async () => {
     try {
-      const user = await base44.auth.me(); // Changed from User.me()
+      const user = await base44.auth.me();
       setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento utente:", error);
@@ -85,6 +92,34 @@ export default function CantiereDashboardPage() {
       setSubappalti(subappaltiData);
       setDocumenti(documentiData);
       setImprese(impreseData);
+
+      // Load PersoneEsterne
+      if (cantiereData?.responsabile_sicurezza_id) {
+        try {
+          const persone = await base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id });
+          if (persone.length > 0) setResponsabileSicurezza(persone[0]);
+        } catch (error) {
+          console.error("Errore caricamento responsabile sicurezza:", error);
+        }
+      }
+      
+      if (cantiereData?.direttore_lavori_id) {
+        try {
+          const persone = await base44.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id });
+          if (persone.length > 0) setDirettoreLavori(persone[0]);
+        } catch (error) {
+          console.error("Errore caricamento direttore lavori:", error);
+        }
+      }
+      
+      if (cantiereData?.responsabile_unico_procedimento_id) {
+        try {
+          const persone = await base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id });
+          if (persone.length > 0) setResponsabileUnico(persone[0]);
+        } catch (error) {
+          console.error("Errore caricamento RUP:", error);
+        }
+      }
     } catch (error) {
       console.error("Errore nel caricamento dei dati del cantiere:", error);
     }
@@ -170,7 +205,6 @@ export default function CantiereDashboardPage() {
     };
 
     return [...imprese].sort((a, b) => {
-      // Prioritize the main appaltatrice if present
       if (a.isPrincipale && !b.isPrincipale) return -1;
       if (!a.isPrincipale && b.isPrincipale) return 1;
 
@@ -195,14 +229,14 @@ export default function CantiereDashboardPage() {
       setIsLoadingViewer(true);
       setViewingDocument(documento);
       setShowViewer(true);
-      setSignedUrl(null); // Reset URL first
+      setSignedUrl(null);
 
       try {
         let urlToLoad = documento.cloud_file_url;
         if (documento.file_uri) {
-          const result = await CreateFileSignedUrl({ // Keeping direct import usage
+          const result = await base44.integrations.Core.CreateFileSignedUrl({
             file_uri: documento.file_uri,
-            expires_in: 3600 // 1 hour
+            expires_in: 3600
           });
           urlToLoad = result.signed_url;
         }
@@ -227,16 +261,16 @@ export default function CantiereDashboardPage() {
       try {
         let urlToDownload = documento.cloud_file_url;
         if (documento.file_uri) {
-          const result = await CreateFileSignedUrl({ // Keeping direct import usage
+          const result = await base44.integrations.Core.CreateFileSignedUrl({
             file_uri: documento.file_uri,
-            expires_in: 300 // 5 minutes for download
+            expires_in: 300
           });
           urlToDownload = result.signed_url;
         }
         
         const a = document.createElement('a');
         a.href = urlToDownload;
-        a.download = documento.nome_documento; // Suggest filename
+        a.download = documento.nome_documento;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -250,6 +284,20 @@ export default function CantiereDashboardPage() {
         duration: 5000
       });
     }
+  };
+
+  const renderDate = (dateString) => {
+    if (!dateString) return "N/D";
+    try {
+      return format(new Date(dateString), 'dd MMM yyyy', { locale: it });
+    } catch {
+      return "Data non valida";
+    }
+  };
+
+  const renderImporto = (importo) => {
+    if (importo === null || importo === undefined) return "N/D";
+    return `€ ${Number(importo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   if (isLoading) {
@@ -271,9 +319,6 @@ export default function CantiereDashboardPage() {
   }
 
   const tipologiaColors = {
-    'Appaltatrice Principale': 'bg-blue-100 text-blue-800',
-    'Partner': 'bg-purple-100 text-purple-800',
-    'Subappaltatore': 'bg-orange-100 text-orange-800',
     'singola': 'bg-slate-100 text-slate-800',
     'mandataria': 'bg-green-100 text-green-800',
     'mandante': 'bg-teal-100 text-teal-800',
@@ -288,6 +333,7 @@ export default function CantiereDashboardPage() {
   const tipoDocumentoLabels = {
     durc: "DURC",
     visure: "Visure",
+    visure_cciaa: "Visure CCIAA",
     certificazioni_soa: "Certificazioni SOA",
     denuncia_inail: "Denuncia INAIL",
     contratto_appalto: "Contratto Appalto",
@@ -317,16 +363,8 @@ export default function CantiereDashboardPage() {
   const statoAvanzamento = getStatoAvanzamento();
   const StatoIcon = statoAvanzamento.icon;
 
-  const hasCommittenteData = cantiere.committente_ragione_sociale || cantiere.committente_referente_nome || cantiere.committente_indirizzo || cantiere.committente_cap || cantiere.committente_citta || cantiere.committente_piva || cantiere.committente_cf || cantiere.committente_email || cantiere.committente_telefono;
-  
-  const hasResponsabileData = cantiere.responsabile_unico_procedimento_nome || cantiere.responsabile_unico_procedimento_indirizzo;
-
-  const hasDirettoreData = cantiere.direttore_lavori_nome || cantiere.direttore_lavori_indirizzo;
-
-  // Costruisci lista completa delle imprese da mostrare
   const allImprese = [];
   
-  // 1. Aggiungi l'impresa appaltatrice principale se presente
   if (cantiere.azienda_appaltatrice_ragione_sociale) {
     allImprese.push({
       ragione_sociale: cantiere.azienda_appaltatrice_ragione_sociale,
@@ -338,25 +376,22 @@ export default function CantiereDashboardPage() {
       email: cantiere.azienda_appaltatrice_email,
       cf: cantiere.azienda_appaltatrice_cf,
       piva: cantiere.azienda_appaltatrice_piva,
-      isPrincipale: true // Flag per distinguerla
+      isPrincipale: true
     });
   }
   
-  // 2. Aggiungi i partner consorziati
   if (cantiere.partner_consorziati && cantiere.partner_consorziati.length > 0) {
     allImprese.push(...cantiere.partner_consorziati.map(p => ({ ...p, isPrincipale: false })));
   }
 
-  // Ordina le imprese per priorità
   const sortedAllImprese = sortImpresaByPriority(allImprese);
-
-  // Filtra subappalti e subaffidamenti
   const subappaltiList = subappalti.filter(s => s.tipo_relazione === "subappalto" || !s.tipo_relazione);
   const subaffidamentiList = subappalti.filter(s => s.tipo_relazione === "subaffidamento");
 
   return (
     <div className="p-6 bg-slate-50 min-h-full">
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <Link to={createPageUrl('Cantieri')}>
             <Button variant="outline">
@@ -376,6 +411,7 @@ export default function CantiereDashboardPage() {
           )}
         </div>
 
+        {/* Main Card - Header sempre visibile */}
         <Card className="mb-6 shadow-lg border-0">
           <CardHeader>
             <div className="flex items-center gap-4">
@@ -393,19 +429,9 @@ export default function CantiereDashboardPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <DetailField label="Indirizzo" value={`${cantiere.indirizzo}, ${cantiere.indirizzo_citta}`} />
-              <DetailField label="Referente Cantiere" value={cantiere.referente_interno} />
-              <DetailField label="Responsabile Sicurezza" value={cantiere.responsabile_sicurezza} />
-              <DetailField label="Importo Contratto" value={cantiere.importo_contratto ? `€ ${Number(cantiere.importo_contratto).toLocaleString('it-IT')}` : 'N/D'} />
-              <DetailField label="Stato" value={cantiere.stato || "In corso"} />
-              <DetailField label="CIG" value={cantiere.codice_cig} />
-              <DetailField label="CUP" value={cantiere.codice_cup} />
-            </div>
-
-            {/* Timeline e Avanzamento */}
-            <div className="pt-4 border-t">
+          <CardContent>
+            {/* Avanzamento Temporale sempre visibile */}
+            <div className="mb-6 pb-6 border-b">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-slate-900">Avanzamento Temporale</h3>
                 <div className={`flex items-center gap-2 ${statoAvanzamento.color}`}>
@@ -413,298 +439,551 @@ export default function CantiereDashboardPage() {
                   <span className="text-sm font-medium">{statoAvanzamento.text}</span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                <DetailField 
-                  label="Data Inizio" 
-                  value={cantiere.data_inizio ? format(new Date(cantiere.data_inizio), 'dd MMM yyyy', { locale: it }) : 'N/D'} 
-                />
-                <DetailField 
-                  label="Data Fine Prevista" 
-                  value={cantiere.data_fine_prevista ? format(new Date(cantiere.data_fine_prevista), 'dd MMM yyyy', { locale: it }) : 'N/D'} 
-                />
-                <DetailField 
-                  label="Giorni Previsti" 
-                  value={cantiere.giorni_previsti || 'N/D'} 
-                />
-              </div>
               <div className="flex items-center gap-4">
                 <Progress value={percentualeCompletamento} className="h-3 flex-1" />
                 <span className="text-lg font-bold text-slate-700 min-w-[60px] text-right">
                   {percentualeCompletamento}%
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
-                Percentuale basata sul tempo trascorso rispetto alla durata prevista
-              </p>
             </div>
 
-            {/* Impresa Appaltatrice */}
-            {(cantiere.azienda_appaltatrice_ragione_sociale || cantiere.tipologia_azienda_appaltatrice) && (
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-indigo-600" />
-                  Impresa Appaltatrice
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {cantiere.tipologia_azienda_appaltatrice && (
-                    <DetailField label="Tipologia" value={cantiere.tipologia_azienda_appaltatrice.replace('_', ' ')} />
-                  )}
-                  {cantiere.azienda_appaltatrice_ragione_sociale && (
-                    <DetailField label="Ragione Sociale" value={cantiere.azienda_appaltatrice_ragione_sociale} />
-                  )}
-                  {cantiere.azienda_appaltatrice_piva && (
-                    <DetailField label="P.IVA" value={cantiere.azienda_appaltatrice_piva} />
-                  )}
-                  {cantiere.azienda_appaltatrice_cf && (
-                    <DetailField label="Codice Fiscale" value={cantiere.azienda_appaltatrice_cf} />
-                  )}
-                  {cantiere.azienda_appaltatrice_indirizzo && (
-                    <DetailField 
-                      label="Indirizzo" 
-                      value={[
-                        cantiere.azienda_appaltatrice_indirizzo,
-                        cantiere.azienda_appaltatrice_cap,
-                        cantiere.azienda_appaltatrice_citta
-                      ].filter(Boolean).join(', ')} 
-                    />
-                  )}
-                  {cantiere.azienda_appaltatrice_email && (
-                    <DetailField label="Email" value={cantiere.azienda_appaltatrice_email} />
-                  )}
-                  {cantiere.azienda_appaltatrice_telefono && (
-                    <DetailField label="Telefono" value={cantiere.azienda_appaltatrice_telefono} />
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Accordion con tutte le sezioni collassabili */}
+            <Accordion type="multiple" defaultValue={["dati-generali"]} className="w-full">
+              
+              {/* Dati Generali */}
+              <AccordionItem value="dati-generali">
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-indigo-600" />
+                    Dati Generali
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
+                    <DetailField label="Indirizzo" value={`${cantiere.indirizzo || ''}, ${cantiere.indirizzo_citta || ''}`} />
+                    <DetailField label="CAP" value={cantiere.indirizzo_cap} />
+                    <DetailField label="Referente Interno" value={cantiere.referente_interno} />
+                    {responsabileSicurezza && (
+                      <DetailField 
+                        label="Responsabile Sicurezza" 
+                        value={`${responsabileSicurezza.nome} ${responsabileSicurezza.cognome}${responsabileSicurezza.qualifica ? ` - ${responsabileSicurezza.qualifica}` : ''}`} 
+                      />
+                    )}
+                    <DetailField label="CIG" value={cantiere.codice_cig} />
+                    <DetailField label="CUP" value={cantiere.codice_cup} />
+                    <DetailField label="Stato" value={cantiere.stato || "In corso"} />
+                    {cantiere.verbale_inizio_lavori_url && (
+                      <div className="col-span-2">
+                        <p className="text-sm text-slate-500">Verbale Inizio Lavori</p>
+                        <a href={cantiere.verbale_inizio_lavori_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                          Visualizza documento
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Committente */}
-            {hasCommittenteData && (
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold text-slate-900 mb-2">Committente</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <DetailField label="Ragione Sociale" value={cantiere.committente_ragione_sociale} />
-                  <DetailField 
-                    label="Indirizzo" 
-                    value={[cantiere.committente_indirizzo, cantiere.committente_cap, cantiere.committente_citta].filter(Boolean).join(', ')} 
-                  />
-                  <DetailField label="P.IVA / C.F." value={cantiere.committente_piva || cantiere.committente_cf} />
-                  <DetailField label="Email" value={cantiere.committente_email} />
-                  <DetailField label="Telefono" value={cantiere.committente_telefono} />
-                  {cantiere.committente_referente_nome && (
-                    <DetailField label="Referente" value={cantiere.committente_referente_nome} />
-                  )}
-                </div>
-              </div>
-            )}
+              {/* Date e Tempistiche */}
+              <AccordionItem value="date-tempistiche">
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-indigo-600" />
+                    Date e Tempistiche Lavori
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <DetailField label="Consegna Area" value={renderDate(cantiere.data_consegna_area)} />
+                      <DetailField label="Inizio Lavori" value={renderDate(cantiere.data_inizio)} />
+                      <DetailField label="Giorni Previsti" value={cantiere.giorni_previsti} />
+                      <DetailField label="Fine Prevista" value={renderDate(cantiere.data_fine_prevista)} />
+                    </div>
+                    
+                    {(cantiere.data_inizio_proroga_1 || cantiere.data_fine_proroga_1 || cantiere.data_inizio_proroga_2 || cantiere.data_fine_proroga_2) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Proroghe</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {cantiere.data_inizio_proroga_1 && <DetailField label="Inizio Proroga 1" value={renderDate(cantiere.data_inizio_proroga_1)} />}
+                          {cantiere.data_fine_proroga_1 && <DetailField label="Fine Proroga 1" value={renderDate(cantiere.data_fine_proroga_1)} />}
+                          {cantiere.data_inizio_proroga_2 && <DetailField label="Inizio Proroga 2" value={renderDate(cantiere.data_inizio_proroga_2)} />}
+                          {cantiere.data_fine_proroga_2 && <DetailField label="Fine Proroga 2" value={renderDate(cantiere.data_fine_proroga_2)} />}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {(cantiere.data_inizio_sospensione || cantiere.data_fine_sospensione) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Sospensione</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {cantiere.data_inizio_sospensione && <DetailField label="Inizio Sospensione" value={renderDate(cantiere.data_inizio_sospensione)} />}
+                          {cantiere.data_fine_sospensione && <DetailField label="Fine Sospensione" value={renderDate(cantiere.data_fine_sospensione)} />}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Direttore dei Lavori */}
-            {hasDirettoreData && (
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold text-slate-900 mb-2">Direttore dei Lavori</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <DetailField label="Nome e Cognome" value={cantiere.direttore_lavori_nome} />
-                  <DetailField label="Qualifica" value={cantiere.direttore_lavori_qualifica} />
-                  <DetailField label="Codice Fiscale" value={cantiere.direttore_lavori_cf} />
-                  <DetailField label="Telefono" value={cantiere.direttore_lavori_telefono} />
-                  <DetailField label="Email" value={cantiere.direttore_lavori_email} />
-                  <DetailField 
-                    label="Indirizzo" 
-                    value={[cantiere.direttore_lavori_indirizzo, cantiere.direttore_lavori_cap, cantiere.direttore_lavori_citta].filter(Boolean).join(', ')} 
-                  />
-                </div>
-              </div>
-            )}
+              {/* Importi e Contratto */}
+              <AccordionItem value="importi">
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Euro className="w-5 h-5 text-indigo-600" />
+                    Importi e Contratto
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <DetailField label="Tipologia Appalto" value={cantiere.tipologia_appalto === 'a_corpo' ? 'A Corpo' : 'A Misura'} />
+                      <DetailField label="Ribasso %" value={cantiere.percentuale_ribasso ? `${cantiere.percentuale_ribasso}%` : 'N/D'} />
+                      <DetailField label="IVA %" value={cantiere.percentuale_iva ? `${cantiere.percentuale_iva}%` : 'N/D'} />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+                      <DetailField label="Importo Lavori (netto ribasso)" value={renderImporto(cantiere.importo_lavori_netto_ribasso)} />
+                      <DetailField label="Importo Progettazione" value={renderImporto(cantiere.importo_progettazione)} />
+                      <DetailField label="Oneri Sicurezza" value={renderImporto(cantiere.oneri_sicurezza_importo)} />
+                      <DetailField label="Importo Contrattuale (oltre IVA)" value={renderImporto(cantiere.importo_contrattuale_oltre_iva)} />
+                      <DetailField label="Importo Totale Contratto" value={renderImporto(cantiere.importo_contratto)} />
+                    </div>
+                    
+                    {(cantiere.contratto_data_firma || cantiere.contratto_file_url) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Documenti Contratto</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {cantiere.contratto_data_firma && <DetailField label="Data Firma Contratto" value={renderDate(cantiere.contratto_data_firma)} />}
+                          {cantiere.contratto_file_url && (
+                            <div>
+                              <p className="text-sm text-slate-500">File Contratto</p>
+                              <a href={cantiere.contratto_file_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                                Visualizza contratto
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Responsabile Unico del Procedimento */}
-            {hasResponsabileData && (
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold text-slate-900 mb-2">Responsabile Unico del Procedimento (RUP)</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <DetailField label="Nome e Cognome" value={cantiere.responsabile_unico_procedimento_nome} />
-                  <DetailField label="Qualifica" value={cantiere.responsabile_unico_procedimento_qualifica} />
-                  <DetailField label="Codice Fiscale" value={cantiere.responsabile_unico_procedimento_cf} />
-                  <DetailField label="Email" value={cantiere.responsabile_unico_procedimento_email} />
-                  <DetailField label="Telefono" value={cantiere.responsabile_unico_procedimento_telefono} />
-                  <DetailField 
-                    label="Indirizzo" 
-                    value={[cantiere.responsabile_unico_procedimento_indirizzo, cantiere.responsabile_unico_procedimento_cap, cantiere.responsabile_unico_procedimento_citta].filter(Boolean).join(', ')} 
-                  />
-                </div>
-              </div>
-            )}
+              {/* Polizze Assicurative */}
+              <AccordionItem value="polizze">
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-indigo-600" />
+                    Polizze Assicurative
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-6 pt-4">
+                    {/* Polizza Definitiva */}
+                    {(cantiere.polizza_definitiva_numero || cantiere.polizza_definitiva_url || cantiere.polizza_definitiva_scadenza) && (
+                      <div>
+                        <h4 className="text-md font-semibold text-slate-900 mb-3">Polizza Definitiva</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {cantiere.polizza_definitiva_numero && <DetailField label="Numero" value={cantiere.polizza_definitiva_numero} />}
+                          {cantiere.polizza_definitiva_scadenza && <DetailField label="Scadenza" value={renderDate(cantiere.polizza_definitiva_scadenza)} />}
+                          {cantiere.polizza_definitiva_durata && <DetailField label="Durata" value={cantiere.polizza_definitiva_durata} />}
+                          {cantiere.polizza_definitiva_agenzia && <DetailField label="Agenzia" value={cantiere.polizza_definitiva_agenzia} />}
+                          {cantiere.polizza_definitiva_url && (
+                            <div>
+                              <p className="text-sm text-slate-500">Documento</p>
+                              <a href={cantiere.polizza_definitiva_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                                Visualizza polizza
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Polizza CAR */}
+                    {(cantiere.polizza_car_numero || cantiere.polizza_car_url || cantiere.polizza_car_scadenza) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-md font-semibold text-slate-900 mb-3">Polizza CAR</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {cantiere.polizza_car_numero && <DetailField label="Numero" value={cantiere.polizza_car_numero} />}
+                          {cantiere.polizza_car_scadenza && <DetailField label="Scadenza" value={renderDate(cantiere.polizza_car_scadenza)} />}
+                          {cantiere.polizza_car_durata && <DetailField label="Durata" value={cantiere.polizza_car_durata} />}
+                          {cantiere.polizza_car_agenzia && <DetailField label="Agenzia" value={cantiere.polizza_car_agenzia} />}
+                          {cantiere.polizza_car_url && (
+                            <div>
+                              <p className="text-sm text-slate-500">Documento</p>
+                              <a href={cantiere.polizza_car_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                                Visualizza polizza
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Polizza Anticipazione */}
+                    {(cantiere.polizza_anticipazione_numero || cantiere.polizza_anticipazione_url || cantiere.polizza_anticipazione_scadenza) && (
+                      <div className="border-t pt-4">
+                        <h4 className="text-md font-semibold text-slate-900 mb-3">Polizza Anticipazione</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {cantiere.polizza_anticipazione_numero && <DetailField label="Numero" value={cantiere.polizza_anticipazione_numero} />}
+                          {cantiere.polizza_anticipazione_scadenza && <DetailField label="Scadenza" value={renderDate(cantiere.polizza_anticipazione_scadenza)} />}
+                          {cantiere.polizza_anticipazione_durata && <DetailField label="Durata" value={cantiere.polizza_anticipazione_durata} />}
+                          {cantiere.polizza_anticipazione_agenzia && <DetailField label="Agenzia" value={cantiere.polizza_anticipazione_agenzia} />}
+                          {cantiere.polizza_anticipazione_url && (
+                            <div>
+                              <p className="text-sm text-slate-500">Documento</p>
+                              <a href={cantiere.polizza_anticipazione_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                                Visualizza polizza
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Note */}
-            {cantiere.note && (
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold text-slate-900 mb-2">Note</h3>
-                <p className="text-slate-700 whitespace-pre-wrap">{cantiere.note}</p>
-              </div>
-            )}
+              {/* Categorie e Classifiche SOA */}
+              {cantiere.categorie_soa?.length > 0 && (
+                <AccordionItem value="categorie-soa">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="w-5 h-5 text-indigo-600" />
+                      Categorie e Classifiche SOA
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-4">
+                      {cantiere.categorie_soa.map((item, index) => {
+                        let categoria = '';
+                        let classifica = '';
+                        
+                        if (typeof item === 'string') {
+                          categoria = item;
+                        } else if (typeof item === 'object' && item !== null) {
+                          categoria = item.category || item.categoria || '';
+                          classifica = item.classification || item.classifica || '';
+                        }
+                        
+                        return (
+                          <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <Badge variant="secondary" className="text-sm px-3 py-1">
+                              {categoria}
+                            </Badge>
+                            {classifica && (
+                              <Badge variant="outline" className="text-sm px-3 py-1 border-blue-300 text-blue-700">
+                                Classifica {classifica}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Committente */}
+              {(cantiere.committente_ragione_sociale || cantiere.committente_referente_ragione_sociale) && (
+                <AccordionItem value="committente">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-indigo-600" />
+                      Committente
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-6 pt-4">
+                      {cantiere.committente_ragione_sociale && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3">Dati Committente</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <DetailField label="Ragione Sociale" value={cantiere.committente_ragione_sociale} />
+                            <DetailField 
+                              label="Indirizzo" 
+                              value={[cantiere.committente_indirizzo, cantiere.committente_cap, cantiere.committente_citta].filter(Boolean).join(', ')} 
+                            />
+                            <DetailField label="Telefono/Fax" value={cantiere.committente_telefono} />
+                            <DetailField label="Email" value={cantiere.committente_email} />
+                            <DetailField label="Codice Fiscale" value={cantiere.committente_cf} />
+                            <DetailField label="Partita IVA" value={cantiere.committente_piva} />
+                          </div>
+                        </div>
+                      )}
+
+                      {cantiere.committente_referente_ragione_sociale && (
+                        <div className="border-t pt-4">
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3">Nella Persona Di (Referente)</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <DetailField label="Ragione Sociale / Nome" value={cantiere.committente_referente_ragione_sociale} />
+                            <DetailField 
+                              label="Indirizzo" 
+                              value={[cantiere.committente_referente_indirizzo, cantiere.committente_referente_cap, cantiere.committente_referente_citta].filter(Boolean).join(', ')} 
+                            />
+                            <DetailField label="Telefono/Fax" value={cantiere.committente_referente_telefono} />
+                            <DetailField label="Email" value={cantiere.committente_referente_email} />
+                            <DetailField label="Codice Fiscale" value={cantiere.committente_referente_cf} />
+                            <DetailField label="Partita IVA" value={cantiere.committente_referente_piva} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Direttore dei Lavori */}
+              {direttoreLavori && (
+                <AccordionItem value="direttore-lavori">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-indigo-600" />
+                      Direttore dei Lavori
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                      <DetailField label="Nome e Cognome" value={`${direttoreLavori.nome} ${direttoreLavori.cognome}`} />
+                      <DetailField label="Qualifica" value={direttoreLavori.qualifica} />
+                      <DetailField label="Codice Fiscale" value={direttoreLavori.codice_fiscale} />
+                      <DetailField label="Telefono" value={direttoreLavori.telefono} />
+                      <DetailField label="Email" value={direttoreLavori.email} />
+                      <DetailField 
+                        label="Indirizzo" 
+                        value={`${direttoreLavori.indirizzo || ''}, ${direttoreLavori.cap || ''} ${direttoreLavori.citta || ''}`} 
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Responsabile Unico del Procedimento */}
+              {responsabileUnico && (
+                <AccordionItem value="rup">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-indigo-600" />
+                      Responsabile Unico del Procedimento (RUP)
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                      <DetailField label="Nome e Cognome" value={`${responsabileUnico.nome} ${responsabileUnico.cognome}`} />
+                      <DetailField label="Qualifica" value={responsabileUnico.qualifica} />
+                      <DetailField label="Codice Fiscale" value={responsabileUnico.codice_fiscale} />
+                      <DetailField label="Telefono" value={responsabileUnico.telefono} />
+                      <DetailField label="Email" value={responsabileUnico.email} />
+                      <DetailField 
+                        label="Indirizzo" 
+                        value={`${responsabileUnico.indirizzo || ''}, ${responsabileUnico.cap || ''} ${responsabileUnico.citta || ''}`} 
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Impresa Appaltatrice */}
+              {sortedAllImprese.length > 0 && (
+                <AccordionItem value="impresa-appaltatrice">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-indigo-600" />
+                      Impresa Appaltatrice
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-4">
+                      {sortedAllImprese.map((impresa, index) => {
+                        const impresaId = findImpresaId(impresa.ragione_sociale);
+                        const tipoLabels = {
+                          singola: "Singola",
+                          mandataria: "Mandataria",
+                          mandante: "Mandante",
+                          consorzio: "Consorzio",
+                          consortile: "Consortile",
+                          socio: "Socio",
+                          subappaltatore: "Subappaltatore",
+                          subaffidatario: "Subaffidatario",
+                          esecutrice: "Esecutrice"
+                        };
+                        
+                        return (
+                          <Card key={index} className="bg-slate-50">
+                            <CardContent className="p-4">
+                              {impresaId ? (
+                                <Link 
+                                  to={createPageUrl(`ImpresaDashboard?id=${impresaId}`)} 
+                                  className="block hover:bg-blue-50 -m-4 p-4 rounded-lg transition-colors"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className="font-medium text-slate-900">{impresa.ragione_sociale || 'Nome non disponibile'}</span>
+                                        {impresa.isPrincipale && (
+                                          <Badge className="bg-indigo-600 text-white">PRINCIPALE</Badge>
+                                        )}
+                                      </div>
+                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                                        {impresa.piva && <span className="text-slate-600">P.IVA: {impresa.piva}</span>}
+                                        {impresa.telefono && <span className="text-slate-600">Tel: {impresa.telefono}</span>}
+                                        {impresa.email && <span className="text-slate-600">Email: {impresa.email}</span>}
+                                      </div>
+                                    </div>
+                                    {impresa.tipo_impresa && (
+                                      <Badge variant="secondary" className={`${tipologiaColors[impresa.tipo_impresa]} ml-2`}>
+                                        {tipoLabels[impresa.tipo_impresa]}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </Link>
+                              ) : (
+                                <div>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="font-medium text-slate-900">{impresa.ragione_sociale || 'Nome non disponibile'}</span>
+                                    {impresa.isPrincipale && (
+                                      <Badge className="bg-indigo-600 text-white">PRINCIPALE</Badge>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                                    {impresa.piva && <span className="text-slate-600">P.IVA: {impresa.piva}</span>}
+                                    {impresa.telefono && <span className="text-slate-600">Tel: {impresa.telefono}</span>}
+                                    {impresa.email && <span className="text-slate-600">Email: {impresa.email}</span>}
+                                  </div>
+                                  {impresa.tipo_impresa && (
+                                    <Badge variant="secondary" className={`${tipologiaColors[impresa.tipo_impresa]} mt-2`}>
+                                      {tipoLabels[impresa.tipo_impresa]}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Subappalti */}
+              {subappaltiList.length > 0 && (
+                <AccordionItem value="subappalti">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Handshake className="w-5 h-5 text-indigo-600" />
+                      Subappalti ({subappaltiList.length})
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-2 pt-4">
+                      {subappaltiList.map(sub => {
+                        const ragioneSociale = sub.ragione_sociale;
+                        const impresaId = sub.impresa_id || findImpresaId(ragioneSociale);
+                        return (
+                          <Card key={sub.id} className="bg-slate-50">
+                            <CardContent className="p-4">
+                              {impresaId ? (
+                                <Link 
+                                  to={createPageUrl(`ImpresaDashboard?id=${impresaId}`)} 
+                                  className="block hover:bg-blue-50 -m-4 p-4 rounded-lg transition-colors"
+                                >
+                                  <span className="font-medium text-slate-900">{ragioneSociale}</span>
+                                  <div className="text-sm text-slate-600 mt-1">
+                                    {sub.categoria_lavori && `${sub.categoria_lavori.replace(/_/g, ' ')} • `}
+                                    {sub.importo_contratto && `€ ${Number(sub.importo_contratto).toLocaleString('it-IT')}`}
+                                  </div>
+                                </Link>
+                              ) : (
+                                <div>
+                                  <span className="font-medium text-slate-900">{ragioneSociale}</span>
+                                  <div className="text-sm text-slate-600 mt-1">
+                                    {sub.categoria_lavori && `${sub.categoria_lavori.replace(/_/g, ' ')} • `}
+                                    {sub.importo_contratto && `€ ${Number(sub.importo_contratto).toLocaleString('it-IT')}`}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Subaffidamenti */}
+              {subaffidamentiList.length > 0 && (
+                <AccordionItem value="subaffidamenti">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-indigo-600" />
+                      Subaffidamenti ({subaffidamentiList.length})
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-2 pt-4">
+                      {subaffidamentiList.map(sub => {
+                        const ragioneSociale = sub.ragione_sociale;
+                        const impresaId = sub.impresa_id || findImpresaId(ragioneSociale);
+                        return (
+                          <Card key={sub.id} className="bg-slate-50">
+                            <CardContent className="p-4">
+                              {impresaId ? (
+                                <Link 
+                                  to={createPageUrl(`ImpresaDashboard?id=${impresaId}`)} 
+                                  className="block hover:bg-blue-50 -m-4 p-4 rounded-lg transition-colors"
+                                >
+                                  <span className="font-medium text-slate-900">{ragioneSociale}</span>
+                                  <div className="text-sm text-slate-600 mt-1">
+                                    {sub.categoria_lavori && `${sub.categoria_lavori.replace(/_/g, ' ')} • `}
+                                    {sub.importo_contratto && `€ ${Number(sub.importo_contratto).toLocaleString('it-IT')}`}
+                                  </div>
+                                </Link>
+                              ) : (
+                                <div>
+                                  <span className="font-medium text-slate-900">{ragioneSociale}</span>
+                                  <div className="text-sm text-slate-600 mt-1">
+                                    {sub.categoria_lavori && `${sub.categoria_lavori.replace(/_/g, ' ')} • `}
+                                    {sub.importo_contratto && `€ ${Number(sub.importo_contratto).toLocaleString('it-IT')}`}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {/* Note Generali */}
+              {cantiere.note && (
+                <AccordionItem value="note">
+                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <StickyNote className="w-5 h-5 text-indigo-600" />
+                      Note Generali
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="pt-4 whitespace-pre-wrap text-slate-700">
+                      {cantiere.note}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+            </Accordion>
           </CardContent>
         </Card>
 
+        {/* Cards laterali - Documenti e Azioni rapide */}
         <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-lg border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="w-5 h-5" />
-                  Imprese Collegate
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sortedAllImprese.length > 0 ? (
-                  <ul className="space-y-2">
-                    {sortedAllImprese.map((impresa, index) => {
-                      const impresaId = findImpresaId(impresa.ragione_sociale);
-                      const tipoLabels = {
-                        singola: "Singola",
-                        mandataria: "Mandataria",
-                        mandante: "Mandante",
-                        consorzio: "Consorzio",
-                        consortile: "Consortile",
-                        socio: "Socio",
-                        subappaltatore: "Subappaltatore",
-                        subaffidatario: "Subaffidatario",
-                        esecutrice: "Esecutrice"
-                      };
-                      const tipoColors = {
-                        singola: "bg-slate-100 text-slate-800 border-slate-300",
-                        mandataria: "bg-green-100 text-green-800 border-green-300",
-                        mandante: "bg-teal-100 text-teal-800 border-teal-300",
-                        consorzio: "bg-violet-100 text-violet-800 border-violet-300",
-                        consortile: "bg-indigo-100 text-indigo-800 border-indigo-300",
-                        socio: "bg-pink-100 text-pink-800 border-pink-300",
-                        subappaltatore: "bg-orange-100 text-orange-800 border-orange-300",
-                        subaffidatario: "bg-amber-100 text-amber-800 border-amber-300",
-                        esecutrice: "bg-cyan-100 text-cyan-800 border-cyan-300"
-                      };
-                      
-                      return (
-                        <li key={index}>
-                          {impresaId ? (
-                            <Link 
-                              to={createPageUrl(`ImpresaDashboard?id=${impresaId}`)} 
-                              className="flex items-center justify-between p-3 border rounded-md hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                            >
-                              <div className="flex-1 flex items-center">
-                                <span className="font-medium text-slate-900">{impresa.ragione_sociale || 'Nome non disponibile'}</span>
-                                {impresa.isPrincipale && (
-                                  <span className="ml-2 text-xs bg-indigo-600 text-white px-2 py-0.5 rounded">PRINCIPALE</span>
-                                )}
-                              </div>
-                              {impresa.tipo_impresa && (
-                                <Badge variant="secondary" className={`${tipoColors[impresa.tipo_impresa] || 'bg-slate-50 text-slate-700 border-slate-200'} border font-medium ml-2 flex-shrink-0`}>
-                                  {tipoLabels[impresa.tipo_impresa] || impresa.tipo_impresa}
-                                </Badge>
-                              )}
-                            </Link>
-                          ) : (
-                            <div className="flex items-center justify-between p-3 border rounded-md bg-slate-50">
-                              <div className="flex-1 flex items-center">
-                                <span className="font-medium text-slate-900">{impresa.ragione_sociale || 'Nome non disponibile'}</span>
-                                {impresa.isPrincipale && (
-                                  <span className="ml-2 text-xs bg-indigo-600 text-white px-2 py-0.5 rounded">PRINCIPALE</span>
-                                )}
-                              </div>
-                              {impresa.tipo_impresa && (
-                                <Badge variant="secondary" className={`${tipoColors[impresa.tipo_impresa] || 'bg-slate-50 text-slate-700 border-slate-200'} border font-medium ml-2 flex-shrink-0`}>
-                                  {tipoLabels[impresa.tipo_impresa] || impresa.tipo_impresa}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : <p className="text-slate-500">Nessuna impresa collegata.</p>}
-              </CardContent>
-            </Card>
-
-             <Card className="shadow-lg border-0">
-                <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Handshake className="w-5 h-5" />
-                    Subappalti
-                </CardTitle>
-                </CardHeader>
-                <CardContent>
-                {subappaltiList.length > 0 ? (
-                    <ul className="space-y-2">
-                    {subappaltiList.map(sub => {
-                      const ragioneSociale = sub.ragione_sociale;
-                      const impresaId = sub.impresa_id || findImpresaId(ragioneSociale);
-                      return (
-                        <li key={sub.id}>
-                          {impresaId ? (
-                            <Link 
-                              to={createPageUrl(`ImpresaDashboard?id=${impresaId}`)} 
-                              className="block p-2 border rounded-md hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                            >
-                              <span className="font-medium">{ragioneSociale}</span>
-                              {sub.categoria_lavori && (
-                                <span className="text-sm text-slate-500 ml-2">• {sub.categoria_lavori.replace(/_/g, ' ')}</span>
-                              )}
-                            </Link>
-                          ) : (
-                            <div className="p-2 border rounded-md bg-slate-50">
-                              <span className="font-medium">{ragioneSociale}</span>
-                              {sub.categoria_lavori && (
-                                <span className="text-sm text-slate-500 ml-2">• {sub.categoria_lavori.replace(/_/g, ' ')}</span>
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                    </ul>
-                ) : <p className="text-slate-500">Nessun subappalto associato.</p>}
-                </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Subaffidamenti
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {subaffidamentiList.length > 0 ? (
-                  <ul className="space-y-2">
-                    {subaffidamentiList.map(sub => {
-                      const ragioneSociale = sub.ragione_sociale;
-                      const impresaId = sub.impresa_id || findImpresaId(ragioneSociale);
-                      return (
-                        <li key={sub.id}>
-                          {impresaId ? (
-                            <Link 
-                              to={createPageUrl(`ImpresaDashboard?id=${impresaId}`)} 
-                              className="block p-2 border rounded-md hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                            >
-                              <span className="font-medium">{ragioneSociale}</span>
-                              {sub.categoria_lavori && (
-                                <span className="text-sm text-slate-500 ml-2">• {sub.categoria_lavori.replace(/_/g, ' ')}</span>
-                              )}
-                            </Link>
-                          ) : (
-                            <div className="p-2 border rounded-md bg-slate-50">
-                              <span className="font-medium">{ragioneSociale}</span>
-                              {sub.categoria_lavori && (
-                                <span className="text-sm text-slate-500 ml-2">• {sub.categoria_lavori.replace(/_/g, ' ')}</span>
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : <p className="text-slate-500">Nessun subaffidamento associato.</p>}
-              </CardContent>
-            </Card>
-
+          <div className="lg:col-span-2">
             <Card className="shadow-lg border-0">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -817,19 +1096,16 @@ export default function CantiereDashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog Visualizzatore Documenti - AGGIORNATO */}
+        {/* Dialog Visualizzatore Documenti */}
         {showViewer && viewingDocument && (
           <>
-            {/* Overlay */}
             <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => {
               setShowViewer(false);
               setViewingDocument(null);
               setSignedUrl(null);
             }} />
             
-            {/* Viewer Content Container */}
             <div className="fixed inset-4 z-[70] bg-white rounded-lg shadow-xl flex flex-col">
-              {/* Header */}
               <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
                 <h2 className="text-lg font-semibold truncate pr-4">
                   {viewingDocument.nome_documento}
@@ -846,7 +1122,6 @@ export default function CantiereDashboardPage() {
                 </button>
               </div>
               
-              {/* Document Display Area */}
               <div className="flex-1 w-full h-full min-h-0">
                 {isLoadingViewer ? (
                   <div className="w-full h-full flex items-center justify-center bg-slate-50">
@@ -854,7 +1129,6 @@ export default function CantiereDashboardPage() {
                     <p className="text-slate-600">Caricamento documento...</p>
                   </div>
                 ) : signedUrl ? (
-                  // Conditional rendering based on file type
                   <>
                     {getFileType(viewingDocument.nome_documento) === 'pdf' && (
                       <iframe
@@ -881,7 +1155,6 @@ export default function CantiereDashboardPage() {
                         allowFullScreen
                       />
                     )}
-                    {/* Fallback for other types, or if type detection fails/isn't explicit */}
                     {!['pdf', 'image', 'office'].includes(getFileType(viewingDocument.nome_documento)) && (
                       <iframe
                         src={`https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`}

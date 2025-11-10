@@ -381,7 +381,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8"> {/* Changed space-y-6 to space-y-8 */}
-      <Accordion type="multiple" defaultValue={["dati-cantiere"]} className="w-full">
+      <Accordion type="multiple" defaultValue={["dati-cantiere", "impresa-appaltatrice", "subappalti"]} className="w-full">
         
         {/* Sezione 1: Dati Cantiere */}
         <AccordionItem value="dati-cantiere">
@@ -1042,233 +1042,233 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
             </Card>
           </AccordionContent>
         </AccordionItem>
-
-        {/* Removed Sezione 9: Impresa AccordionItem. Its content is now a standalone Card. */}
-      </Accordion> {/* Closing the Accordion here as the next Card is standalone */}
-
-      {/* Sezione Impresa Appaltatrice - now a standalone Card outside the accordion */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Impresa Appaltatrice</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ImpresaSelectorForCantiere
-            label="Seleziona Impresa Appaltatrice Principale"
-            currentValues={{
-                ragione_sociale: form.azienda_appaltatrice_ragione_sociale,
-                indirizzo: form.azienda_appaltatrice_indirizzo,
-                cap: form.azienda_appaltatrice_cap,
-                citta: form.azienda_appaltatrice_citta,
-                telefono: form.azienda_appaltatrice_telefono,
-                email: form.azienda_appaltatrice_email,
-                cf: form.azienda_appaltatrice_cf,
-                piva: form.azienda_appaltatrice_piva
-            }}
-            onImpresaSelect={(impresa) => {
-              console.log("Impresa selezionata in CantiereForm:", impresa);
-              if (impresa) {
-                updateField("azienda_appaltatrice_ragione_sociale", impresa.ragione_sociale || "");
-                updateField("azienda_appaltatrice_indirizzo", impresa.indirizzo_legale || "");
-                updateField("azienda_appaltatrice_cap", impresa.cap_legale || "");
-                updateField("azienda_appaltatrice_citta", impresa.citta_legale || "");
-                updateField("azienda_appaltatrice_telefono", impresa.telefono || "");
-                updateField("azienda_appaltatrice_email", impresa.email || "");
-                updateField("azienda_appaltatrice_cf", impresa.codice_fiscale || "");
-                updateField("azienda_appaltatrice_piva", impresa.partita_iva || "");
-              } else {
-                updateField("azienda_appaltatrice_ragione_sociale", "");
-                updateField("azienda_appaltatrice_indirizzo", "");
-                updateField("azienda_appaltatrice_cap", "");
-                updateField("azienda_appaltatrice_citta", "");
-                updateField("azienda_appaltatrice_telefono", "");
-                updateField("azienda_appaltatrice_email", "");
-                updateField("azienda_appaltatrice_cf", "");
-                updateField("azienda_appaltatrice_piva", "");
-              }
-            }}
-          />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <Label>Tipologia Impresa</Label>
-              <Select
-                value={form.tipologia_azienda_appaltatrice}
-                onValueChange={(value) => updateField("tipologia_azienda_appaltatrice", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona tipologia..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="singola">Singola</SelectItem>
-                  <SelectItem value="mandataria">Mandataria</SelectItem>
-                  <SelectItem value="mandante">Mandante</SelectItem>
-                  <SelectItem value="consorzio">Consorzio</SelectItem>
-                  <SelectItem value="consortile">Consortile</SelectItem>
-                  <SelectItem value="socio">Socio</SelectItem>
-                  <SelectItem value="subappaltatore">Subappaltatore</SelectItem>
-                  <SelectItem value="subaffidatario">Subaffidatario</SelectItem>
-                </SelectContent>
-              </Select>
+        
+        {/* Sezione 9: Impresa Appaltatrice - ORA COLLASSABILE */}
+        <AccordionItem value="impresa-appaltatrice">
+          <AccordionTrigger className="text-lg font-semibold">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5" />
+              Impresa Appaltatrice
             </div>
-
-            <div>
-              <Label>Ragione Sociale</Label>
-              <Input
-                value={form.azienda_appaltatrice_ragione_sociale}
-                onChange={(e) => updateField("azienda_appaltatrice_ragione_sociale", e.target.value)}
-                placeholder="Ragione sociale impresa"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> {/* Existing grid for other fields */}
-            <div>
-              <Label>Indirizzo</Label>
-              <Input
-                value={form.azienda_appaltatrice_indirizzo}
-                onChange={(e) => updateField("azienda_appaltatrice_indirizzo", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>CAP</Label>
-              <Input
-                value={form.azienda_appaltatrice_cap}
-                onChange={(e) => updateField("azienda_appaltatrice_cap", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Città</Label>
-              <Input
-                value={form.azienda_appaltatrice_citta}
-                onChange={(e) => updateField("azienda_appaltatrice_citta", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Telefono</Label>
-              <Input
-                value={form.azienda_appaltatrice_telefono}
-                onChange={(e) => updateField("azienda_appaltatrice_telefono", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.azienda_appaltatrice_email}
-                onChange={(e) => updateField("azienda_appaltatrice_email", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Codice Fiscale</Label>
-              <Input
-                value={form.azienda_appaltatrice_cf}
-                onChange={(e) => updateField("azienda_appaltatrice_cf", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Partita IVA</Label>
-              <Input
-                value={form.azienda_appaltatrice_piva}
-                onChange={(e) => updateField("azienda_appaltatrice_piva", e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Partner Consorziati */}
-          <div className="border-t pt-4 mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <Label className="text-base font-semibold">Imprese Partner / Consorziate</Label>
-              <Button type="button" onClick={addPartner} variant="outline" size="sm">
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Aggiungi Impresa
-              </Button>
-            </div>
-
-            {form.partner_consorziati && form.partner_consorziati.map((partner, index) => (
-              <div key={index} className="border rounded-lg p-4 mb-4 bg-slate-50">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-medium text-slate-700">Impresa #{index + 1}</h4>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removePartner(index)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-sm">Ragione Sociale</Label>
-                      <Input
-                        value={partner.ragione_sociale || ''}
-                        onChange={(e) => updatePartner(index, 'ragione_sociale', e.target.value)}
-                        placeholder="Ragione sociale"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm">Tipologia</Label>
-                      <Select
-                        value={partner.tipo_impresa || 'socio'}
-                        onValueChange={(value) => updatePartner(index, 'tipo_impresa', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="socio">Socio</SelectItem>
-                          <SelectItem value="consortile">Consortile</SelectItem>
-                          <SelectItem value="mandante">Mandante</SelectItem>
-                          <SelectItem value="mandataria">Mandataria</SelectItem>
-                          <SelectItem value="subappaltatore">Subappaltatore</SelectItem>
-                          <SelectItem value="subaffidatario">Subaffidatario</SelectItem>
-                          <SelectItem value="esecutrice">Esecutrice</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="pt-6 space-y-4"> {/* Removed Card wrapper, keeping CardContent padding and spacing */}
+                <ImpresaSelectorForCantiere
+                  label="Seleziona Impresa Appaltatrice Principale"
+                  currentValues={{
+                      ragione_sociale: form.azienda_appaltatrice_ragione_sociale,
+                      indirizzo: form.azienda_appaltatrice_indirizzo,
+                      cap: form.azienda_appaltatrice_cap,
+                      citta: form.azienda_appaltatrice_citta,
+                      telefono: form.azienda_appaltatrice_telefono,
+                      email: form.azienda_appaltatrice_email,
+                      cf: form.azienda_appaltatrice_cf,
+                      piva: form.azienda_appaltatrice_piva
+                  }}
+                  onImpresaSelect={(impresa) => {
+                    console.log("Impresa selezionata in CantiereForm:", impresa);
+                    if (impresa) {
+                      updateField("azienda_appaltatrice_ragione_sociale", impresa.ragione_sociale || "");
+                      updateField("azienda_appaltatrice_indirizzo", impresa.indirizzo_legale || "");
+                      updateField("azienda_appaltatrice_cap", impresa.cap_legale || "");
+                      updateField("azienda_appaltatrice_citta", impresa.citta_legale || "");
+                      updateField("azienda_appaltatrice_telefono", impresa.telefono || "");
+                      updateField("azienda_appaltatrice_email", impresa.email || "");
+                      updateField("azienda_appaltatrice_cf", impresa.codice_fiscale || "");
+                      updateField("azienda_appaltatrice_piva", impresa.partita_iva || "");
+                    } else {
+                      updateField("azienda_appaltatrice_ragione_sociale", "");
+                      updateField("azienda_appaltatrice_indirizzo", "");
+                      updateField("azienda_appaltatrice_cap", "");
+                      updateField("azienda_appaltatrice_citta", "");
+                      updateField("azienda_appaltatrice_telefono", "");
+                      updateField("azienda_appaltatrice_email", "");
+                      updateField("azienda_appaltatrice_cf", "");
+                      updateField("azienda_appaltatrice_piva", "");
+                    }
+                  }}
+                />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <Label>Tipologia Impresa</Label>
+                    <Select
+                      value={form.tipologia_azienda_appaltatrice}
+                      onValueChange={(value) => updateField("tipologia_azienda_appaltatrice", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona tipologia..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="singola">Singola</SelectItem>
+                        <SelectItem value="mandataria">Mandataria</SelectItem>
+                        <SelectItem value="mandante">Mandante</SelectItem>
+                        <SelectItem value="consorzio">Consorzio</SelectItem>
+                        <SelectItem value="consortile">Consortile</SelectItem>
+                        <SelectItem value="socio">Socio</SelectItem>
+                        <SelectItem value="subappaltatore">Subappaltatore</SelectItem>
+                        <SelectItem value="subaffidatario">Subaffidatario</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  {/* Rest of partner fields (keeping existing code) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                          <Label className="text-sm">Indirizzo</Label>
-                          <Input value={partner.indirizzo || ''} onChange={(e) => updatePartner(index, 'indirizzo', e.target.value)} />
-                      </div>
-                      <div>
-                          <Label className="text-sm">CAP</Label>
-                          <Input value={partner.cap || ''} onChange={(e) => updatePartner(index, 'cap', e.target.value)} />
-                      </div>
-                      <div>
-                          <Label className="text-sm">Città</Label>
-                          <Input value={partner.citta || ''} onChange={(e) => updatePartner(index, 'citta', e.target.value)} />
-                      </div>
-                      <div>
-                          <Label className="text-sm">Telefono</Label>
-                          <Input value={partner.telefono || ''} onChange={(e) => updatePartner(index, 'telefono', e.target.value)} />
-                      </div>
-                      <div>
-                          <Label className="text-sm">Email</Label>
-                          <Input type="email" value={partner.email || ''} onChange={(e) => updatePartner(index, 'email', e.target.value)} />
-                      </div>
-                      <div>
-                          <Label className="text-sm">Codice Fiscale</Label>
-                          <Input value={partner.cf || ''} onChange={(e) => updatePartner(index, 'cf', e.target.value)} />
-                      </div>
-                      <div>
-                          <Label className="text-sm">Partita IVA</Label>
-                          <Input value={partner.piva || ''} onChange={(e) => updatePartner(index, 'piva', e.target.value)} />
-                      </div>
+
+                  <div>
+                    <Label>Ragione Sociale</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_ragione_sociale}
+                      onChange={(e) => updateField("azienda_appaltatrice_ragione_sociale", e.target.value)}
+                      placeholder="Ragione sociale impresa"
+                    />
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Starting a new Accordion for the remaining sections */}
-      <Accordion type="multiple" defaultValue={["subappalti"]} className="w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"> {/* Existing grid for other fields */}
+                  <div>
+                    <Label>Indirizzo</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_indirizzo}
+                      onChange={(e) => updateField("azienda_appaltatrice_indirizzo", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>CAP</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_cap}
+                      onChange={(e) => updateField("azienda_appaltatrice_cap", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Città</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_citta}
+                      onChange={(e) => updateField("azienda_appaltatrice_citta", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Telefono</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_telefono}
+                      onChange={(e) => updateField("azienda_appaltatrice_telefono", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={form.azienda_appaltatrice_email}
+                      onChange={(e) => updateField("azienda_appaltatrice_email", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Codice Fiscale</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_cf}
+                      onChange={(e) => updateField("azienda_appaltatrice_cf", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Partita IVA</Label>
+                    <Input
+                      value={form.azienda_appaltatrice_piva}
+                      onChange={(e) => updateField("azienda_appaltatrice_piva", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Partner Consorziati */}
+                <div className="border-t pt-4 mt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <Label className="text-base font-semibold">Imprese Partner / Consorziate</Label>
+                    <Button type="button" onClick={addPartner} variant="outline" size="sm">
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      Aggiungi Impresa
+                    </Button>
+                  </div>
+
+                  {form.partner_consorziati && form.partner_consorziati.map((partner, index) => (
+                    <div key={index} className="border rounded-lg p-4 mb-4 bg-slate-50">
+                      <div className="flex items-start justify-between mb-3">
+                        <h4 className="font-medium text-slate-700">Impresa #{index + 1}</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removePartner(index)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-sm">Ragione Sociale</Label>
+                            <Input
+                              value={partner.ragione_sociale || ''}
+                              onChange={(e) => updatePartner(index, 'ragione_sociale', e.target.value)}
+                              placeholder="Ragione sociale"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Tipologia</Label>
+                            <Select
+                              value={partner.tipo_impresa || 'socio'}
+                              onValueChange={(value) => updatePartner(index, 'tipo_impresa', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="socio">Socio</SelectItem>
+                                <SelectItem value="consortile">Consortile</SelectItem>
+                                <SelectItem value="mandante">Mandante</SelectItem>
+                                <SelectItem value="mandataria">Mandataria</SelectItem>
+                                <SelectItem value="subappaltatore">Subappaltatore</SelectItem>
+                                <SelectItem value="subaffidatario">Subaffidatario</SelectItem>
+                                <SelectItem value="esecutrice">Esecutrice</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        {/* Rest of partner fields (keeping existing code) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-sm">Indirizzo</Label>
+                                <Input value={partner.indirizzo || ''} onChange={(e) => updatePartner(index, 'indirizzo', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label className="text-sm">CAP</Label>
+                                <Input value={partner.cap || ''} onChange={(e) => updatePartner(index, 'cap', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label className="text-sm">Città</Label>
+                                <Input value={partner.citta || ''} onChange={(e) => updatePartner(index, 'citta', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label className="text-sm">Telefono</Label>
+                                <Input value={partner.telefono || ''} onChange={(e) => updatePartner(index, 'telefono', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label className="text-sm">Email</Label>
+                                <Input type="email" value={partner.email || ''} onChange={(e) => updatePartner(index, 'email', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label className="text-sm">Codice Fiscale</Label>
+                                <Input value={partner.cf || ''} onChange={(e) => updatePartner(index, 'cf', e.target.value)} />
+                            </div>
+                            <div>
+                                <Label className="text-sm">Partita IVA</Label>
+                                <Input value={partner.piva || ''} onChange={(e) => updatePartner(index, 'piva', e.target.value)} />
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
         {/* Sezione 10: Subappalti */}
         <AccordionItem value="subappalti">
           <AccordionTrigger className="text-lg font-semibold">

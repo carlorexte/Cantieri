@@ -438,6 +438,46 @@ export default function CantiereDashboardPage() {
               </p>
             </div>
 
+            {/* Impresa Appaltatrice */}
+            {(cantiere.azienda_appaltatrice_ragione_sociale || cantiere.tipologia_azienda_appaltatrice) && (
+              <div className="pt-4 border-t">
+                <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-indigo-600" />
+                  Impresa Appaltatrice
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {cantiere.tipologia_azienda_appaltatrice && (
+                    <DetailField label="Tipologia" value={cantiere.tipologia_azienda_appaltatrice.replace('_', ' ')} />
+                  )}
+                  {cantiere.azienda_appaltatrice_ragione_sociale && (
+                    <DetailField label="Ragione Sociale" value={cantiere.azienda_appaltatrice_ragione_sociale} />
+                  )}
+                  {cantiere.azienda_appaltatrice_piva && (
+                    <DetailField label="P.IVA" value={cantiere.azienda_appaltatrice_piva} />
+                  )}
+                  {cantiere.azienda_appaltatrice_cf && (
+                    <DetailField label="Codice Fiscale" value={cantiere.azienda_appaltatrice_cf} />
+                  )}
+                  {cantiere.azienda_appaltatrice_indirizzo && (
+                    <DetailField 
+                      label="Indirizzo" 
+                      value={[
+                        cantiere.azienda_appaltatrice_indirizzo,
+                        cantiere.azienda_appaltatrice_cap,
+                        cantiere.azienda_appaltatrice_citta
+                      ].filter(Boolean).join(', ')} 
+                    />
+                  )}
+                  {cantiere.azienda_appaltatrice_email && (
+                    <DetailField label="Email" value={cantiere.azienda_appaltatrice_email} />
+                  )}
+                  {cantiere.azienda_appaltatrice_telefono && (
+                    <DetailField label="Telefono" value={cantiere.azienda_appaltatrice_telefono} />
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Committente */}
             {hasCommittenteData && (
               <div className="pt-4 border-t">
@@ -810,10 +850,8 @@ export default function CantiereDashboardPage() {
               <div className="flex-1 w-full h-full min-h-0">
                 {isLoadingViewer ? (
                   <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                      <p className="text-slate-600">Caricamento documento...</p>
-                    </div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">Caricamento documento...</p>
                   </div>
                 ) : signedUrl ? (
                   // Conditional rendering based on file type

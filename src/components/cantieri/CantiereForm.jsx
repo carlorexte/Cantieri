@@ -19,7 +19,7 @@ import { addDays, format, parseISO } from 'date-fns';
 import { Impresa } from "@/entities/Impresa"; // Assuming this entity exists and defines the structure of a company
 import CategorieSOASelector from "./CategorieSOASelector";
 import ImpresaSelectorForCantiere from "./ImpresaSelectorForCantiere";
-import SubappaltoForm from "../subappalti/SubappaltoForm"; // Corrected import for SubappaltoForm
+import SubappaltoForm from "../subappalti/SubappaltoForm";
 import PersonaEsternaSelector from "./PersonaEsternaSelector";
 
 export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Removed onDirtyChange prop
@@ -1052,7 +1052,8 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="pt-6 space-y-4"> {/* Removed Card wrapper, keeping CardContent padding and spacing */}
+            <Card> {/* Added Card wrapper */}
+              <CardContent className="pt-6 space-y-4"> {/* Added CardContent, keeping existing padding and spacing */}
                 <ImpresaSelectorForCantiere
                   label="Seleziona Impresa Appaltatrice Principale"
                   currentValues={{
@@ -1265,7 +1266,8 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                     </div>
                   ))}
                 </div>
-            </div>
+              </CardContent>
+            </Card> {/* Closed Card wrapper */}
           </AccordionContent>
         </AccordionItem>
 

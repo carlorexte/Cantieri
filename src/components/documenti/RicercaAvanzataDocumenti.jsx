@@ -51,16 +51,75 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     }
   };
 
+  const getCantiereNomi = useCallback((documento) => {
+    const nomi = [];
+    
+    if (documento.entita_collegate?.length > 0) {
+      documento.entita_collegate.forEach(e => {
+        if (e.entita_tipo === 'cantiere') {
+          const cantiere = cantieri.find(c => c.id === e.entita_id);
+          if (cantiere) nomi.push(cantiere.denominazione);
+        }
+      });
+    }
+    
+    if (nomi.length === 0 && documento.entita_collegata_tipo === 'cantiere') {
+      const cantiere = cantieri.find(c => c.id === documento.entita_collegata_id);
+      if (cantiere) nomi.push(cantiere.denominazione);
+    }
+    
+    return nomi;
+  }, [cantieri]);
+
+  const handleViewDocument = useCallback(async (doc) => {
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
+          expires_in: 3600
+        });
+        url = result.signed_url;
+      }
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error("Errore apertura documento:", error);
+      toast.error("Impossibile aprire il documento");
+    }
+  }, []);
+
+  const handleDownloadDocument = useCallback(async (doc) => {
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
+          expires_in: 300
+        });
+        url = result.signed_url;
+      }
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.nome_documento;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Download avviato");
+    } catch (error) {
+      console.error("Errore download:", error);
+      toast.error("Impossibile scaricare il documento");
+    }
+  }, []);
+
   const handleSearch = useCallback(async () => {
     setIsSearching(true);
     try {
-      const query = {};
+      let documenti = await base44.entities.Documento.list("-created_date", 200);
       
       if (categoriaFilter) {
-        query.categoria_principale = categoriaFilter;
+        documenti = documenti.filter(doc => doc.categoria_principale === categoriaFilter);
       }
-      
-      let documenti = await base44.entities.Documento.list("-created_date", 200);
       
       if (cantiereFilter) {
         documenti = documenti.filter(doc => {
@@ -118,67 +177,6 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     setSearchInContent(false);
     setRisultati([]);
   }, []);
-
-  const handleViewDocument = useCallback(async (doc) => {
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 3600
-        });
-        url = result.signed_url;
-      }
-      window.open(url, '_blank');
-    } catch (error) {
-      console.error("Errore apertura documento:", error);
-      toast.error("Impossibile aprire il documento");
-    }
-  }, []);
-
-  const handleDownloadDocument = useCallback(async (doc) => {
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 300
-        });
-        url = result.signed_url;
-      }
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.nome_documento;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast.success("Download avviato");
-    } catch (error) {
-      console.error("Errore download:", error);
-      toast.error("Impossibile scaricare il documento");
-    }
-  }, []);
-
-  const getCantiereNomi = useCallback((documento) => {
-    const nomi = [];
-    
-    if (documento.entita_collegate?.length > 0) {
-      documento.entita_collegate.forEach(e => {
-        if (e.entita_tipo === 'cantiere') {
-          const cantiere = cantieri.find(c => c.id === e.entita_id);
-          if (cantiere) nomi.push(cantiere.denominazione);
-        }
-      });
-    }
-    
-    if (nomi.length === 0 && documento.entita_collegata_tipo === 'cantiere') {
-      const cantiere = cantieri.find(c => c.id === documento.entita_collegata_id);
-      if (cantiere) nomi.push(cantiere.denominazione);
-    }
-    
-    return nomi;
-  }, [cantieri]);
 
   return (
     <div className="space-y-6">

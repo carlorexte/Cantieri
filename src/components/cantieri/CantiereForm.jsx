@@ -22,6 +22,7 @@ import ImpresaSelectorForCantiere from "./ImpresaSelectorForCantiere";
 import SubappaltoForm from "../subappalti/SubappaltoForm";
 import PersonaEsternaSelector from "./PersonaEsternaSelector";
 import PolizzaUploader from "./PolizzaUploader"; // Added PolizzaUploader import
+import DocumentUploader from "./DocumentUploader"; // Added DocumentUploader import
 
 export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Removed onDirtyChange prop
   const [form, setForm] = useState({
@@ -484,11 +485,13 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                 </div>
 
                 <div>
-                  <Label>Link Verbale Inizio Lavori</Label>
-                  <Input
+                  <Label>Verbale Inizio Lavori</Label>
+                  <DocumentUploader
+                    label="Verbale Inizio Lavori"
                     value={form.verbale_inizio_lavori_url}
-                    onChange={(e) => updateField("verbale_inizio_lavori_url", e.target.value)}
-                    placeholder="https://..." />
+                    onChange={(value) => updateField("verbale_inizio_lavori_url", value)}
+                    compact={true}
+                  />
                 </div>
               </CardContent>
             </Card>

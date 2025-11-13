@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Cantiere } from '@/entities/Cantiere';
 import { Subappalto } from '@/entities/Subappalto';
@@ -43,6 +44,7 @@ export default function CantiereDashboardPage() {
   const [subappalti, setSubappalti] = useState([]);
   const [documenti, setDocumenti] = useState([]);
   const [imprese, setImprese] = useState([]);
+  const [salList, setSalList] = useState([]); // New state for SAL list
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
@@ -82,16 +84,18 @@ export default function CantiereDashboardPage() {
   const loadData = async (cantiereId) => {
     setIsLoading(true);
     try {
-      const [cantiereData, subappaltiData, documentiData, impreseData] = await Promise.all([
+      const [cantiereData, subappaltiData, documentiData, impreseData, salData] = await Promise.all([ // Added salData
         Cantiere.get(cantiereId),
         Subappalto.filter({ cantiere_id: cantiereId }),
         Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }),
-        Impresa.list()
+        Impresa.list(),
+        base44.entities.SAL.filter({ cantiere_id: cantiereId }) // Fetch SAL data
       ]);
       setCantiere(cantiereData);
       setSubappalti(subappaltiData);
       setDocumenti(documentiData);
       setImprese(impreseData);
+      setSalList(salData); // Set SAL list state
 
       // Load PersoneEsterne
       if (cantiereData?.responsabile_sicurezza_id) {
@@ -175,6 +179,22 @@ export default function CantiereDashboardPage() {
     if (giorniTrascorsi > giorniTotali) return 100;
     
     return Math.round((giorniTrascorsi / giorniTotali) * 100);
+  };
+
+  // New function to calculate SAL advancement percentage
+  const calcolaAvanzamentoSAL = () => {
+    if (!cantiere?.importo_contrattuale_oltre_iva || cantiere.importo_contrattuale_oltre_iva <= 0) return 0;
+    
+    // Sum only the taxable amounts of progressive/final SALs (excluding advances)
+    const totaleCertificato = salList.reduce((sum, sal) => {
+      if (sal.tipo_sal_dettaglio !== 'anticipazione') {
+        return sum + (sal.imponibile || 0);
+      }
+      return sum;
+    }, 0);
+    
+    const percentuale = (totaleCertificato / cantiere.importo_contrattuale_oltre_iva) * 100;
+    return Math.min(Math.round(percentuale), 100); // Cap at 100%
   };
 
   const getStatoAvanzamento = () => {
@@ -273,7 +293,8 @@ export default function CantiereDashboardPage() {
         a.download = documento.nome_documento;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        window.URL.revokeObjectURL(urlToDownload); // Clean up the object URL
+        a.remove(); // Remove the temporary anchor tag
         toast.success("Download avviato.");
       } catch (error) {
         console.error("Errore download documento:", error);
@@ -360,6 +381,7 @@ export default function CantiereDashboardPage() {
   };
 
   const percentualeCompletamento = calcolaPercentualeCompletamento();
+  const percentualeAvanzamentoSAL = calcolaAvanzamentoSAL(); // New SAL percentage calculation
   const statoAvanzamento = getStatoAvanzamento();
   const StatoIcon = statoAvanzamento.icon;
 
@@ -430,7 +452,7 @@ export default function CantiereDashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Avanzamento Temporale sempre visibile */}
+            {/* Avanzamento Temporale */}
             <div className="mb-6 pb-6 border-b">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-slate-900">Avanzamento Temporale</h3>
@@ -443,6 +465,30 @@ export default function CantiereDashboardPage() {
                 <Progress value={percentualeCompletamento} className="h-3 flex-1" />
                 <span className="text-lg font-bold text-slate-700 min-w-[60px] text-right">
                   {percentualeCompletamento}%
+                </span>
+              </div>
+            </div>
+
+            {/* Avanzamento SAL - NEW BLOCK */}
+            <div className="mb-6 pb-6 border-b">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-slate-900">Avanzamento SAL</h3>
+                <div className="flex items-center gap-2 text-indigo-600">
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    {renderImporto(salList.reduce((sum, sal) => {
+                      if (sal.tipo_sal_dettaglio !== 'anticipazione') { // Only sum non-anticipation SALs
+                        return sum + (sal.imponibile || 0);
+                      }
+                      return sum;
+                    }, 0))} / {renderImporto(cantiere.importo_contrattuale_oltre_iva)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <Progress value={percentualeAvanzamentoSAL} className="h-3 flex-1" />
+                <span className="text-lg font-bold text-indigo-700 min-w-[60px] text-right">
+                  {percentualeAvanzamentoSAL}%
                 </span>
               </div>
             </div>

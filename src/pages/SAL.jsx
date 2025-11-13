@@ -162,16 +162,17 @@ export default function SalPage() {
 
   const stats = filteredSal.reduce((acc, sal) => {
     if (sal.tipo_sal_dettaglio !== 'anticipazione') {
-      acc.totaleCertificato += sal.totale_fattura || sal.imponibile || 0; // CORRETTO: usa campi corretti
+      acc.totaleCertificato += sal.imponibile || 0; // SEMPRE SOLO IMPONIBILE (escluso IVA)
     }
     return acc;
   }, { totaleCertificato: 0 });
 
-  const daCertificare = (selectedCantiere?.importo_contratto || 0) - stats.totaleCertificato;
+  const importoContrattoOltreIva = selectedCantiere?.importo_contrattuale_oltre_iva || 0;
+  const daCertificare = importoContrattoOltreIva - stats.totaleCertificato;
   
-  // FIX: Limita l'avanzamento al 100%
-  const percentualeCompletamento = selectedCantiere?.importo_contratto 
-    ? Math.min(Math.round((stats.totaleCertificato / selectedCantiere.importo_contratto) * 100), 100)
+  // FIX: Calcolo avanzamento su importo oltre IVA
+  const percentualeCompletamento = importoContrattoOltreIva > 0
+    ? Math.min(Math.round((stats.totaleCertificato / importoContrattoOltreIva) * 100), 100)
     : 0;
 
   return (
@@ -231,9 +232,9 @@ export default function SalPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Importo Contratto</p>
+                    <p className="text-sm font-medium text-slate-500">Importo Contratto (oltre IVA)</p>
                     <p className="text-2xl font-bold text-slate-900 mt-1">
-                      € {(selectedCantiere?.importo_contratto || 0).toLocaleString('it-IT')}
+                      € {importoContrattoOltreIva.toLocaleString('it-IT')}
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
@@ -247,7 +248,7 @@ export default function SalPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Totale Certificato</p>
+                    <p className="text-sm font-medium text-slate-500">Totale Certificato (imponibile)</p>
                     <p className="text-2xl font-bold text-emerald-600 mt-1">
                       € {stats.totaleCertificato.toLocaleString('it-IT')}
                     </p>

@@ -21,6 +21,7 @@ import CategorieSOASelector from "./CategorieSOASelector";
 import ImpresaSelectorForCantiere from "./ImpresaSelectorForCantiere";
 import SubappaltoForm from "../subappalti/SubappaltoForm";
 import PersonaEsternaSelector from "./PersonaEsternaSelector";
+import PolizzaUploader from "./PolizzaUploader"; // Added PolizzaUploader import
 
 export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Removed onDirtyChange prop
   const [form, setForm] = useState({
@@ -726,86 +727,47 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
           <AccordionContent>
             <Card>
               <CardContent className="pt-6 space-y-6">
-                {/* Polizza Definitiva */}
-                <div>
-                  <h4 className="text-md font-semibold text-slate-900 mb-3">Polizza Definitiva</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Numero Polizza</Label>
-                      <Input value={form.polizza_definitiva_numero} onChange={(e) => updateField("polizza_definitiva_numero", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Link alla Polizza</Label>
-                      <Input value={form.polizza_definitiva_url} onChange={(e) => updateField("polizza_definitiva_url", e.target.value)} placeholder="https://..." />
-                    </div>
-                    <div>
-                      <Label>Data Scadenza</Label>
-                      <Input type="date" value={form.polizza_definitiva_scadenza} onChange={(e) => updateField("polizza_definitiva_scadenza", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Durata</Label>
-                      <Input value={form.polizza_definitiva_durata} onChange={(e) => updateField("polizza_definitiva_durata", e.target.value)} placeholder="es. 2 anni" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>Agenzia</Label>
-                      <Input value={form.polizza_definitiva_agenzia} onChange={(e) => updateField("polizza_definitiva_agenzia", e.target.value)} />
-                    </div>
-                  </div>
-                </div>
+                <PolizzaUploader
+                  label="Polizza Definitiva"
+                  value={form.polizza_definitiva_url}
+                  onChange={(value) => updateField("polizza_definitiva_url", value)}
+                  numeroPolizza={form.polizza_definitiva_numero}
+                  onNumeroChange={(value) => updateField("polizza_definitiva_numero", value)}
+                  dataScadenza={form.polizza_definitiva_scadenza}
+                  onDataScadenzaChange={(value) => updateField("polizza_definitiva_scadenza", value)}
+                  durata={form.polizza_definitiva_durata}
+                  onDurataChange={(value) => updateField("polizza_definitiva_durata", value)}
+                  agenzia={form.polizza_definitiva_agenzia}
+                  onAgenziaChange={(value) => updateField("polizza_definitiva_agenzia", value)}
+                />
 
-                {/* Polizza CAR */}
-                <div className="border-t pt-6">
-                  <h4 className="text-md font-semibold text-slate-900 mb-3">Polizza CAR</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Numero Polizza</Label>
-                      <Input value={form.polizza_car_numero} onChange={(e) => updateField("polizza_car_numero", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Link alla Polizza</Label>
-                      <Input value={form.polizza_car_url} onChange={(e) => updateField("polizza_car_url", e.target.value)} placeholder="https://..." />
-                    </div>
-                    <div>
-                      <Label>Data Scadenza</Label>
-                      <Input type="date" value={form.polizza_car_scadenza} onChange={(e) => updateField("polizza_car_scadenza", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Durata</Label>
-                      <Input value={form.polizza_car_durata} onChange={(e) => updateField("polizza_car_durata", e.target.value)} placeholder="es. 2 anni" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>Agenzia</Label>
-                      <Input value={form.polizza_car_agenzia} onChange={(e) => updateField("polizza_car_agenzia", e.target.value)} />
-                    </div>
-                  </div>
-                </div>
+                <PolizzaUploader
+                  label="Polizza CAR"
+                  value={form.polizza_car_url}
+                  onChange={(value) => updateField("polizza_car_url", value)}
+                  numeroPolizza={form.polizza_car_numero}
+                  onNumeroChange={(value) => updateField("polizza_car_numero", value)}
+                  dataScadenza={form.polizza_car_scadenza}
+                  onDataScadenzaChange={(value) => updateField("polizza_car_scadenza", value)}
+                  durata={form.polizza_car_durata}
+                  onDurataChange={(value) => updateField("polizza_car_durata", value)}
+                  agenzia={form.polizza_car_agenzia}
+                  onAgenziaChange={(value) => updateField("polizza_car_agenzia", value)}
+                />
 
-                {/* Polizza Anticipazione */}
-                <div className="border-t pt-6">
-                  <h4 className="text-md font-semibold text-slate-900 mb-3">Polizza Anticipazione</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Numero Polizza</Label>
-                      <Input value={form.polizza_anticipazione_numero} onChange={(e) => updateField("polizza_anticipazione_numero", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Link alla Polizza</Label>
-                      <Input value={form.polizza_anticipazione_url} onChange={(e) => updateField("polizza_anticipazione_url", e.target.value)} placeholder="https://..." />
-                    </div>
-                    <div>
-                      <Label>Data Scadenza</Label>
-                      <Input type="date" value={form.polizza_anticipazione_scadenza} onChange={(e) => updateField("polizza_anticipazione_scadenza", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Durata</Label>
-                      <Input value={form.polizza_anticipazione_durata} onChange={(e) => updateField("polizza_anticipazione_durata", e.target.value)} placeholder="es. 2 anni" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>Agenzia</Label>
-                      <Input value={form.polizza_anticipazione_agenzia} onChange={(e) => updateField("polizza_anticipazione_agenzia", e.target.value)} />
-                    </div>
-                  </div>
-                </div>
+                <PolizzaUploader
+                  label="Polizza Anticipazione"
+                  value={form.polizza_anticipazione_url}
+                  onChange={(value) => updateField("polizza_anticipazione_url", value)}
+                  numeroPolizza={form.polizza_anticipazione_numero}
+                  onNumeroChange={(value) => updateField("polizza_anticipazione_numero", value)}
+                  dataScadenza={form.polizza_anticipazione_scadenza}
+                  onDataScadenzaChange={(value) => updateField("polizza_anticipazione_scadenza", value)}
+                  durata={form.polizza_anticipazione_durata}
+                  onDurataChange={(value) => updateField("polizza_anticipazione_durata", value)}
+                  agenzia={form.polizza_anticipazione_agenzia}
+                  onAgenziaChange={(value) => updateField("polizza_anticipazione_agenzia", value)}
+                />
               </CardContent>
             </Card>
           </AccordionContent>

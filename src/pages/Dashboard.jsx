@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Building2, Euro, TrendingUp, Calendar, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
 
 import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
 import CantieriAttivi from "../components/dashboard/CantieriAttivi";
 import TaskPersonali from "../components/dashboard/TaskPersonali";
+import GraficoSALTempo from "../components/dashboard/GraficoSALTempo";
+import GraficoDistribuzioneCosti from "../components/dashboard/GraficoDistribuzioneCosti";
+import HeatmapScadenze from "../components/dashboard/HeatmapScadenze";
+import GraficoAvanzamentoCantieri from "../components/dashboard/GraficoAvanzamentoCantieri";
 
 export default function Dashboard() {
   const [cantieri, setCantieri] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [taskPersonali, setTaskPersonali] = useState([]);
   const [documenti, setDocumenti] = useState([]);
+  const [salList, setSalList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [kpis, setKpis] = useState({
     cantieriAttivi: 0,
@@ -22,14 +27,14 @@ export default function Dashboard() {
 
   const loadAdminDashboard = useCallback(async () => {
     const [cantieriData, salData, documentiData] = await Promise.all([
-      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 50), // Solo cantieri attivi, limitato a 50
-      base44.entities.SAL.list("-data_sal", 200), // Limitato a ultimi 200 SAL
-      base44.entities.Documento.list("-created_date", 100) // Limitato a ultimi 100 documenti
+      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 50),
+      base44.entities.SAL.list("-data_sal", 200),
+      base44.entities.Documento.list("-created_date", 100)
     ]);
 
     setDocumenti(documentiData);
+    setSalList(salData);
 
-    // Calcola il totale certificato per ogni cantiere (solo imponibile) - ottimizzato
     const salByCantiere = new Map();
     salData.forEach(sal => {
       if (sal.tipo_sal_dettaglio !== 'anticipazione') {
@@ -54,7 +59,6 @@ export default function Dashboard() {
     
     const cantieriAttivi = cantieriConAvanzamento.length;
     
-    // Carica tutti i cantieri solo per valore totale portafoglio
     const allCantieri = await base44.entities.Cantiere.list();
     const valorePortafoglio = allCantieri.reduce((sum, c) => sum + (c.importo_contratto || 0), 0);
     
@@ -67,7 +71,6 @@ export default function Dashboard() {
       ? Math.round((weightedProgressSum / totalValueOfActiveContracts) * 100)
       : 0;
 
-    // Calcola documenti in scadenza (prossimi 30 giorni) - ottimizzato
     const oggi = Date.now();
     const trentaGiorniMs = 30 * 24 * 60 * 60 * 1000;
     
@@ -94,7 +97,6 @@ export default function Dashboard() {
 
     setTaskPersonali(taskData);
     
-    // Carica solo i documenti necessari per gli alert
     const documentiData = await base44.entities.Documento.filter({}, "-data_scadenza", 50);
     setDocumenti(documentiData);
     
@@ -102,7 +104,6 @@ export default function Dashboard() {
     const cantieriConTask = cantieriData.filter(cantiere => cantieriIds.has(cantiere.id));
     setCantieri(cantieriConTask);
 
-    // Calcoli ottimizzati
     let taskCompletati = 0, taskInCorso = 0, taskInRitardo = 0;
     const oggi = Date.now();
     
@@ -155,7 +156,6 @@ export default function Dashboard() {
       const alerts = [];
       const setteGiorniMs = 7 * 24 * 60 * 60 * 1000;
 
-      // Ottimizzato con un solo loop
       documenti.forEach(doc => {
         if (!doc.data_scadenza) return;
         
@@ -247,6 +247,17 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Grafici Avanzati */}
+      <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <GraficoSALTempo cantieri={cantieri} salList={salList} />
+        <GraficoDistribuzioneCosti documenti={documenti} salList={salList} />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <HeatmapScadenze documenti={documenti} />
+        <GraficoAvanzamentoCantieri cantieri={cantieri} />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CantieriAttivi 
@@ -259,7 +270,7 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  ), [kpis, cantieri, isLoading, getAlertsForUser]);
+  ), [kpis, cantieri, salList, documenti, isLoading, getAlertsForUser]);
 
   const renderUserDashboard = useCallback(() => (
     <>
@@ -325,7 +336,10 @@ export default function Dashboard() {
                 <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
               ))}
             </div>
-            <div className="h-96 bg-slate-200 rounded-xl"></div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="h-96 bg-slate-200 rounded-xl"></div>
+              <div className="h-96 bg-slate-200 rounded-xl"></div>
+            </div>
           </div>
         ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}
       </div>

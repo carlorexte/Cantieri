@@ -518,14 +518,6 @@ export default function CantiereDashboardPage() {
                     <DetailField label="CIG" value={cantiere.codice_cig} />
                     <DetailField label="CUP" value={cantiere.codice_cup} />
                     <DetailField label="Stato" value={cantiere.stato || "In corso"} />
-                    {cantiere.verbale_inizio_lavori_url && (
-                      <div className="col-span-2">
-                        <p className="text-sm text-slate-500">Verbale Inizio Lavori</p>
-                        <a href={cantiere.verbale_inizio_lavori_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
-                          Visualizza documento
-                        </a>
-                      </div>
-                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -1038,6 +1030,38 @@ export default function CantiereDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Verbale Inizio Lavori - AGGIUNTO */}
+                {cantiere.verbale_inizio_lavori_url && (
+                  <div className="mb-4 pb-4 border-b">
+                    <div className="p-3 border rounded-md bg-indigo-50 border-indigo-200 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-900">Verbale Inizio Lavori</p>
+                        <p className="text-sm text-slate-500">Documento ufficiale</p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={async () => {
+                            try {
+                              const result = await base44.integrations.Core.CreateFileSignedUrl({
+                                file_uri: cantiere.verbale_inizio_lavori_url,
+                                expires_in: 3600
+                              });
+                              window.open(result.signed_url, '_blank');
+                            } catch (error) {
+                              toast.error("Impossibile aprire il documento");
+                            }
+                          }}
+                          title="Visualizza documento"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {documenti.length > 0 ? (
                   <div className="space-y-2">
                     {documenti.map(doc => (
@@ -1074,7 +1098,9 @@ export default function CantiereDashboardPage() {
                       </div>
                     ))}
                   </div>
-                ) : <p className="text-slate-500">Nessun documento caricato.</p>}
+                ) : (
+                  !cantiere.verbale_inizio_lavori_url && <p className="text-slate-500">Nessun documento caricato.</p>
+                )}
               </CardContent>
             </Card>
           </div>

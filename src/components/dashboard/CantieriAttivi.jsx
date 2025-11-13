@@ -1,26 +1,43 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Building2, Calendar, Clock, AlertTriangle } from 'lucide-react';
-import { Progress } from "@/components/ui/progress"; // Importo il componente Progress - This import will still be there but the component won't be used directly in the final version, but it's part of the original file, so keeping it.
-import { differenceInDays, isPast, parseISO } from 'date-fns';
+import { Progress } from "@/components/ui/progress";
+import { differenceInDays, isPast, parseISO, isValid } from 'date-fns';
 
 const CantieriAttivi = React.memo(({ cantieri, isLoading }) => {
   const getStatus = (cantiere) => {
-    if (!cantiere.data_fine_prevista) return { text: 'Da definire', color: 'text-slate-500', icon: <Clock className="w-3 h-3" /> };
+    // Check if data_fine_prevista exists and is valid
+    if (!cantiere.data_fine_prevista) {
+      return { text: 'Da definire', color: 'text-slate-500', icon: <Clock className="w-3 h-3" /> };
+    }
     
-    const dataFine = parseISO(cantiere.data_fine_prevista);
-    const giorniRimanenti = differenceInDays(dataFine, new Date());
+    try {
+      const dataFine = parseISO(cantiere.data_fine_prevista);
+      
+      // Validate the parsed date
+      if (!isValid(dataFine)) {
+        return { text: 'Data non valida', color: 'text-slate-500', icon: <Clock className="w-3 h-3" /> };
+      }
+      
+      const oggi = new Date();
+      oggi.setHours(0, 0, 0, 0);
+      dataFine.setHours(0, 0, 0, 0);
+      
+      const giorniRimanenti = differenceInDays(dataFine, oggi);
 
-    if (isPast(dataFine) && giorniRimanenti < 0) {
-      return { text: `Scaduto da ${Math.abs(giorniRimanenti)} giorni`, color: 'text-rose-600', icon: <AlertTriangle className="w-3 h-3" /> };
+      if (giorniRimanenti < 0) {
+        return { text: `Scaduto da ${Math.abs(giorniRimanenti)} giorni`, color: 'text-rose-600', icon: <AlertTriangle className="w-3 h-3" /> };
+      }
+      if (giorniRimanenti <= 7) {
+        return { text: `Scade tra ${giorniRimanenti} giorni`, color: 'text-amber-600', icon: <Clock className="w-3 h-3" /> };
+      }
+      return { text: `${giorniRimanenti} giorni rimanenti`, color: 'text-emerald-600', icon: <Calendar className="w-3 h-3" /> };
+    } catch (error) {
+      console.error('Errore nel parsing della data:', error, cantiere.data_fine_prevista);
+      return { text: 'Errore data', color: 'text-slate-500', icon: <Clock className="w-3 h-3" /> };
     }
-    if (giorniRimanenti <= 7) {
-      return { text: `Scade tra ${giorniRimanenti} giorni`, color: 'text-amber-600', icon: <Clock className="w-3 h-3" /> };
-    }
-    return { text: `${giorniRimanenti} giorni rimanenti`, color: 'text-emerald-600', icon: <Calendar className="w-3 h-3" /> };
   };
 
   return (

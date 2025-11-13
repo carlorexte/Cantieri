@@ -1,13 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Cantiere } from "@/entities/Cantiere";
-import { User } from "@/entities/User";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Plus, Search, Building2, Calendar, Euro, MoreHorizontal, Eye, Edit, Trash2, MapPin, BarChart3 } from "lucide-react"; // Added BarChart3
+import { Plus, Search, Building2, Calendar, Euro, MoreHorizontal, Edit, Trash2, MapPin, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
@@ -33,9 +30,113 @@ const statusColors = {
   in_gara: "bg-purple-50 text-purple-700 border-purple-200"
 };
 
+const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) => (
+  <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white group">
+    <CardContent className="p-6">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-3">
+            {cantiere.numero_cantiere && (
+              <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 font-mono">
+                #{cantiere.numero_cantiere}
+              </Badge>
+            )}
+            <Link 
+              to={createPageUrl(`CantiereDashboard?id=${cantiere.id}`)}
+              className="hover:text-indigo-600 transition-colors"
+            >
+              <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                {cantiere.denominazione}
+              </h3>
+            </Link>
+            <Badge 
+              variant="secondary"
+              className={`${statusColors[cantiere.stato] || statusColors.attivo} border`}
+            >
+              {cantiere.stato}
+            </Badge>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600 mb-3">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-slate-400" />
+              <span className="font-medium">CIG:</span>
+              <span>{cantiere.codice_cig || 'N/D'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Euro className="w-4 h-4 text-slate-400" />
+              <span className="font-medium">Importo:</span>
+              <span>€ {cantiere.importo_contratto?.toLocaleString('it-IT') || 'N/D'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <span className="font-medium">Inizio:</span>
+              <span>{cantiere.data_inizio ? new Date(cantiere.data_inizio).toLocaleDateString('it-IT') : 'N/D'}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-sm text-slate-600">
+            {cantiere.committente_ragione_sociale && (
+              <div className="flex items-start gap-2">
+                <span className="font-medium min-w-[120px]">Committente:</span>
+                <span>{cantiere.committente_ragione_sociale}</span>
+              </div>
+            )}
+            {cantiere.oggetto_lavori && (
+              <div className="flex items-start gap-2">
+                <span className="font-medium min-w-[120px]">Oggetto:</span>
+                <span className="line-clamp-2">{cantiere.oggetto_lavori}</span>
+              </div>
+            )}
+            {(cantiere.indirizzo || cantiere.indirizzo_citta) && (
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-slate-400" />
+                <span>
+                  {[cantiere.indirizzo, cantiere.indirizzo_citta].filter(Boolean).join(', ')}
+                </span>
+              </div>
+            )}
+            {cantiere.referente_interno && (
+              <div className="flex items-start gap-2">
+                <span className="font-medium min-w-[120px]">Referente:</span>
+                <span>{cantiere.referente_interno}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
+              <MoreHorizontal className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+              <DropdownMenuItem onClick={() => onEdit(cantiere)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Modifica
+              </DropdownMenuItem>
+            )}
+            {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+              <DropdownMenuItem 
+                onClick={() => onDelete(cantiere.id)}
+                className="text-red-600 focus:bg-red-50 focus:text-red-700"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Elimina
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </CardContent>
+  </Card>
+));
+CantiereCard.displayName = 'CantiereCard';
+
 export default function Cantieri() {
   const [cantieri, setCantieri] = useState([]);
-  const [filteredCantieri, setFilteredCantieri] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("tutti");
   const [isLoading, setIsLoading] = useState(true);
@@ -60,18 +161,18 @@ export default function Cantieri() {
 
   useEffect(() => {
     const loadInitialData = async () => {
-        await loadCantieri();
-        try {
-            const user = await base44.auth.me();
-            setCurrentUser(user);
-        } catch (error) {
-            console.error("Errore caricamento utente corrente:", error);
-        }
+      await loadCantieri();
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error("Errore caricamento utente corrente:", error);
+      }
     }
     loadInitialData();
   }, [loadCantieri]);
 
-  const filterCantieri = useCallback(() => {
+  const filteredCantieri = useMemo(() => {
     let filtered = cantieri;
     
     if (searchTerm) {
@@ -87,27 +188,19 @@ export default function Cantieri() {
       filtered = filtered.filter(cantiere => cantiere.stato === statusFilter);
     }
 
-    setFilteredCantieri(filtered);
+    return filtered;
   }, [cantieri, searchTerm, statusFilter]);
 
-  useEffect(() => {
-    filterCantieri();
-  }, [filterCantieri]);
-
-  const handleSubmit = async (cantiereData) => {
+  const handleSubmit = useCallback(async (cantiereData) => {
     try {
       if (editingCantiere) {
         await base44.entities.Cantiere.update(editingCantiere.id, cantiereData);
       } else {
-        // Calcola il prossimo numero cantiere
-        const maxNumero = cantieri.reduce((max, c) => 
-          Math.max(max, c.numero_cantiere || 0), 0
-        );
-        const nuovoCantiere = {
+        const maxNumero = cantieri.reduce((max, c) => Math.max(max, c.numero_cantiere || 0), 0);
+        await base44.entities.Cantiere.create({
           ...cantiereData,
           numero_cantiere: maxNumero + 1
-        };
-        await base44.entities.Cantiere.create(nuovoCantiere);
+        });
       }
       setShowForm(false);
       setEditingCantiere(null);
@@ -116,9 +209,9 @@ export default function Cantieri() {
     } catch (error) {
       console.error("Errore salvataggio cantiere:", error);
     }
-  };
+  }, [editingCantiere, cantieri, loadCantieri]);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo cantiere? L'azione è irreversibile.")) {
       try {
         await base44.entities.Cantiere.delete(id);
@@ -127,33 +220,26 @@ export default function Cantieri() {
         console.error("Errore durante l'eliminazione del cantiere:", error);
       }
     }
-  };
+  }, [loadCantieri]);
 
-  const handleEdit = (cantiere) => {
+  const handleEdit = useCallback((cantiere) => {
     setEditingCantiere(cantiere);
     setFormIsDirty(false);
     setShowForm(true);
-  };
-  
-  const handleViewDetail = (cantiere) => {
-    setSelectedCantiere(cantiere);
-    setShowDetailDialog(true);
-  };
+  }, []);
 
-  const handleCloseForm = () => {
+  const handleCloseForm = useCallback(() => {
     if (formIsDirty) {
       const confirmClose = window.confirm(
         "Hai modificato dei dati non salvati. Sei sicuro di voler chiudere senza salvare?"
       );
-      if (!confirmClose) {
-        return;
-      }
+      if (!confirmClose) return;
     }
     
     setShowForm(false);
     setEditingCantiere(null);
     setFormIsDirty(false);
-  };
+  }, [formIsDirty]);
 
   const stats = useMemo(() => ({
     totale: cantieri.length,
@@ -285,7 +371,7 @@ export default function Cantieri() {
             </Card>
           </div>
 
-          {/* Lista Cantieri - AGGIORNATA */}
+          {/* Lista Cantieri */}
           <div className="grid gap-4">
             {isLoading ? (
               <div className="space-y-4">
@@ -303,110 +389,13 @@ export default function Cantieri() {
               </div>
             ) : (
               filteredCantieri.map((cantiere) => (
-                <Card key={cantiere.id} className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white group">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          {cantiere.numero_cantiere && (
-                            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 font-mono">
-                              #{cantiere.numero_cantiere}
-                            </Badge>
-                          )}
-                          <Link 
-                            to={createPageUrl(`CantiereDashboard?id=${cantiere.id}`)}
-                            className="hover:text-indigo-600 transition-colors"
-                          >
-                            <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                              {cantiere.denominazione}
-                            </h3>
-                          </Link>
-                          <Badge 
-                            variant="secondary"
-                            className={`${statusColors[cantiere.stato] || statusColors.attivo} border`}
-                          >
-                            {cantiere.stato}
-                          </Badge>
-                        </div>
-                        
-                        {/* Dettagli principali - ESPANSI */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600 mb-3">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-slate-400" />
-                            <span className="font-medium">CIG:</span>
-                            <span>{cantiere.codice_cig || 'N/D'}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Euro className="w-4 h-4 text-slate-400" />
-                            <span className="font-medium">Importo:</span>
-                            <span>€ {cantiere.importo_contratto?.toLocaleString('it-IT') || 'N/D'}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-slate-400" />
-                            <span className="font-medium">Inizio:</span>
-                            <span>{cantiere.data_inizio ? new Date(cantiere.data_inizio).toLocaleDateString('it-IT') : 'N/D'}</span>
-                          </div>
-                        </div>
-
-                        {/* Informazioni aggiuntive */}
-                        <div className="space-y-2 text-sm text-slate-600">
-                          {cantiere.committente_ragione_sociale && (
-                            <div className="flex items-start gap-2">
-                              <span className="font-medium min-w-[120px]">Committente:</span>
-                              <span>{cantiere.committente_ragione_sociale}</span>
-                            </div>
-                          )}
-                          {cantiere.oggetto_lavori && (
-                            <div className="flex items-start gap-2">
-                              <span className="font-medium min-w-[120px]">Oggetto:</span>
-                              <span className="line-clamp-2">{cantiere.oggetto_lavori}</span>
-                            </div>
-                          )}
-                          {(cantiere.indirizzo || cantiere.indirizzo_citta) && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-slate-400" />
-                              <span>
-                                {[cantiere.indirizzo, cantiere.indirizzo_citta].filter(Boolean).join(', ')}
-                              </span>
-                            </div>
-                          )}
-                          {cantiere.referente_interno && (
-                            <div className="flex items-start gap-2">
-                              <span className="font-medium min-w-[120px]">Referente:</span>
-                              <span>{cantiere.referente_interno}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
-                            <MoreHorizontal className="w-5 h-5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          {/* Removed the 'Visualizza' menu item as per outline, assuming direct click on card title/link handles viewing */}
-                          {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
-                            <DropdownMenuItem onClick={() => handleEdit(cantiere)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Modifica
-                            </DropdownMenuItem>
-                          )}
-                          {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(cantiere.id)}
-                              className="text-red-600 focus:bg-red-50 focus:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Elimina
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardContent>
-                </Card>
+                <CantiereCard
+                  key={cantiere.id}
+                  cantiere={cantiere}
+                  currentUser={currentUser}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
               ))
             )}
           </div>
@@ -460,9 +449,6 @@ export default function Cantieri() {
           </Dialog>
 
           {/* Dialog per i dettagli del cantiere */}
-          {/* This dialog is still present but no longer directly triggered by a DropdownMenuItem. */}
-          {/* If it's intended to be used, a new trigger (e.g., clicking anywhere on the card other than the title link) would be needed. */}
-          {/* For now, it remains callable via handleViewDetail if used elsewhere. */}
           <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Cantiere } from '@/entities/Cantiere';
 import { Subappalto } from '@/entities/Subappalto';
 import { Documento } from '@/entities/Documento';
@@ -32,19 +32,20 @@ import DocumentoForm from '../components/documenti/DocumentoForm';
 import AlertScadenzeCard from '../components/cantiere-dashboard/AlertScadenzeCard';
 import CantiereForm from '../components/cantieri/CantiereForm';
 
-const DetailField = ({ label, value }) => (
+const DetailField = React.memo(({ label, value }) => (
   <div>
     <p className="text-sm text-slate-500">{label}</p>
     <p className="font-medium text-slate-800">{value || 'N/D'}</p>
   </div>
-);
+));
+DetailField.displayName = 'DetailField';
 
 export default function CantiereDashboardPage() {
   const [cantiere, setCantiere] = useState(null);
   const [subappalti, setSubappalti] = useState([]);
   const [documenti, setDocumenti] = useState([]);
   const [imprese, setImprese] = useState([]);
-  const [salList, setSalList] = useState([]); // New state for SAL list
+  const [salList, setSalList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
@@ -59,14 +60,64 @@ export default function CantiereDashboardPage() {
   const [direttoreLavori, setDirettoreLavori] = useState(null);
   const [responsabileUnico, setResponsabileUnico] = useState(null);
 
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       const user = await base44.auth.me();
       setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento utente:", error);
     }
-  };
+  }, []);
+
+  const loadData = useCallback(async (cantiereId) => {
+    setIsLoading(true);
+    try {
+      const [cantiereData, subappaltiData, documentiData, impreseData, salData] = await Promise.all([
+        Cantiere.get(cantiereId),
+        Subappalto.filter({ cantiere_id: cantiereId }),
+        Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
+        Impresa.list("-created_date", 100),
+        base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal")
+      ]);
+      setCantiere(cantiereData);
+      setSubappalti(subappaltiData);
+      setDocumenti(documentiData);
+      setImprese(impreseData);
+      setSalList(salData);
+
+      // Load PersoneEsterne in parallelo
+      const personaPromises = [];
+      
+      if (cantiereData?.responsabile_sicurezza_id) {
+        personaPromises.push(
+          base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id })
+            .then(persone => persone.length > 0 && setResponsabileSicurezza(persone[0]))
+            .catch(err => console.error("Errore caricamento responsabile sicurezza:", err))
+        );
+      }
+      
+      if (cantiereData?.direttore_lavori_id) {
+        personaPromises.push(
+          base44.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id })
+            .then(persone => persone.length > 0 && setDirettoreLavori(persone[0]))
+            .catch(err => console.error("Errore caricamento direttore lavori:", err))
+        );
+      }
+      
+      if (cantiereData?.responsabile_unico_procedimento_id) {
+        personaPromises.push(
+          base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id })
+            .then(persone => persone.length > 0 && setResponsabileUnico(persone[0]))
+            .catch(err => console.error("Errore caricamento RUP:", err))
+        );
+      }
+      
+      await Promise.all(personaPromises);
+    } catch (error) {
+      console.error("Errore nel caricamento dei dati del cantiere:", error);
+    }
+    setIsLoading(false);
+  }, [setCantiere, setSubappalti, setDocumenti, setImprese, setSalList, setResponsabileSicurezza, setDirettoreLavori, setResponsabileUnico]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -79,60 +130,11 @@ export default function CantiereDashboardPage() {
     }
     
     loadUser();
-  }, []);
+  }, [loadData, loadUser]);
 
-  const loadData = async (cantiereId) => {
-    setIsLoading(true);
+  const handleDocumentoSubmit = useCallback(async (formData) => {
     try {
-      const [cantiereData, subappaltiData, documentiData, impreseData, salData] = await Promise.all([ // Added salData
-        Cantiere.get(cantiereId),
-        Subappalto.filter({ cantiere_id: cantiereId }),
-        Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }),
-        Impresa.list(),
-        base44.entities.SAL.filter({ cantiere_id: cantiereId }) // Fetch SAL data
-      ]);
-      setCantiere(cantiereData);
-      setSubappalti(subappaltiData);
-      setDocumenti(documentiData);
-      setImprese(impreseData);
-      setSalList(salData); // Set SAL list state
-
-      // Load PersoneEsterne
-      if (cantiereData?.responsabile_sicurezza_id) {
-        try {
-          const persone = await base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id });
-          if (persone.length > 0) setResponsabileSicurezza(persone[0]);
-        } catch (error) {
-          console.error("Errore caricamento responsabile sicurezza:", error);
-        }
-      }
-      
-      if (cantiereData?.direttore_lavori_id) {
-        try {
-          const persone = await base44.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id });
-          if (persone.length > 0) setDirettoreLavori(persone[0]);
-        } catch (error) {
-          console.error("Errore caricamento direttore lavori:", error);
-        }
-      }
-      
-      if (cantiereData?.responsabile_unico_procedimento_id) {
-        try {
-          const persone = await base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id });
-          if (persone.length > 0) setResponsabileUnico(persone[0]);
-        } catch (error) {
-          console.error("Errore caricamento RUP:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Errore nel caricamento dei dati del cantiere:", error);
-    }
-    setIsLoading(false);
-  };
-  
-  const handleDocumentoSubmit = async (formData) => {
-    try {
-      if (!cantiere || !cantiere.id) {
+      if (!cantiere?.id) {
         console.error("Cantiere ID non disponibile per l'associazione del documento.");
         toast.error("Errore: ID Cantiere non disponibile.");
         return;
@@ -149,11 +151,11 @@ export default function CantiereDashboardPage() {
       console.error("Errore nel salvataggio del documento:", error);
       toast.error("Errore durante l'aggiunta del documento.");
     }
-  };
+  }, [cantiere?.id, loadData]);
 
-  const handleCantiereSubmit = async (formData) => {
+  const handleCantiereSubmit = useCallback(async (formData) => {
     try {
-      if (cantiere && cantiere.id) {
+      if (cantiere?.id) {
         await Cantiere.update(cantiere.id, formData);
         setShowCantiereForm(false);
         loadData(cantiere.id);
@@ -163,9 +165,9 @@ export default function CantiereDashboardPage() {
       console.error("Errore aggiornamento cantiere:", error);
       toast.error("Errore durante l'aggiornamento del cantiere");
     }
-  };
+  }, [cantiere?.id, loadData]);
 
-  const calcolaPercentualeCompletamento = () => {
+  const calcolaPercentualeCompletamento = useMemo(() => {
     if (!cantiere?.data_inizio || !cantiere?.data_fine_prevista) return 0;
     
     const oggi = new Date();
@@ -179,13 +181,11 @@ export default function CantiereDashboardPage() {
     if (giorniTrascorsi > giorniTotali) return 100;
     
     return Math.round((giorniTrascorsi / giorniTotali) * 100);
-  };
+  }, [cantiere?.data_inizio, cantiere?.data_fine_prevista]);
 
-  // New function to calculate SAL advancement percentage
-  const calcolaAvanzamentoSAL = () => {
+  const calcolaAvanzamentoSAL = useMemo(() => {
     if (!cantiere?.importo_contrattuale_oltre_iva || cantiere.importo_contrattuale_oltre_iva <= 0) return 0;
     
-    // Sum only the taxable amounts of progressive/final SALs (excluding advances)
     const totaleCertificato = salList.reduce((sum, sal) => {
       if (sal.tipo_sal_dettaglio !== 'anticipazione') {
         return sum + (sal.imponibile || 0);
@@ -194,47 +194,35 @@ export default function CantiereDashboardPage() {
     }, 0);
     
     const percentuale = (totaleCertificato / cantiere.importo_contrattuale_oltre_iva) * 100;
-    return Math.min(Math.round(percentuale), 100); // Cap at 100%
-  };
+    return Math.min(Math.round(percentuale), 100);
+  }, [cantiere?.importo_contrattuale_oltre_iva, salList]);
 
-  const getStatoAvanzamento = () => {
-    const percentuale = calcolaPercentualeCompletamento();
+  const statoAvanzamento = useMemo(() => {
+    const percentuale = calcolaPercentualeCompletamento;
     if (percentuale === 0) return { text: 'Da iniziare', color: 'text-slate-500', icon: Clock };
     if (percentuale < 100) return { text: 'In corso', color: 'text-blue-600', icon: Calendar };
     return { text: 'Completato', color: 'text-green-600', icon: CheckCircle2 };
-  };
+  }, [calcolaPercentualeCompletamento]);
 
-  const findImpresaId = (ragioneSociale) => {
-    const impresa = imprese.find(i => 
+  const findImpresaId = useCallback((ragioneSociale) => {
+    return imprese.find(i => 
       i.ragione_sociale.toLowerCase() === ragioneSociale.toLowerCase()
-    );
-    return impresa?.id;
-  };
+    )?.id;
+  }, [imprese]);
 
-  const sortImpresaByPriority = (imprese) => {
+  const sortImpresaByPriority = useCallback((imprese) => {
     const priorityOrder = {
-      'singola': 1,
-      'mandataria': 2,
-      'mandante': 3,
-      'consorzio': 4,
-      'consortile': 5,
-      'socio': 6,
-      'subappaltatore': 7,
-      'subaffidatario': 8,
-      'esecutrice': 9
+      'singola': 1, 'mandataria': 2, 'mandante': 3, 'consorzio': 4,
+      'consortile': 5, 'socio': 6, 'subappaltatore': 7, 'subaffidatario': 8, 'esecutrice': 9
     };
 
     return [...imprese].sort((a, b) => {
-      if (a.isPrincipale && !b.isPrincipale) return -1;
-      if (!a.isPrincipale && b.isPrincipale) return 1;
-
-      const priorityA = priorityOrder[a.tipo_impresa] || 999;
-      const priorityB = priorityOrder[b.tipo_impresa] || 999;
-      return priorityA - priorityB;
+      if (a.isPrincipale !== b.isPrincipale) return a.isPrincipale ? -1 : 1;
+      return (priorityOrder[a.tipo_impresa] || 999) - (priorityOrder[b.tipo_impresa] || 999);
     });
-  };
+  }, []);
 
-  const getFileType = (fileName) => {
+  const getFileType = useCallback((fileName) => {
     if (!fileName) return 'unknown';
     const cleanName = fileName.split('?')[0].split('#')[0];
     const extension = cleanName.split('.').pop().toLowerCase();
@@ -242,9 +230,9 @@ export default function CantiereDashboardPage() {
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension)) return 'image';
     if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) return 'office';
     return 'other';
-  };
+  }, []);
 
-  const handleViewDocument = async (documento) => {
+  const handleViewDocument = useCallback(async (documento) => {
     if (documento.file_uri || documento.cloud_file_url) {
       setIsLoadingViewer(true);
       setViewingDocument(documento);
@@ -274,9 +262,9 @@ export default function CantiereDashboardPage() {
         duration: 5000
       });
     }
-  };
+  }, [setIsLoadingViewer, setViewingDocument, setShowViewer, setSignedUrl]);
 
-  const handleDownloadDocument = async (documento) => {
+  const handleDownloadDocument = useCallback(async (documento) => {
     if (documento.file_uri || documento.cloud_file_url) {
       try {
         let urlToDownload = documento.cloud_file_url;
@@ -293,8 +281,8 @@ export default function CantiereDashboardPage() {
         a.download = documento.nome_documento;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(urlToDownload); // Clean up the object URL
-        a.remove(); // Remove the temporary anchor tag
+        window.URL.revokeObjectURL(urlToDownload);
+        a.remove();
         toast.success("Download avviato.");
       } catch (error) {
         console.error("Errore download documento:", error);
@@ -305,21 +293,31 @@ export default function CantiereDashboardPage() {
         duration: 5000
       });
     }
-  };
+  }, []);
 
-  const renderDate = (dateString) => {
+  const renderDate = useCallback((dateString) => {
     if (!dateString) return "N/D";
     try {
       return format(new Date(dateString), 'dd MMM yyyy', { locale: it });
     } catch {
       return "Data non valida";
     }
-  };
+  }, []);
 
-  const renderImporto = (importo) => {
+  const renderImporto = useCallback((importo) => {
     if (importo === null || importo === undefined) return "N/D";
     return `€ ${Number(importo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  }, []);
+
+  const totaleCertificatoSAL = useMemo(() => 
+    salList.reduce((sum, sal) => {
+      if (sal.tipo_sal_dettaglio !== 'anticipazione') {
+        return sum + (sal.imponibile || 0);
+      }
+      return sum;
+    }, 0),
+    [salList]
+  );
 
   if (isLoading) {
     return <div className="p-6">Caricamento...</div>;
@@ -380,35 +378,42 @@ export default function CantiereDashboardPage() {
     altro: "Altro"
   };
 
-  const percentualeCompletamento = calcolaPercentualeCompletamento();
-  const percentualeAvanzamentoSAL = calcolaAvanzamentoSAL(); // New SAL percentage calculation
-  const statoAvanzamento = getStatoAvanzamento();
   const StatoIcon = statoAvanzamento.icon;
 
-  const allImprese = [];
-  
-  if (cantiere.azienda_appaltatrice_ragione_sociale) {
-    allImprese.push({
-      ragione_sociale: cantiere.azienda_appaltatrice_ragione_sociale,
-      tipo_impresa: cantiere.tipologia_azienda_appaltatrice || 'singola',
-      indirizzo: cantiere.azienda_appaltatrice_indirizzo,
-      cap: cantiere.azienda_appaltatrice_cap,
-      citta: cantiere.azienda_appaltatrice_citta,
-      telefono: cantiere.azienda_appaltatrice_telefono,
-      email: cantiere.azienda_appaltatrice_email,
-      cf: cantiere.azienda_appaltatrice_cf,
-      piva: cantiere.azienda_appaltatrice_piva,
-      isPrincipale: true
-    });
-  }
-  
-  if (cantiere.partner_consorziati && cantiere.partner_consorziati.length > 0) {
-    allImprese.push(...cantiere.partner_consorziati.map(p => ({ ...p, isPrincipale: false })));
-  }
+  const allImprese = useMemo(() => {
+    const imprese = [];
+    
+    if (cantiere?.azienda_appaltatrice_ragione_sociale) {
+      imprese.push({
+        ragione_sociale: cantiere.azienda_appaltatrice_ragione_sociale,
+        tipo_impresa: cantiere.tipologia_azienda_appaltatrice || 'singola',
+        indirizzo: cantiere.azienda_appaltatrice_indirizzo,
+        cap: cantiere.azienda_appaltatrice_cap,
+        citta: cantiere.azienda_appaltatrice_citta,
+        telefono: cantiere.azienda_appaltatrice_telefono,
+        email: cantiere.azienda_appaltatrice_email,
+        cf: cantiere.azienda_appaltatrice_cf,
+        piva: cantiere.azienda_appaltatrice_piva,
+        isPrincipale: true
+      });
+    }
+    
+    if (cantiere?.partner_consorziati?.length > 0) {
+      imprese.push(...cantiere.partner_consorziati.map(p => ({ ...p, isPrincipale: false })));
+    }
+    
+    return sortImpresaByPriority(imprese);
+  }, [cantiere, sortImpresaByPriority]);
 
-  const sortedAllImprese = sortImpresaByPriority(allImprese);
-  const subappaltiList = subappalti.filter(s => s.tipo_relazione === "subappalto" || !s.tipo_relazione);
-  const subaffidamentiList = subappalti.filter(s => s.tipo_relazione === "subaffidamento");
+  const subappaltiList = useMemo(() => 
+    subappalti.filter(s => s.tipo_relazione === "subappalto" || !s.tipo_relazione),
+    [subappalti]
+  );
+  
+  const subaffidamentiList = useMemo(() => 
+    subappalti.filter(s => s.tipo_relazione === "subaffidamento"),
+    [subappalti]
+  );
 
   return (
     <div className="p-6 bg-slate-50 min-h-full">
@@ -462,9 +467,9 @@ export default function CantiereDashboardPage() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <Progress value={percentualeCompletamento} className="h-3 flex-1" />
+                <Progress value={calcolaPercentualeCompletamento} className="h-3 flex-1" />
                 <span className="text-lg font-bold text-slate-700 min-w-[60px] text-right">
-                  {percentualeCompletamento}%
+                  {calcolaPercentualeCompletamento}%
                 </span>
               </div>
             </div>
@@ -476,19 +481,14 @@ export default function CantiereDashboardPage() {
                 <div className="flex items-center gap-2 text-indigo-600">
                   <BarChart3 className="w-4 h-4" />
                   <span className="text-sm font-medium">
-                    {renderImporto(salList.reduce((sum, sal) => {
-                      if (sal.tipo_sal_dettaglio !== 'anticipazione') { // Only sum non-anticipation SALs
-                        return sum + (sal.imponibile || 0);
-                      }
-                      return sum;
-                    }, 0))} / {renderImporto(cantiere.importo_contrattuale_oltre_iva)}
+                    {renderImporto(totaleCertificatoSAL)} / {renderImporto(cantiere.importo_contrattuale_oltre_iva)}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <Progress value={percentualeAvanzamentoSAL} className="h-3 flex-1" />
+                <Progress value={calcolaAvanzamentoSAL} className="h-3 flex-1" />
                 <span className="text-lg font-bold text-indigo-700 min-w-[60px] text-right">
-                  {percentualeAvanzamentoSAL}%
+                  {calcolaAvanzamentoSAL}%
                 </span>
               </div>
             </div>
@@ -824,7 +824,7 @@ export default function CantiereDashboardPage() {
               )}
 
               {/* Impresa Appaltatrice */}
-              {sortedAllImprese.length > 0 && (
+              {allImprese.length > 0 && (
                 <AccordionItem value="impresa-appaltatrice">
                   <AccordionTrigger className="text-lg font-semibold hover:no-underline">
                     <div className="flex items-center gap-2">
@@ -834,7 +834,7 @@ export default function CantiereDashboardPage() {
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-3 pt-4">
-                      {sortedAllImprese.map((impresa, index) => {
+                      {allImprese.map((impresa, index) => {
                         const impresaId = findImpresaId(impresa.ragione_sociale);
                         const tipoLabels = {
                           singola: "Singola",

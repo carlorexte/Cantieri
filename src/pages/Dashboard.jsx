@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Building2, Euro, TrendingUp, Calendar, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
 
 import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
@@ -20,6 +20,109 @@ export default function Dashboard() {
     documentiInScadenza: 0
   });
 
+  const loadAdminDashboard = useCallback(async () => {
+    const [cantieriData, salData, documentiData] = await Promise.all([
+      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 50), // Solo cantieri attivi, limitato a 50
+      base44.entities.SAL.list("-data_sal", 200), // Limitato a ultimi 200 SAL
+      base44.entities.Documento.list("-created_date", 100) // Limitato a ultimi 100 documenti
+    ]);
+
+    setDocumenti(documentiData);
+
+    // Calcola il totale certificato per ogni cantiere (solo imponibile) - ottimizzato
+    const salByCantiere = new Map();
+    salData.forEach(sal => {
+      if (sal.tipo_sal_dettaglio !== 'anticipazione') {
+        const current = salByCantiere.get(sal.cantiere_id) || 0;
+        salByCantiere.set(sal.cantiere_id, current + (sal.imponibile || 0));
+      }
+    });
+
+    const cantieriConAvanzamento = cantieriData.map(cantiere => {
+      const totaleSAL = salByCantiere.get(cantiere.id) || 0;
+      const importoContratto = cantiere.importo_contrattuale_oltre_iva || 0;
+      
+      let avanzamento = 0;
+      if (importoContratto > 0) {
+        avanzamento = Math.min(Math.round((totaleSAL / importoContratto) * 100), 100);
+      }
+      
+      return { ...cantiere, avanzamento };
+    });
+    
+    setCantieri(cantieriConAvanzamento);
+    
+    const cantieriAttivi = cantieriConAvanzamento.length;
+    
+    // Carica tutti i cantieri solo per valore totale portafoglio
+    const allCantieri = await base44.entities.Cantiere.list();
+    const valorePortafoglio = allCantieri.reduce((sum, c) => sum + (c.importo_contratto || 0), 0);
+    
+    const totalValueOfActiveContracts = cantieriConAvanzamento.reduce((sum, c) => sum + (c.importo_contrattuale_oltre_iva || 0), 0);
+    const weightedProgressSum = cantieriConAvanzamento.reduce((sum, c) => {
+      return sum + (c.avanzamento * (c.importo_contrattuale_oltre_iva || 0) / 100);
+    }, 0);
+    
+    const avanzamentoMedio = totalValueOfActiveContracts > 0
+      ? Math.round((weightedProgressSum / totalValueOfActiveContracts) * 100)
+      : 0;
+
+    // Calcola documenti in scadenza (prossimi 30 giorni) - ottimizzato
+    const oggi = Date.now();
+    const trentaGiorniMs = 30 * 24 * 60 * 60 * 1000;
+    
+    const documentiInScadenza = documentiData.reduce((count, doc) => {
+      if (!doc.data_scadenza) return count;
+      const scadenzaMs = new Date(doc.data_scadenza).getTime();
+      const diff = scadenzaMs - oggi;
+      return (diff >= 0 && diff <= trentaGiorniMs) ? count + 1 : count;
+    }, 0);
+
+    setKpis({
+      cantieriAttivi,
+      valorePortafoglio,
+      avanzamentoMedio,
+      documentiInScadenza
+    });
+  }, []);
+
+  const loadUserDashboard = useCallback(async (user) => {
+    const [taskData, cantieriData] = await Promise.all([
+      base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "-data_scadenza", 50),
+      base44.entities.Cantiere.list("-created_date", 20)
+    ]);
+
+    setTaskPersonali(taskData);
+    
+    // Carica solo i documenti necessari per gli alert
+    const documentiData = await base44.entities.Documento.filter({}, "-data_scadenza", 50);
+    setDocumenti(documentiData);
+    
+    const cantieriIds = new Set(taskData.map(t => t.cantiere_id).filter(Boolean));
+    const cantieriConTask = cantieriData.filter(cantiere => cantieriIds.has(cantiere.id));
+    setCantieri(cantieriConTask);
+
+    // Calcoli ottimizzati
+    let taskCompletati = 0, taskInCorso = 0, taskInRitardo = 0;
+    const oggi = Date.now();
+    
+    taskData.forEach(t => {
+      if (t.stato === 'completato') taskCompletati++;
+      else if (t.stato === 'in_corso') taskInCorso++;
+      
+      if (t.data_scadenza && t.stato !== 'completato') {
+        if (new Date(t.data_scadenza).getTime() < oggi) taskInRitardo++;
+      }
+    });
+
+    setKpis({
+      taskTotali: taskData.length,
+      taskCompletati,
+      taskInCorso,
+      taskInRitardo
+    });
+  }, []);
+
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -36,182 +139,77 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [loadAdminDashboard, loadUserDashboard]);
 
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const loadAdminDashboard = async () => {
-    const [cantieriData, salData, documentiData] = await Promise.all([
-      base44.entities.Cantiere.list("-created_date"),
-      base44.entities.SAL.list(),
-      base44.entities.Documento.list()
-    ]);
-
-    setDocumenti(documentiData);
-
-    // Calcola il totale certificato per ogni cantiere (solo imponibile)
-    const salByCantiere = salData.reduce((acc, sal) => {
-      if (!acc[sal.cantiere_id]) {
-        acc[sal.cantiere_id] = 0;
-      }
-      
-      if (sal.tipo_sal_dettaglio !== 'anticipazione') {
-        acc[sal.cantiere_id] += sal.imponibile || 0;
-      }
-      
-      return acc;
-    }, {});
-
-    const cantieriConAvanzamento = cantieriData.map(cantiere => {
-      const totaleSAL = salByCantiere[cantiere.id] || 0;
-      const importoContratto = cantiere.importo_contrattuale_oltre_iva || 0;
-      
-      let avanzamento = 0;
-      if (importoContratto > 0) {
-        const percentualeCalcolata = (totaleSAL / importoContratto) * 100;
-        avanzamento = Math.min(Math.round(percentualeCalcolata), 100);
-      }
-      
-      return { ...cantiere, avanzamento };
-    });
-    
-    setCantieri(cantieriConAvanzamento);
-    
-    const cantieriAttiviData = cantieriConAvanzamento.filter(c => c.stato === 'attivo');
-    const cantieriAttivi = cantieriAttiviData.length;
-    const valorePortafoglio = cantieriData.reduce((sum, c) => sum + (c.importo_contratto || 0), 0);
-    
-    const totalValueOfActiveContracts = cantieriAttiviData.reduce((sum, c) => sum + (c.importo_contrattuale_oltre_iva || 0), 0);
-    const weightedProgressSum = cantieriAttiviData.reduce((sum, c) => {
-      return sum + (c.avanzamento * (c.importo_contrattuale_oltre_iva || 0) / 100);
-    }, 0);
-    
-    const avanzamentoMedio = totalValueOfActiveContracts > 0
-      ? Math.round((weightedProgressSum / totalValueOfActiveContracts) * 100)
-      : 0;
-
-    // Calcola documenti in scadenza (prossimi 30 giorni)
-    const oggi = new Date();
-    oggi.setHours(0, 0, 0, 0);
-    const documentiInScadenza = documentiData.filter(doc => {
-      if (!doc.data_scadenza) return false;
-      const scadenza = new Date(doc.data_scadenza);
-      scadenza.setHours(0, 0, 0, 0);
-      const diffGiorni = Math.ceil((scadenza.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
-      return diffGiorni >= 0 && diffGiorni <= 30;
-    }).length;
-
-    setKpis({
-      cantieriAttivi,
-      valorePortafoglio,
-      avanzamentoMedio,
-      documentiInScadenza
-    });
-  };
-
-  const loadUserDashboard = async (user) => {
-    const [taskData, cantieriData, documentiData] = await Promise.all([
-      base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "-data_scadenza"),
-      base44.entities.Cantiere.list("-created_date"),
-      base44.entities.Documento.list()
-    ]);
-
-    setTaskPersonali(taskData);
-    setDocumenti(documentiData);
-    
-    const cantieriConTask = cantieriData.filter(cantiere => 
-      taskData.some(task => task.cantiere_id === cantiere.id)
-    );
-    setCantieri(cantieriConTask);
-
-    const taskCompletati = taskData.filter(t => t.stato === 'completato').length;
-    const taskInCorso = taskData.filter(t => t.stato === 'in_corso').length;
-    const taskInRitardo = taskData.filter(t => {
-      if (!t.data_scadenza) return false;
-      return new Date(t.data_scadenza) < new Date() && t.stato !== 'completato';
-    }).length;
-
-    setKpis({
-      taskTotali: taskData.length,
-      taskCompletati,
-      taskInCorso,
-      taskInRitardo
-    });
-  };
-
   const getAlertsForUser = useMemo(() => {
     if (!currentUser) return [];
 
-    const oggi = new Date();
-    oggi.setHours(0, 0, 0, 0);
+    const oggi = Date.now();
 
     if (currentUser.role === 'admin') {
-      // Alert per documenti in scadenza
-      const documentiScaduti = documenti
-        .filter(doc => {
-          if (!doc.data_scadenza) return false;
-          const scadenza = new Date(doc.data_scadenza);
-          scadenza.setHours(0, 0, 0, 0);
-          const diffGiorni = Math.ceil((scadenza.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
-          return diffGiorni < 0;
-        })
-        .map(doc => {
-          const cantiere = cantieri.find(c => c.id === doc.entita_collegata_id);
-          return {
-            tipo: "scadenza",
-            messaggio: `${doc.nome_documento} - SCADUTO`,
-            cantiere: cantiere?.denominazione || doc.entita_collegata_tipo || "N/D",
-            priorita: "critico"
-          };
-        });
+      const cantieriMap = new Map(cantieri.map(c => [c.id, c]));
+      const alerts = [];
+      const setteGiorniMs = 7 * 24 * 60 * 60 * 1000;
 
-      const documentiInScadenza = documenti
-        .filter(doc => {
-          if (!doc.data_scadenza) return false;
-          const scadenza = new Date(doc.data_scadenza);
-          scadenza.setHours(0, 0, 0, 0);
-          const diffGiorni = Math.ceil((scadenza.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
-          return diffGiorni >= 0 && diffGiorni <= 7;
-        })
-        .map(doc => {
-          const cantiere = cantieri.find(c => c.id === doc.entita_collegata_id);
-          const scadenza = new Date(doc.data_scadenza);
-          scadenza.setHours(0, 0, 0, 0);
-          const diffGiorni = Math.ceil((scadenza.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
-          return {
+      // Ottimizzato con un solo loop
+      documenti.forEach(doc => {
+        if (!doc.data_scadenza) return;
+        
+        const scadenzaMs = new Date(doc.data_scadenza).getTime();
+        const diff = scadenzaMs - oggi;
+        
+        let shouldAdd = false;
+        let priorita = "medio";
+        let messaggio = "";
+        
+        if (diff < 0) {
+          shouldAdd = true;
+          priorita = "critico";
+          messaggio = `${doc.nome_documento} - SCADUTO`;
+        } else if (diff <= setteGiorniMs) {
+          shouldAdd = true;
+          const diffGiorni = Math.ceil(diff / (24 * 60 * 60 * 1000));
+          priorita = diffGiorni <= 3 ? "critico" : "medio";
+          messaggio = `${doc.nome_documento} - Scade tra ${diffGiorni} giorni`;
+        }
+        
+        if (shouldAdd && alerts.length < 5) {
+          const cantiere = cantieriMap.get(doc.entita_collegata_id);
+          alerts.push({
             tipo: "scadenza",
-            messaggio: `${doc.nome_documento} - Scade tra ${diffGiorni} giorni`,
+            messaggio,
             cantiere: cantiere?.denominazione || doc.entita_collegata_tipo || "N/D",
-            priorita: diffGiorni <= 3 ? "critico" : "medio"
-          };
-        });
+            priorita
+          });
+        }
+      });
 
-      return [...documentiScaduti, ...documentiInScadenza].slice(0, 5);
+      return alerts;
     } else {
-      const alertsFromTasks = taskPersonali
+      const cantieriMap = new Map(cantieri.map(c => [c.id, c]));
+      const treGiorniMs = 3 * 24 * 60 * 60 * 1000;
+      
+      return taskPersonali
         .filter(task => {
-          if (!task.data_scadenza) return false;
-          const scadenza = new Date(task.data_scadenza);
-          const diffGiorni = Math.ceil((scadenza - oggi) / (1000 * 60 * 60 * 24));
-          return diffGiorni <= 3 && diffGiorni >= 0 && task.stato !== 'completato';
+          if (!task.data_scadenza || task.stato === 'completato') return false;
+          const diff = new Date(task.data_scadenza).getTime() - oggi;
+          return diff >= 0 && diff <= treGiorniMs;
         })
-        .map(task => {
-          const cantiere = cantieri.find(c => c.id === task.cantiere_id);
-          return {
-            tipo: "task_scadenza",
-            messaggio: `Task in scadenza: ${task.descrizione}`,
-            cantiere: cantiere?.denominazione || "Generale",
-            priorita: task.priorita === 'critica' ? 'critico' : 'medio'
-          };
-        });
-
-      return alertsFromTasks.slice(0, 3);
+        .slice(0, 3)
+        .map(task => ({
+          tipo: "task_scadenza",
+          messaggio: `Task in scadenza: ${task.descrizione}`,
+          cantiere: cantieriMap.get(task.cantiere_id)?.denominazione || "Generale",
+          priorita: task.priorita === 'critica' ? 'critico' : 'medio'
+        }));
     }
   }, [currentUser, taskPersonali, documenti, cantieri]);
 
-  const renderAdminDashboard = () => (
+  const renderAdminDashboard = useCallback(() => (
     <>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
@@ -261,9 +259,9 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  );
+  ), [kpis, cantieri, isLoading, getAlertsForUser]);
 
-  const renderUserDashboard = () => (
+  const renderUserDashboard = useCallback(() => (
     <>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">I Miei Compiti</h1>
@@ -314,7 +312,7 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  );
+  ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
     <div className="p-8 bg-slate-50 min-h-screen">

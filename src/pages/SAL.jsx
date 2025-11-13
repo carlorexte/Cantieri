@@ -1,9 +1,8 @@
-
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, FileText, CheckCircle, Clock, TrendingUp, DollarSign, ArrowLeft, X, ExternalLink } from "lucide-react";
+import { Plus, FileText, CheckCircle, Clock, TrendingUp, ArrowLeft, X, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Toaster, toast } from 'react-hot-toast';
+import { toast } from "sonner";
 
 const statoPagamentoColori = {
   da_fatturare: "bg-blue-50 text-blue-700 border-blue-200",
@@ -53,7 +52,6 @@ export default function SalPage() {
   const [selectedSal, setSelectedSal] = useState(null);
   const [documentiSal, setDocumentiSal] = useState([]);
   const [loadingDocumenti, setLoadingDocumenti] = useState(false);
-  // NUOVO: stato per il visualizzatore
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState(null);
   const [viewerFileName, setViewerFileName] = useState('');
@@ -63,8 +61,8 @@ export default function SalPage() {
     setIsLoading(true);
     try {
       const [salData, cantieriData, user] = await Promise.all([
-        base44.entities.SAL.list("-data_sal"),
-        base44.entities.Cantiere.list(),
+        base44.entities.SAL.list("-data_sal", 100), // Limitato a 100 SAL
+        base44.entities.Cantiere.list("-created_date", 50), // Limitato a 50 cantieri
         base44.auth.me()
       ]);
       setSalList(salData);
@@ -115,7 +113,7 @@ export default function SalPage() {
         entita_collegata_id: sal.cantiere_id,
         entita_collegata_tipo: 'cantiere',
         tipo_documento: 'economica_sal'
-      });
+      }, "-created_date", 20);
       setDocumentiSal(docs);
     } catch (error) {
       console.error("Errore caricamento documenti:", error);
@@ -128,7 +126,7 @@ export default function SalPage() {
   const handleViewFile = async (fileUri, fileName) => {
     setLoadingViewer(true);
     setViewerFileName(fileName);
-    setViewerUrl(null); // Reset URL to prevent old content from flashing
+    setViewerUrl(null);
     setViewerOpen(true);
     
     try {
@@ -140,44 +138,51 @@ export default function SalPage() {
     } catch (error) {
       console.error("Errore apertura documento:", error);
       toast.error("Impossibile aprire il documento");
-      setViewerOpen(false); // Close viewer on error
+      setViewerOpen(false);
     } finally {
       setLoadingViewer(false);
     }
   };
 
-  const getFileType = (fileName) => {
-    if (!fileName) return 'pdf'; // Default to PDF if no filename
+  const getFileType = useCallback((fileName) => {
+    if (!fileName) return 'pdf';
     const ext = fileName.split('.').pop().toLowerCase();
     if (['pdf'].includes(ext)) return 'pdf';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
-    return 'pdf'; // Default to PDF for unknown types
-  };
+    return 'pdf';
+  }, []);
 
-  const selectedCantiere = cantieri.find(c => c.id === selectedCantiereId);
+  const selectedCantiere = useMemo(() => 
+    cantieri.find(c => c.id === selectedCantiereId),
+    [cantieri, selectedCantiereId]
+  );
   
-  const filteredSal = selectedCantiereId
-    ? salList.filter(s => s.cantiere_id === selectedCantiereId)
-    : [];
+  const filteredSal = useMemo(() => 
+    selectedCantiereId ? salList.filter(s => s.cantiere_id === selectedCantiereId) : [],
+    [salList, selectedCantiereId]
+  );
 
-  const stats = filteredSal.reduce((acc, sal) => {
-    if (sal.tipo_sal_dettaglio !== 'anticipazione') {
-      acc.totaleCertificato += sal.imponibile || 0; // SEMPRE SOLO IMPONIBILE (escluso IVA)
-    }
-    return acc;
-  }, { totaleCertificato: 0 });
+  const stats = useMemo(() => {
+    return filteredSal.reduce((acc, sal) => {
+      if (sal.tipo_sal_dettaglio !== 'anticipazione') {
+        acc.totaleCertificato += sal.imponibile || 0;
+      }
+      return acc;
+    }, { totaleCertificato: 0 });
+  }, [filteredSal]);
 
   const importoContrattoOltreIva = selectedCantiere?.importo_contrattuale_oltre_iva || 0;
   const daCertificare = importoContrattoOltreIva - stats.totaleCertificato;
   
-  // FIX: Calcolo avanzamento su importo oltre IVA
-  const percentualeCompletamento = importoContrattoOltreIva > 0
-    ? Math.min(Math.round((stats.totaleCertificato / importoContrattoOltreIva) * 100), 100)
-    : 0;
+  const percentualeCompletamento = useMemo(() => 
+    importoContrattoOltreIva > 0
+      ? Math.min(Math.round((stats.totaleCertificato / importoContrattoOltreIva) * 100), 100)
+      : 0,
+    [stats.totaleCertificato, importoContrattoOltreIva]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <Toaster />
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -401,7 +406,7 @@ export default function SalPage() {
           </Dialog>
 
           {/* Dialog Documenti */}
-          {documentiDialog && selectedSal && !viewerOpen && ( // Only show if viewer is not open
+          {documentiDialog && selectedSal && !viewerOpen && (
             <>
               <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setDocumentiDialog(false)} />
               

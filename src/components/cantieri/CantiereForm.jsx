@@ -365,12 +365,17 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     
+    const importoContrattualeOltreIva = parseFloat(getImportoContrattuale()) || 0;
+    const ivaPercentuale = parseFloat(form.percentuale_iva) || 0;
+    const importoTotaleConIva = importoContrattualeOltreIva * (1 + ivaPercentuale / 100);
+    
     const dataToSubmit = {
       ...form,
       importo_lavori_netto_ribasso: parseFloat(form.importo_lavori_netto_ribasso) || null,
       importo_progettazione: parseFloat(form.importo_progettazione) || null,
       oneri_sicurezza_importo: parseFloat(form.oneri_sicurezza_importo) || null,
-      importo_contrattuale_oltre_iva: parseFloat(getImportoContrattuale()) || null, // Calculate on submit
+      importo_contrattuale_oltre_iva: importoContrattualeOltreIva || null,
+      importo_contratto: importoTotaleConIva || null, // AGGIUNTO: importo totale comprensivo di IVA
       percentuale_iva: parseFloat(form.percentuale_iva) || null,
       percentuale_ribasso: parseFloat(form.percentuale_ribasso) || null,
       giorni_previsti: parseInt(form.giorni_previsti, 10) || null

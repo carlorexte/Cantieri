@@ -162,7 +162,7 @@ export default function SalPage() {
 
   const stats = filteredSal.reduce((acc, sal) => {
     if (sal.tipo_sal_dettaglio !== 'anticipazione') {
-      acc.totaleCertificato += sal.importo_lordo || sal.importo_sal || 0;
+      acc.totaleCertificato += sal.totale_fattura || sal.imponibile || 0; // CORRETTO: usa campi corretti
     }
     return acc;
   }, { totaleCertificato: 0 });

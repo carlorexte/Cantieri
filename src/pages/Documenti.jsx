@@ -1,13 +1,11 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Calendar, AlertTriangle, CheckCircle, Clock, Filter, FileCheck, Eye, Edit, Download, X, Trash2 } from "lucide-react";
+import { Plus, Search, FileText, Filter, Eye, Download, Edit, Trash2, Tag, Building2, Calendar, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -15,508 +13,413 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
-import DocumentoForm from "../components/documenti/DocumentoForm";
+import DocumentoFormEnhanced from "../components/documenti/DocumentoFormEnhanced";
+import RicercaAvanzataDocumenti from "../components/documenti/RicercaAvanzataDocumenti";
 
-const tipoDocumentoLabels = {
-  amministrativa_documentazione_gara: "Documentazione di Gara",
-  amministrativa_inviti_bandi: "Inviti - Bandi",
-  durc: "DURC",
-  visure: "Visure",
-  certificazioni_soa: "Certificazioni SOA",
-  contratto_appalto: "Contratto Appalto",
-  contratto_esecutrice: "Contratto Esecutrice",
-  contratto_subappaltatori: "Contratto Subappaltatori",
-  consortile: "Consortile",
-  altro: "Altro"
+const categorieDocumenti = {
+  permessi: { label: "Permessi", color: "bg-purple-100 text-purple-800" },
+  contratti: { label: "Contratti", color: "bg-blue-100 text-blue-800" },
+  polizze: { label: "Polizze", color: "bg-green-100 text-green-800" },
+  certificazioni: { label: "Certificazioni", color: "bg-cyan-100 text-cyan-800" },
+  fatture: { label: "Fatture", color: "bg-orange-100 text-orange-800" },
+  sal: { label: "SAL", color: "bg-indigo-100 text-indigo-800" },
+  sicurezza: { label: "Sicurezza", color: "bg-red-100 text-red-800" },
+  tecnici: { label: "Doc. Tecnici", color: "bg-teal-100 text-teal-800" },
+  foto: { label: "Foto", color: "bg-pink-100 text-pink-800" },
+  corrispondenza: { label: "Corrispondenza", color: "bg-amber-100 text-amber-800" },
+  legale: { label: "Legale", color: "bg-rose-100 text-rose-800" },
+  altro: { label: "Altro", color: "bg-slate-100 text-slate-800" }
 };
 
 export default function DocumentiPage() {
   const [documenti, setDocumenti] = useState([]);
   const [cantieri, setCantieri] = useState([]);
-  const [soci, setSoci] = useState([]);
-  const [subappalti, setSubappalti] = useState([]);
-  const [imprese, setImprese] = useState([]); // New state
-  const [salList, setSalList] = useState([]); // New state
+  const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingDocumento, setEditingDocumento] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("tutti");
-  const [filtroScadenza, setFiltroScadenza] = useState("tutti");
-  const [currentUser, setCurrentUser] = useState(null);
-  
+  const [categoriaFilter, setCategoriaFilter] = useState("");
   const [viewingDocument, setViewingDocument] = useState(null);
-  const [showViewer, setShowViewer] = useState(false);
-  const [signedUrl, setSignedUrl] = useState(null);
-  const [isLoadingViewer, setIsLoadingViewer] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [documentiData, cantieriData, sociData, subappaltiData, userData, impreseData, salData] = await Promise.all([
-        base44.entities.Documento.list("-created_date"),
-        base44.entities.Cantiere.list(),
-        base44.entities.SocioConsorzio.list(),
-        base44.entities.Subappalto.list(),
-        base44.auth.me(),
-        base44.entities.Impresa.list(),
-        base44.entities.SAL.list()
+      const [documentiData, cantieriData, user] = await Promise.all([
+        base44.entities.Documento.list("-created_date", 100),
+        base44.entities.Cantiere.list("-created_date", 100),
+        base44.auth.me()
       ]);
       setDocumenti(documentiData);
       setCantieri(cantieriData);
-      setSoci(sociData);
-      setSubappalti(subappaltiData);
-      setCurrentUser(userData);
-      setImprese(impreseData);
-      setSalList(salData);
+      setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
+      toast.error("Errore durante il caricamento");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSubmit = async (documentoData) => {
     try {
       if (editingDocumento) {
         await base44.entities.Documento.update(editingDocumento.id, documentoData);
+        toast.success("Documento aggiornato!");
       } else {
         await base44.entities.Documento.create(documentoData);
+        toast.success("Documento creato!");
       }
       setShowForm(false);
       setEditingDocumento(null);
       loadData();
     } catch (error) {
       console.error("Errore salvataggio documento:", error);
+      toast.error("Errore durante il salvataggio");
     }
   };
 
-  const handleEdit = (documento) => {
-    setEditingDocumento(documento);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (documento) => {
-    if (window.confirm(`Sei sicuro di voler eliminare il documento "${documento.nome_documento}"? Questa azione non può essere annullata.`)) {
+  const handleDelete = async (id) => {
+    if (window.confirm("Sei sicuro di voler eliminare questo documento?")) {
       try {
-        await base44.entities.Documento.delete(documento.id);
-        toast.success("Documento eliminato con successo");
+        await base44.entities.Documento.delete(id);
+        toast.success("Documento eliminato");
         loadData();
       } catch (error) {
-        console.error("Errore eliminazione documento:", error);
-        toast.error("Errore durante l'eliminazione del documento");
+        console.error("Errore eliminazione:", error);
+        toast.error("Errore durante l'eliminazione");
       }
     }
   };
 
-  const getFileType = (fileName) => {
-    if (!fileName) return 'unknown';
-    const cleanName = fileName.split('?')[0].split('#')[0];
-    const extension = cleanName.split('.').pop().toLowerCase();
-    if (['pdf'].includes(extension)) return 'pdf';
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension)) return 'image';
-    if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) return 'office';
-    return 'other';
-  };
+  const handleViewDocument = async (doc) => {
+    if (!doc.file_uri && !doc.cloud_file_url) {
+      toast.info(`Documento disponibile solo sul NAS: ${doc.percorso_nas}`);
+      return;
+    }
 
-  const handleViewDocument = async (documento) => {
-    if (documento.file_uri) {
-      setIsLoadingViewer(true);
-      setViewingDocument(documento);
-      setShowViewer(true);
-      setSignedUrl(null);
-      
-      try {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({ 
-          file_uri: documento.file_uri,
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
           expires_in: 3600
         });
-        setSignedUrl(result.signed_url);
-      } catch (error) {
-        console.error("Errore generazione signed URL:", error);
-        toast.error("Impossibile caricare il documento per la visualizzazione");
-        setShowViewer(false);
-        setViewingDocument(null);
-      } finally {
-        setIsLoadingViewer(false);
+        url = result.signed_url;
       }
-    } else if (documento.cloud_file_url) {
-      setViewingDocument(documento);
-      setSignedUrl(documento.cloud_file_url);
-      setShowViewer(true);
-    } else {
-      toast.info(`Documento disponibile solo sul NAS al percorso: ${documento.percorso_nas}`, {
-        duration: 5000
-      });
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error("Errore apertura documento:", error);
+      toast.error("Impossibile aprire il documento");
     }
   };
 
-  const handleDownloadDocument = async (documento) => {
-    if (documento.file_uri) {
-      try {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({ 
-          file_uri: documento.file_uri,
-          expires_in: 300
-        });
-        const a = document.createElement('a');
-        a.href = result.signed_url;
-        a.download = documento.nome_documento;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch (error) {
-        console.error("Errore download documento:", error);
-        toast.error("Impossibile scaricare il documento");
-      }
-    } else if (documento.cloud_file_url) {
-      const a = document.createElement('a');
-      a.href = documento.cloud_file_url;
-      a.download = documento.nome_documento;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      toast.info(`Documento disponibile solo sul NAS al percorso: ${documento.percorso_nas}`, {
-        duration: 5000
-      });
-    }
-  };
-
-  const getEntitaNome = (documento) => {
-    if (!documento.entita_collegata_id) return "Generale";
+  const filteredDocumenti = useMemo(() => {
+    let filtered = documenti;
     
-    switch (documento.entita_collegata_tipo) {
-      case "cantiere":
-        const cantiere = cantieri.find(c => c.id === documento.entita_collegata_id);
-        return cantiere ? `Cantiere: ${cantiere.denominazione}` : "Cantiere non trovato";
-      case "socio_consorzio":
-        const socio = soci.find(s => s.id === documento.entita_collegata_id);
-        return socio ? `Socio: ${socio.ragione_sociale}` : "Socio non trovato";
-      case "subappalto":
-        const subappalto = subappalti.find(s => s.id === documento.entita_collegata_id);
-        return subappalto ? `Subappalto: ${subappalto.ragione_sociale}` : "Subappalto non trovato";
-      case "azienda":
-        const impresa = imprese.find(i => i.id === documento.entita_collegata_id);
-        return impresa ? `Impresa: ${impresa.ragione_sociale}` : "Impresa non trovata";
-      case "sal":
-        const sal = salList.find(s => s.id === documento.entita_collegata_id);
-        if (sal) {
-          const cant = cantieri.find(c => c.id === sal.cantiere_id);
-          return `SAL ${sal.numero_sal || 'Anticipo'} - ${cant ? cant.denominazione : 'Cantiere'}`;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(doc => 
+        doc.nome_documento?.toLowerCase().includes(term) ||
+        doc.descrizione?.toLowerCase().includes(term) ||
+        doc.numero_documento?.toLowerCase().includes(term)
+      );
+    }
+
+    if (categoriaFilter) {
+      filtered = filtered.filter(doc => doc.categoria_principale === categoriaFilter);
+    }
+
+    return filtered;
+  }, [documenti, searchTerm, categoriaFilter]);
+
+  const stats = useMemo(() => {
+    const byCategoria = {};
+    documenti.forEach(doc => {
+      const cat = doc.categoria_principale || 'altro';
+      byCategoria[cat] = (byCategoria[cat] || 0) + 1;
+    });
+    
+    return {
+      totale: documenti.length,
+      conOCR: documenti.filter(d => d.ocr_completato).length,
+      byCategoria
+    };
+  }, [documenti]);
+
+  const getCantiereNomi = useCallback((documento) => {
+    const nomi = [];
+    
+    if (documento.entita_collegate?.length > 0) {
+      documento.entita_collegate.forEach(e => {
+        if (e.entita_tipo === 'cantiere') {
+          const cantiere = cantieri.find(c => c.id === e.entita_id);
+          if (cantiere) nomi.push(cantiere.denominazione);
         }
-        return "SAL non trovato";
-      default:
-        return "Generale";
+      });
     }
-  };
-
-  const getScadenzaStatus = (dataScadenza) => {
-    if (!dataScadenza) return null;
     
-    const oggi = new Date();
-    const scadenza = new Date(dataScadenza);
-    const differenzaGiorni = Math.ceil((scadenza - oggi) / (1000 * 60 * 60 * 24));
-    
-    if (differenzaGiorni < 0) {
-      return { status: "scaduto", label: "Scaduto", color: "bg-red-100 text-red-800", icon: AlertTriangle };
-    } else if (differenzaGiorni <= 30) {
-      return { status: "in_scadenza", label: "In scadenza", color: "bg-amber-100 text-amber-800", icon: Clock };
-    } else {
-      return { status: "valido", label: "Valido", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle };
+    if (nomi.length === 0 && documento.entita_collegata_tipo === 'cantiere') {
+      const cantiere = cantieri.find(c => c.id === documento.entita_collegata_id);
+      if (cantiere) nomi.push(cantiere.denominazione);
     }
-  };
-
-  const filteredDocumenti = documenti.filter(doc => {
-    const matchSearch = !searchTerm || 
-      doc.nome_documento.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.descrizione?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.numero_documento?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getEntitaNome(doc).toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchTipo = filtroTipo === "tutti" || doc.tipo_documento === filtroTipo;
     
-    const matchScadenza = filtroScadenza === "tutti" || (() => {
-      const scadenzaStatus = getScadenzaStatus(doc.data_scadenza);
-      return scadenzaStatus ? scadenzaStatus.status === filtroScadenza : filtroScadenza === "senza_scadenza";
-    })();
-
-    return matchSearch && matchTipo && matchScadenza;
-  });
-
-  const stats = {
-    totale: documenti.length,
-    scaduti: documenti.filter(d => getScadenzaStatus(d.data_scadenza)?.status === "scaduto").length,
-    inScadenza: documenti.filter(d => getScadenzaStatus(d.data_scadenza)?.status === "in_scadenza").length
-  };
+    return nomi;
+  }, [cantieri]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Gestione Documenti</h1>
-              <p className="text-slate-600 mt-1">Archivio documentale e scadenziario cantieri</p>
+              <h1 className="text-3xl font-bold text-slate-900">Documenti</h1>
+              <p className="text-slate-600 mt-1">Gestione centralizzata di tutti i documenti</p>
             </div>
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_documenti) && (
-              <Button onClick={() => setShowForm(true)} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10">
-                <Plus className="w-4 h-4 mr-2" />
-                Nuovo Documento
-              </Button>
-            )}
+            <Button 
+              onClick={() => {
+                setEditingDocumento(null);
+                setShowForm(true);
+              }} 
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Nuovo Documento
+            </Button>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
             <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-slate-900">{stats.totale}</div>
-                    <div className="text-sm text-slate-600 mt-1">Documenti Totali</div>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-slate-900">{stats.totale}</div>
+                <div className="text-xs text-slate-600 mt-1">Totali</div>
               </CardContent>
             </Card>
-            
             <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-red-600">{stats.scaduti}</div>
-                    <div className="text-sm text-slate-600 mt-1">Scaduti</div>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-indigo-600">{stats.conOCR}</div>
+                <div className="text-xs text-slate-600 mt-1">Con OCR</div>
               </CardContent>
             </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-amber-600">{stats.inScadenza}</div>
-                    <div className="text-sm text-slate-600 mt-1">In Scadenza (30gg)</div>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-amber-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-emerald-600">{stats.totale - stats.scaduti - stats.inScadenza}</div>
-                    <div className="text-sm text-slate-600 mt-1">Validi</div>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-emerald-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {Object.entries(categorieDocumenti).slice(0, 4).map(([key, val]) => (
+              <Card key={key} className="border-0 shadow-sm bg-white">
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-slate-900">{stats.byCategoria[key] || 0}</div>
+                  <div className="text-xs text-slate-600 mt-1">{val.label}</div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
-          {/* Filtri */}
-          <Card className="border-0 shadow-sm mb-6 bg-white">
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    placeholder="Cerca documenti..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-10 border-slate-200"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                    <SelectTrigger className="w-48 h-10 border-slate-200">
-                      <SelectValue placeholder="Filtra per tipo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tutti">Tutti i tipi</SelectItem>
-                      <SelectItem value="durc">DURC</SelectItem>
-                      <SelectItem value="visure">Visure</SelectItem>
-                      <SelectItem value="certificazioni_soa">Certificazioni SOA</SelectItem>
-                      <SelectItem value="contratto_appalto">Contratto Appalto</SelectItem>
-                      <SelectItem value="consortile">Consortile</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={filtroScadenza} onValueChange={setFiltroScadenza}>
-                    <SelectTrigger className="w-40 h-10 border-slate-200">
-                      <SelectValue placeholder="Scadenze..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tutti">Tutte</SelectItem>
-                      <SelectItem value="scaduto">Scaduti</SelectItem>
-                      <SelectItem value="in_scadenza">In scadenza</SelectItem>
-                      <SelectItem value="valido">Validi</SelectItem>
-                      <SelectItem value="senza_scadenza">Senza scadenza</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Tabs */}
+          <Tabs defaultValue="tutti" className="space-y-6">
+            <TabsList className="bg-white border border-slate-200">
+              <TabsTrigger value="tutti">Tutti i Documenti</TabsTrigger>
+              <TabsTrigger value="ricerca">
+                <Search className="w-4 h-4 mr-2" />
+                Ricerca Avanzata
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Tabella Documenti */}
-          <Card className="border-0 shadow-sm bg-white overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50 border-b border-slate-200">
-                    <TableHead className="font-semibold text-slate-700">Nome Documento</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Tipo</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Collegato a</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Data Emissione</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Scadenza</TableHead>
-                    <TableHead className="text-center font-semibold text-slate-700">Cloud</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-700">Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i} className="animate-pulse">
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                        <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
-                      </TableRow>
-                    ))
-                  ) : filteredDocumenti.map(documento => {
-                    const scadenzaStatus = getScadenzaStatus(documento.data_scadenza);
-                    const StatusIcon = scadenzaStatus?.icon;
-                    const hasFile = documento.file_uri || documento.cloud_file_url;
+            {/* Tab Tutti Documenti */}
+            <TabsContent value="tutti" className="space-y-6">
+              {/* Filtri Rapidi */}
+              <Card className="border-0 shadow-sm bg-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                      <Input
+                        placeholder="Cerca documenti..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Tutte le categorie" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={null}>Tutte le categorie</SelectItem>
+                        {Object.entries(categorieDocumenti).map(([key, val]) => (
+                          <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Lista Documenti */}
+              <div className="grid gap-4">
+                {isLoading ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <Card key={i} className="animate-pulse border-0 shadow-sm bg-white">
+                      <CardContent className="p-6">
+                        <div className="h-6 bg-slate-200 rounded w-1/3 mb-2"></div>
+                        <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  filteredDocumenti.map(doc => {
+                    const cantiereNomi = getCantiereNomi(doc);
                     
                     return (
-                      <TableRow key={documento.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <TableCell className="font-medium text-slate-900">
-                          <div>
-                            <div className="font-medium">{documento.nome_documento}</div>
-                            {documento.numero_documento && (
-                              <div className="text-sm text-slate-500 mt-0.5">N. {documento.numero_documento}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-slate-700">
-                            {tipoDocumentoLabels[documento.tipo_documento] || documento.tipo_documento}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-sm text-slate-600">{getEntitaNome(documento)}</TableCell>
-                        <TableCell className="text-sm text-slate-600">
-                          {documento.data_emissione ? new Date(documento.data_emissione).toLocaleDateString('it-IT') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {documento.data_scadenza ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-slate-600">{new Date(documento.data_scadenza).toLocaleDateString('it-IT')}</span>
-                              {scadenzaStatus && StatusIcon && (
-                                <Badge variant="secondary" className={`${scadenzaStatus.color} border text-xs`}>
-                                  <StatusIcon className="w-3 h-3 mr-1" />
-                                  {scadenzaStatus.label}
-                                </Badge>
+                      <Card key={doc.id} className="border-0 shadow-sm hover:shadow-md transition-all bg-white">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <FileText className="w-5 h-5 text-slate-500" />
+                                <h3 className="font-semibold text-slate-900 truncate">{doc.nome_documento}</h3>
+                                {doc.categoria_principale && (
+                                  <Badge variant="secondary" className={categorieDocumenti[doc.categoria_principale]?.color}>
+                                    {categorieDocumenti[doc.categoria_principale]?.label}
+                                  </Badge>
+                                )}
+                                {doc.ocr_completato && (
+                                  <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    <Sparkles className="w-3 h-3 mr-1" />
+                                    OCR
+                                  </Badge>
+                                )}
+                              </div>
+                              
+                              {doc.descrizione && (
+                                <p className="text-sm text-slate-600 mb-2 line-clamp-2">{doc.descrizione}</p>
+                              )}
+                              
+                              <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-2">
+                                {doc.data_emissione && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {format(new Date(doc.data_emissione), 'dd/MM/yyyy')}
+                                  </span>
+                                )}
+                                {doc.data_scadenza && (
+                                  <span className="text-amber-700">
+                                    • Scad: {format(new Date(doc.data_scadenza), 'dd/MM/yyyy')}
+                                  </span>
+                                )}
+                                {doc.emittente && (
+                                  <span>• {doc.emittente}</span>
+                                )}
+                              </div>
+
+                              {cantiereNomi.length > 0 && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Building2 className="w-3 h-3 text-slate-400" />
+                                  <div className="flex flex-wrap gap-1">
+                                    {cantiereNomi.map((nome, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {nome}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {doc.tags?.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {doc.tags.map(tag => (
+                                    <Badge key={tag} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                                      <Tag className="w-3 h-3 mr-1" />
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
                               )}
                             </div>
-                          ) : <span className="text-sm text-slate-400">-</span>}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {hasFile ? (
-                            <FileCheck className="w-4 h-4 text-emerald-600 mx-auto" title="Backup disponibile su cloud" />
-                          ) : (
-                            <span className="text-slate-300 text-xs">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 justify-end">
-                            {hasFile && (
-                              <>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-8 w-8 hover:bg-indigo-50 hover:text-indigo-600"
-                                  onClick={() => handleViewDocument(documento)}
-                                  title="Visualizza documento"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
-                                  onClick={() => handleDownloadDocument(documento)}
-                                  title="Scarica documento"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              </>
-                            )}
-                            {(currentUser?.role === 'admin' || currentUser?.perm_edit_documenti) && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8 hover:bg-slate-100 hover:text-slate-900"
-                                onClick={() => handleEdit(documento)} 
-                                title="Modifica documento"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {currentUser?.role === 'admin' && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
-                                onClick={() => handleDelete(documento)} 
-                                title="Elimina documento"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            {filteredDocumenti.length === 0 && !isLoading && (
-              <div className="text-center p-12 text-slate-500">
-                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="font-semibold">Nessun documento trovato</p>
-                <p className="text-sm mt-1">Inizia caricando il primo documento.</p>
-              </div>
-            )}
-          </Card>
 
+                            <div className="flex gap-2 flex-shrink-0">
+                              {(doc.file_uri || doc.cloud_file_url) && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleViewDocument(doc)}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDownloadDocument(doc)}
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {(currentUser?.role === 'admin' || currentUser?.perm_edit_documenti) && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setEditingDocumento(doc);
+                                      setShowForm(true);
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDelete(doc.id)}
+                                    className="hover:bg-red-50 hover:text-red-600"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+
+              {filteredDocumenti.length === 0 && !isLoading && (
+                <Card className="border-0 shadow-sm bg-white">
+                  <CardContent className="p-12 text-center">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Nessun documento trovato</h3>
+                    <p className="text-slate-600">Inizia caricando il primo documento</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Tab Ricerca Avanzata */}
+            <TabsContent value="ricerca">
+              <RicercaAvanzataDocumenti 
+                onDocumentoSelect={(doc) => {
+                  setEditingDocumento(doc);
+                  setShowForm(true);
+                }}
+              />
+            </TabsContent>
+          </Tabs>
+
+          {/* Dialog Form */}
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -524,13 +427,8 @@ export default function DocumentiPage() {
                   {editingDocumento ? "Modifica Documento" : "Nuovo Documento"}
                 </DialogTitle>
               </DialogHeader>
-              <DocumentoForm
+              <DocumentoFormEnhanced
                 documento={editingDocumento}
-                cantieri={cantieri}
-                soci={soci}
-                subappalti={subappalti}
-                imprese={imprese} // Pass new data to DocumentoForm
-                salList={salList}   // Pass new data to DocumentoForm
                 onSubmit={handleSubmit}
                 onCancel={() => {
                   setShowForm(false);
@@ -539,87 +437,32 @@ export default function DocumentiPage() {
               />
             </DialogContent>
           </Dialog>
-
-          <Dialog open={showViewer} onOpenChange={(open) => {
-            setShowViewer(open);
-            if (!open) {
-              setViewingDocument(null);
-              setSignedUrl(null);
-            }
-          }}>
-            <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden">
-              <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <DialogTitle className="text-lg font-semibold truncate pr-4">
-                    {viewingDocument?.nome_documento}
-                  </DialogTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setShowViewer(false);
-                      setViewingDocument(null);
-                      setSignedUrl(null);
-                    }}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
-                </div>
-              </DialogHeader>
-              <div className="flex-1 w-full h-full min-h-0">
-                {isLoadingViewer ? (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-slate-600">Caricamento documento...</p>
-                    </div>
-                  </div>
-                ) : signedUrl ? (
-                  <>
-                    {getFileType(viewingDocument?.nome_documento) === 'pdf' && (
-                      <iframe
-                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`}
-                        className="w-full h-full border-0"
-                        title={viewingDocument?.nome_documento}
-                        allowFullScreen
-                      />
-                    )}
-                    {getFileType(viewingDocument?.nome_documento) === 'image' && (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-50 p-4 overflow-auto">
-                        <img
-                          src={signedUrl}
-                          alt={viewingDocument?.nome_documento}
-                          className="max-w-full max-h-full object-contain"
-                        />
-                      </div>
-                    )}
-                    {getFileType(viewingDocument?.nome_documento) === 'office' && (
-                      <iframe
-                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedUrl)}`}
-                        className="w-full h-full border-0"
-                        title={viewingDocument?.nome_documento}
-                        allowFullScreen
-                      />
-                    )}
-                    {getFileType(viewingDocument?.nome_documento) === 'other' && (
-                      <iframe
-                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`}
-                        className="w-full h-full border-0"
-                        title={viewingDocument?.nome_documento}
-                        allowFullScreen
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                    <p className="text-slate-500">Errore nel caricamento del documento</p>
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
     </div>
   );
+
+  async function handleDownloadDocument(doc) {
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
+          expires_in: 300
+        });
+        url = result.signed_url;
+      }
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.nome_documento;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Download avviato");
+    } catch (error) {
+      console.error("Errore download:", error);
+      toast.error("Impossibile scaricare il documento");
+    }
+  }
 }

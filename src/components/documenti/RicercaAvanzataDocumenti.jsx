@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
   const [isSearching, setIsSearching] = useState(false);
   const [cantieri, setCantieri] = useState([]);
 
-  useState(() => {
+  useEffect(() => {
     loadCantieri();
   }, []);
 
@@ -56,30 +56,20 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     try {
       const query = {};
       
-      // Filtro categoria
       if (categoriaFilter) {
         query.categoria_principale = categoriaFilter;
       }
       
-      // Filtro cantiere - cerca sia in entita_collegate che in entita_collegata_id
-      if (cantiereFilter) {
-        // Non possiamo fare query complesse su array, quindi carichiamo tutti e filtriamo client-side
-      }
-      
       let documenti = await base44.entities.Documento.list("-created_date", 200);
       
-      // Filtro cantiere (client-side)
       if (cantiereFilter) {
         documenti = documenti.filter(doc => {
-          // Vecchio sistema
           if (doc.entita_collegata_id === cantiereFilter) return true;
-          // Nuovo sistema array
           if (doc.entita_collegate?.some(e => e.entita_id === cantiereFilter)) return true;
           return false;
         });
       }
       
-      // Filtro date
       if (dataInizioFilter) {
         documenti = documenti.filter(doc => 
           doc.data_emissione && doc.data_emissione >= dataInizioFilter
@@ -91,7 +81,6 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
         );
       }
       
-      // Ricerca nel nome e descrizione
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         documenti = documenti.filter(doc => 
@@ -103,7 +92,6 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
         );
       }
       
-      // Filtro tag
       if (tagFilter) {
         documenti = documenti.filter(doc => 
           doc.tags?.some(tag => tag.toLowerCase().includes(tagFilter.toLowerCase()))
@@ -120,7 +108,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     }
   }, [searchTerm, categoriaFilter, dataInizioFilter, dataFineFilter, cantiereFilter, tagFilter, searchInContent]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setSearchTerm("");
     setCategoriaFilter("");
     setDataInizioFilter("");
@@ -129,19 +117,14 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     setTagFilter("");
     setSearchInContent(false);
     setRisultati([]);
-  };
+  }, []);
 
-  const handleViewDocument = async (documento) => {
-    if (!documento.file_uri && !documento.cloud_file_url) {
-      toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas}`);
-      return;
-    }
-
+  const handleViewDocument = useCallback(async (doc) => {
     try {
-      let url = documento.cloud_file_url;
-      if (documento.file_uri) {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
         const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: documento.file_uri,
+          file_uri: doc.file_uri,
           expires_in: 3600
         });
         url = result.signed_url;
@@ -151,12 +134,35 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
       console.error("Errore apertura documento:", error);
       toast.error("Impossibile aprire il documento");
     }
-  };
+  }, []);
 
-  const getCantiereNomi = (documento) => {
+  const handleDownloadDocument = useCallback(async (doc) => {
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
+          expires_in: 300
+        });
+        url = result.signed_url;
+      }
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.nome_documento;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Download avviato");
+    } catch (error) {
+      console.error("Errore download:", error);
+      toast.error("Impossibile scaricare il documento");
+    }
+  }, []);
+
+  const getCantiereNomi = useCallback((documento) => {
     const nomi = [];
     
-    // Nuovo sistema
     if (documento.entita_collegate?.length > 0) {
       documento.entita_collegate.forEach(e => {
         if (e.entita_tipo === 'cantiere') {
@@ -166,14 +172,13 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
       });
     }
     
-    // Vecchio sistema (fallback)
     if (nomi.length === 0 && documento.entita_collegata_tipo === 'cantiere') {
       const cantiere = cantieri.find(c => c.id === documento.entita_collegata_id);
       if (cantiere) nomi.push(cantiere.denominazione);
     }
     
     return nomi;
-  };
+  }, [cantieri]);
 
   return (
     <div className="space-y-6">
@@ -433,45 +438,4 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
       )}
     </div>
   );
-
-  async function handleViewDocument(doc) {
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 3600
-        });
-        url = result.signed_url;
-      }
-      window.open(url, '_blank');
-    } catch (error) {
-      console.error("Errore apertura documento:", error);
-      toast.error("Impossibile aprire il documento");
-    }
-  }
-
-  async function handleDownloadDocument(doc) {
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 300
-        });
-        url = result.signed_url;
-      }
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.nome_documento;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast.success("Download avviato");
-    } catch (error) {
-      console.error("Errore download:", error);
-      toast.error("Impossibile scaricare il documento");
-    }
-  }
 }

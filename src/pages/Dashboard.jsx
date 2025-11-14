@@ -22,14 +22,13 @@ export default function Dashboard() {
 
   const loadAdminDashboard = useCallback(async () => {
     const [cantieriData, salData, documentiData] = await Promise.all([
-      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 50), // Solo cantieri attivi, limitato a 50
-      base44.entities.SAL.list("-data_sal", 200), // Limitato a ultimi 200 SAL
-      base44.entities.Documento.list("-created_date", 100) // Limitato a ultimi 100 documenti
+      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 50),
+      base44.entities.SAL.list("-data_sal", 200),
+      base44.entities.Documento.list("-created_date", 100)
     ]);
 
     setDocumenti(documentiData);
 
-    // Calcola il totale certificato per ogni cantiere (solo imponibile) - ottimizzato
     const salByCantiere = new Map();
     salData.forEach(sal => {
       if (sal.tipo_sal_dettaglio !== 'anticipazione') {
@@ -54,7 +53,6 @@ export default function Dashboard() {
     
     const cantieriAttivi = cantieriConAvanzamento.length;
     
-    // Carica tutti i cantieri solo per valore totale portafoglio
     const allCantieri = await base44.entities.Cantiere.list();
     const valorePortafoglio = allCantieri.reduce((sum, c) => sum + (c.importo_contratto || 0), 0);
     
@@ -67,7 +65,6 @@ export default function Dashboard() {
       ? Math.round((weightedProgressSum / totalValueOfActiveContracts) * 100)
       : 0;
 
-    // Calcola documenti in scadenza (prossimi 30 giorni) - ottimizzato
     const oggi = Date.now();
     const trentaGiorniMs = 30 * 24 * 60 * 60 * 1000;
     
@@ -94,7 +91,6 @@ export default function Dashboard() {
 
     setTaskPersonali(taskData);
     
-    // Carica solo i documenti necessari per gli alert
     const documentiData = await base44.entities.Documento.filter({}, "-data_scadenza", 50);
     setDocumenti(documentiData);
     
@@ -102,7 +98,6 @@ export default function Dashboard() {
     const cantieriConTask = cantieriData.filter(cantiere => cantieriIds.has(cantiere.id));
     setCantieri(cantieriConTask);
 
-    // Calcoli ottimizzati
     let taskCompletati = 0, taskInCorso = 0, taskInRitardo = 0;
     const oggi = Date.now();
     
@@ -155,7 +150,6 @@ export default function Dashboard() {
       const alerts = [];
       const setteGiorniMs = 7 * 24 * 60 * 60 * 1000;
 
-      // Ottimizzato con un solo loop
       documenti.forEach(doc => {
         if (!doc.data_scadenza) return;
         
@@ -211,12 +205,12 @@ export default function Dashboard() {
 
   const renderAdminDashboard = useCallback(() => (
     <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600 mt-1">Panoramica generale e monitoraggio KPI</p>
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
+        <p className="text-slate-600 mt-2 text-lg">Panoramica generale e monitoraggio KPI</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <KPICard
           title="Cantieri Attivi"
           value={kpis.cantieriAttivi}
@@ -263,12 +257,12 @@ export default function Dashboard() {
 
   const renderUserDashboard = useCallback(() => (
     <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">I Miei Compiti</h1>
-        <p className="text-slate-600 mt-1">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">I Miei Compiti</h1>
+        <p className="text-slate-600 mt-2 text-lg">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <KPICard
           title="Totale Compiti"
           value={kpis.taskTotali || 0}
@@ -315,19 +309,21 @@ export default function Dashboard() {
   ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        {isLoading ? (
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-slate-200 rounded w-64"></div>
-            <div className="grid grid-cols-4 gap-6">
-              {Array(4).fill(0).map((_, i) => (
-                <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
-              ))}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="p-10">
+        <div className="max-w-7xl mx-auto">
+          {isLoading ? (
+            <div className="animate-pulse space-y-8">
+              <div className="h-10 bg-slate-200 rounded-xl w-64"></div>
+              <div className="grid grid-cols-4 gap-6">
+                {Array(4).fill(0).map((_, i) => (
+                  <div key={i} className="h-36 bg-slate-200 rounded-2xl"></div>
+                ))}
+              </div>
+              <div className="h-96 bg-slate-200 rounded-2xl"></div>
             </div>
-            <div className="h-96 bg-slate-200 rounded-xl"></div>
-          </div>
-        ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}
+          ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}
+        </div>
       </div>
     </div>
   );

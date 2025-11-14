@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { User } from "@/entities/User";
+import { base44 } from "@/api/base44Client";
 import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft } from "lucide-react";
 import {
   Sidebar,
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DataProvider } from "@/components/shared/DataContext";
 
 const primaryNavConfig = [
   { href: "Dashboard", icon: LayoutDashboard, label: "Dashboard", perm: "all" },
@@ -42,7 +42,7 @@ export default function Layout({ children }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const user = await User.me();
+        const user = await base44.auth.me();
         setCurrentUser(user);
       } catch (e) {
         console.error("Not logged in");
@@ -52,7 +52,7 @@ export default function Layout({ children }) {
   }, []);
 
   const handleLogout = async () => {
-    await User.logout();
+    await base44.auth.logout();
   };
 
   const hasPermission = (perm) => {
@@ -93,89 +93,91 @@ export default function Layout({ children }) {
   };
 
   return (
-    <SidebarProvider>
-      <style>
-        {`
-          :root {
-            --header-height: 0px;
-          }
-          
-          body {
-            background: #f8fafc;
-          }
-        `}
-      </style>
-      <div className="min-h-screen flex w-full bg-slate-50">
-        <Sidebar className="border-r border-slate-200 bg-white">
-          <SidebarHeader className="border-b border-slate-100 p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <Building2 className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <span className="font-bold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  CantierePRO
-                </span>
-              </div>
-            </div>
-          </SidebarHeader>
-          
-          <SidebarContent className="p-3 flex-1 overflow-y-auto">
-            <div className="space-y-1 mb-6">
-              <div className="px-3 py-2">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generale</p>
-              </div>
-              {visiblePrimaryNav.map(item => (
-                <NavItem key={item.href} item={item} pathname={location.pathname} />
-              ))}
-            </div>
+    <DataProvider>
+      <SidebarProvider>
+        <style>
+          {`
+            :root {
+              --header-height: 0px;
+            }
             
-            {visibleSettingsNav.length > 0 && (
-              <div className="space-y-1 pt-6 border-t border-slate-100">
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Impostazioni</p>
+            body {
+              background: #f8fafc;
+            }
+          `}
+        </style>
+        <div className="min-h-screen flex w-full bg-slate-50">
+          <Sidebar className="border-r border-slate-200 bg-white">
+            <SidebarHeader className="border-b border-slate-100 p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  <Building2 className="w-5 h-5 text-white" />
                 </div>
-                {visibleSettingsNav.map(item => (
+                <div className="flex-1">
+                  <span className="font-bold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    CantierePRO
+                  </span>
+                </div>
+              </div>
+            </SidebarHeader>
+            
+            <SidebarContent className="p-3 flex-1 overflow-y-auto">
+              <div className="space-y-1 mb-6">
+                <div className="px-3 py-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generale</p>
+                </div>
+                {visiblePrimaryNav.map(item => (
                   <NavItem key={item.href} item={item} pathname={location.pathname} />
                 ))}
               </div>
-            )}
-          </SidebarContent>
+              
+              {visibleSettingsNav.length > 0 && (
+                <div className="space-y-1 pt-6 border-t border-slate-100">
+                  <div className="px-3 py-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Impostazioni</p>
+                  </div>
+                  {visibleSettingsNav.map(item => (
+                    <NavItem key={item.href} item={item} pathname={location.pathname} />
+                  ))}
+                </div>
+              )}
+            </SidebarContent>
 
-          <SidebarFooter className="border-t border-slate-100 p-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10 border-2 border-indigo-100">
-                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-sm">
-                  {getUserInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm truncate">
-                  {currentUser?.full_name || "Utente"}
-                </p>
-                <p className="text-xs text-slate-500 truncate capitalize">
-                  {currentUser?.role?.replace('_', ' ') || "user"}
-                </p>
+            <SidebarFooter className="border-t border-slate-100 p-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10 border-2 border-indigo-100">
+                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-sm">
+                    {getUserInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm truncate">
+                    {currentUser?.full_name || "Utente"}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate capitalize">
+                    {currentUser?.role?.replace('_', ' ') || "user"}
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleLogout} 
+                  className="text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0"
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={handleLogout} 
-                className="text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors flex-shrink-0"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
+            </SidebarFooter>
+          </Sidebar>
 
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
+              {children}
+            </div>
+          </main>
+        </div>
+      </SidebarProvider>
+    </DataProvider>
   );
 }

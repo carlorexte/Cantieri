@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
+import { useData } from "@/components/shared/DataContext";
 
 import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
@@ -8,8 +9,8 @@ import CantieriAttivi from "../components/dashboard/CantieriAttivi";
 import TaskPersonali from "../components/dashboard/TaskPersonali";
 
 export default function Dashboard() {
+  const { cantieri: allCantieri, currentUser } = useData();
   const [cantieri, setCantieri] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
   const [taskPersonali, setTaskPersonali] = useState([]);
   const [documenti, setDocumenti] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,10 +22,10 @@ export default function Dashboard() {
   });
 
   const loadAdminDashboard = useCallback(async () => {
-    const [cantieriData, salData, documentiData] = await Promise.all([
-      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 50),
-      base44.entities.SAL.list("-data_sal", 200),
-      base44.entities.Documento.list("-created_date", 100)
+    const [cantieriAttivi, salData, documentiData] = await Promise.all([
+      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 30),
+      base44.entities.SAL.list("-data_sal", 100),
+      base44.entities.Documento.filter({}, "-data_scadenza", 50)
     ]);
 
     setDocumenti(documentiData);
@@ -37,7 +38,7 @@ export default function Dashboard() {
       }
     });
 
-    const cantieriConAvanzamento = cantieriData.map(cantiere => {
+    const cantieriConAvanzamento = cantieriAttivi.map(cantiere => {
       const totaleSAL = salByCantiere.get(cantiere.id) || 0;
       const importoContratto = cantiere.importo_contrattuale_oltre_iva || 0;
       
@@ -51,9 +52,6 @@ export default function Dashboard() {
     
     setCantieri(cantieriConAvanzamento);
     
-    const cantieriAttivi = cantieriConAvanzamento.length;
-    
-    const allCantieri = await base44.entities.Cantiere.list();
     const valorePortafoglio = allCantieri.reduce((sum, c) => sum + (c.importo_contratto || 0), 0);
     
     const totalValueOfActiveContracts = cantieriConAvanzamento.reduce((sum, c) => sum + (c.importo_contrattuale_oltre_iva || 0), 0);
@@ -76,22 +74,22 @@ export default function Dashboard() {
     }, 0);
 
     setKpis({
-      cantieriAttivi,
+      cantieriAttivi: cantieriConAvanzamento.length,
       valorePortafoglio,
       avanzamentoMedio,
       documentiInScadenza
     });
-  }, []);
+  }, [allCantieri]);
 
   const loadUserDashboard = useCallback(async (user) => {
     const [taskData, cantieriData] = await Promise.all([
-      base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "-data_scadenza", 50),
+      base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "-data_scadenza", 30),
       base44.entities.Cantiere.list("-created_date", 20)
     ]);
 
     setTaskPersonali(taskData);
     
-    const documentiData = await base44.entities.Documento.filter({}, "-data_scadenza", 50);
+    const documentiData = await base44.entities.Documento.filter({}, "-data_scadenza", 30);
     setDocumenti(documentiData);
     
     const cantieriIds = new Set(taskData.map(t => t.cantiere_id).filter(Boolean));
@@ -121,24 +119,23 @@ export default function Dashboard() {
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const user = await base44.auth.me();
-      setCurrentUser(user);
-
-      if (user.role === 'admin') {
+      if (currentUser?.role === 'admin') {
         await loadAdminDashboard();
-      } else {
-        await loadUserDashboard(user);
+      } else if (currentUser) {
+        await loadUserDashboard(currentUser);
       }
     } catch (error) {
       console.error("Errore caricamento dashboard:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [loadAdminDashboard, loadUserDashboard]);
+  }, [currentUser, loadAdminDashboard, loadUserDashboard]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    if (currentUser) {
+      loadDashboardData();
+    }
+  }, [currentUser, loadDashboardData]);
 
   const getAlertsForUser = useMemo(() => {
     if (!currentUser) return [];

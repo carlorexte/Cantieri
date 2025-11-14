@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useData } from "@/components/shared/DataContext";
 
 import CantiereForm from "../components/cantieri/CantiereForm";
 import CantiereDetail from "../components/cantieri/CantiereDetail";
@@ -136,41 +137,15 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
 CantiereCard.displayName = 'CantiereCard';
 
 export default function Cantieri() {
-  const [cantieri, setCantieri] = useState([]);
+  const { cantieri, currentUser, refreshCantieri } = useData();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("tutti");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingCantiere, setEditingCantiere] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedCantiere, setSelectedCantiere] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
   const [formIsDirty, setFormIsDirty] = useState(false);
-
-  const loadCantieri = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await base44.entities.Cantiere.list("-created_date");
-      setCantieri(data);
-    } catch (error) {
-      console.error("Errore caricamento cantieri:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const loadInitialData = async () => {
-      await loadCantieri();
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error("Errore caricamento utente corrente:", error);
-      }
-    }
-    loadInitialData();
-  }, [loadCantieri]);
 
   const filteredCantieri = useMemo(() => {
     let filtered = cantieri;
@@ -205,22 +180,22 @@ export default function Cantieri() {
       setShowForm(false);
       setEditingCantiere(null);
       setFormIsDirty(false);
-      loadCantieri();
+      await refreshCantieri();
     } catch (error) {
       console.error("Errore salvataggio cantiere:", error);
     }
-  }, [editingCantiere, cantieri, loadCantieri]);
+  }, [editingCantiere, cantieri, refreshCantieri]);
 
   const handleDelete = useCallback(async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo cantiere? L'azione è irreversibile.")) {
       try {
         await base44.entities.Cantiere.delete(id);
-        loadCantieri();
+        await refreshCantieri();
       } catch (error) {
         console.error("Errore durante l'eliminazione del cantiere:", error);
       }
     }
-  }, [loadCantieri]);
+  }, [refreshCantieri]);
 
   const handleEdit = useCallback((cantiere) => {
     setEditingCantiere(cantiere);

@@ -212,8 +212,10 @@ export default function Dashboard() {
   const renderAdminDashboard = useCallback(() => (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600 mt-1">Panoramica generale e monitoraggio KPI</p>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+          Dashboard
+        </h1>
+        <p className="text-slate-600 mt-2">Panoramica generale e monitoraggio KPI</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -247,7 +249,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Grafici Avanzati */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <GraficoSALTempo cantieri={cantieri} salList={salList} />
         <GraficoDistribuzioneCosti documenti={documenti} salList={salList} />
@@ -275,8 +276,10 @@ export default function Dashboard() {
   const renderUserDashboard = useCallback(() => (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">I Miei Compiti</h1>
-        <p className="text-slate-600 mt-1">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+          I Miei Compiti
+        </h1>
+        <p className="text-slate-600 mt-2">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -326,19 +329,19 @@ export default function Dashboard() {
   ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
+    <div className="p-8 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {isLoading ? (
           <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-slate-200 rounded w-64"></div>
+            <div className="h-10 bg-gradient-to-r from-purple-200 to-indigo-200 rounded-2xl w-64"></div>
             <div className="grid grid-cols-4 gap-6">
               {Array(4).fill(0).map((_, i) => (
-                <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
+                <div key={i} className="h-32 bg-white/60 rounded-3xl"></div>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-6">
-              <div className="h-96 bg-slate-200 rounded-xl"></div>
-              <div className="h-96 bg-slate-200 rounded-xl"></div>
+              <div className="h-96 bg-white/60 rounded-3xl"></div>
+              <div className="h-96 bg-white/60 rounded-3xl"></div>
             </div>
           </div>
         ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}

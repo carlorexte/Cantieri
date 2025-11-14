@@ -47,39 +47,27 @@ export default function HeatmapScadenze({ documenti }) {
     [heatmapData]
   );
 
-  const getIntensityStyle = (count, critici) => {
-    if (count === 0) return 'bg-slate-50 border-slate-200';
+  const getCellStyle = (count, critici) => {
+    if (count === 0) return 'bg-slate-100 text-slate-400';
     
     const intensity = count / maxCount;
     
     if (critici > 0) {
-      if (intensity > 0.7) return 'bg-gradient-to-br from-rose-500 to-red-600 shadow-lg shadow-rose-500/30';
-      if (intensity > 0.4) return 'bg-gradient-to-br from-rose-400 to-red-500 shadow-md shadow-rose-400/30';
-      return 'bg-gradient-to-br from-rose-300 to-red-400 shadow-sm';
+      if (intensity > 0.7) return 'bg-[#ff7675] text-white';
+      if (intensity > 0.4) return 'bg-[#ff7675]/70 text-white';
+      return 'bg-[#ff7675]/40 text-slate-900';
     } else {
-      if (intensity > 0.7) return 'bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/30';
-      if (intensity > 0.4) return 'bg-gradient-to-br from-purple-400 to-indigo-500 shadow-md shadow-purple-400/30';
-      return 'bg-gradient-to-br from-purple-300 to-indigo-400 shadow-sm';
-    }
-  };
-
-  const getTextColor = (count, critici) => {
-    if (count === 0) return 'text-slate-400';
-    
-    const intensity = count / maxCount;
-    
-    if (critici > 0) {
-      return intensity > 0.4 ? 'text-white' : 'text-red-900';
-    } else {
-      return intensity > 0.4 ? 'text-white' : 'text-purple-900';
+      if (intensity > 0.7) return 'bg-[#6c5ce7] text-white';
+      if (intensity > 0.4) return 'bg-[#6c5ce7]/70 text-white';
+      return 'bg-[#6c5ce7]/40 text-slate-900';
     }
   };
 
   return (
-    <Card className="border-0 shadow-lg hover:shadow-xl transition-all bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden">
+    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-slate-800">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+        <CardTitle className="flex items-center gap-3 text-slate-800">
+          <div className="w-10 h-10 rounded-xl bg-[#fdcb6e] flex items-center justify-center shadow-sm">
             <Calendar className="w-5 h-5 text-white" />
           </div>
           Heatmap Scadenze Documenti
@@ -91,45 +79,40 @@ export default function HeatmapScadenze({ documenti }) {
             <div
               key={idx}
               className={`
-                relative p-4 rounded-2xl transition-all duration-300 cursor-pointer border
-                ${getIntensityStyle(mese.count, mese.critici)}
-                hover:scale-105 hover:shadow-xl
+                relative p-3 rounded-xl transition-all cursor-pointer
+                ${getCellStyle(mese.count, mese.critici)}
+                hover:shadow-md
               `}
               title={`${mese.meseCompleto}: ${mese.count} documenti in scadenza${mese.critici > 0 ? ` (${mese.critici} critici)` : ''}`}
             >
               <div className="text-center">
-                <p className={`text-xs font-bold uppercase tracking-wide ${getTextColor(mese.count, mese.critici)}`}>
+                <p className="text-xs font-semibold uppercase">
                   {mese.mese}
                 </p>
-                <p className={`text-3xl font-bold mt-1 ${getTextColor(mese.count, mese.critici)}`}>
+                <p className="text-2xl font-bold mt-1">
                   {mese.count}
                 </p>
-                {mese.critici > 0 && (
-                  <div className="absolute -top-2 -right-2 bg-gradient-to-br from-red-500 to-rose-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg">
-                    !
-                  </div>
-                )}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-center gap-6 mt-8 pt-6 border-t border-slate-200">
+        <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-slate-200">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-slate-50 border-2 border-slate-200 rounded-lg"></div>
-            <span className="text-sm text-slate-600">Nessuna</span>
+            <div className="w-4 h-4 bg-slate-100 rounded"></div>
+            <span className="text-xs text-slate-600">Nessuna</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gradient-to-br from-purple-300 to-indigo-400 rounded-lg shadow-sm"></div>
-            <span className="text-sm text-slate-600">Bassa</span>
+            <div className="w-4 h-4 bg-[#6c5ce7]/40 rounded"></div>
+            <span className="text-xs text-slate-600">Bassa</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-md"></div>
-            <span className="text-sm text-slate-600">Alta</span>
+            <div className="w-4 h-4 bg-[#6c5ce7] rounded"></div>
+            <span className="text-xs text-slate-600">Alta</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gradient-to-br from-rose-500 to-red-600 rounded-lg shadow-lg"></div>
-            <span className="text-sm text-slate-600">Critica</span>
+            <div className="w-4 h-4 bg-[#ff7675] rounded"></div>
+            <span className="text-xs text-slate-600">Critica</span>
           </div>
         </div>
       </CardContent>

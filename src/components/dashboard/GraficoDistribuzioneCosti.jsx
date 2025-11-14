@@ -4,18 +4,18 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { PieChart as PieChartIcon } from 'lucide-react';
 
 const categorieDocumenti = {
-  permessi: { label: "Permessi", color: "#a855f7" },
-  contratti: { label: "Contratti", color: "#3b82f6" },
-  polizze: { label: "Polizze", color: "#10b981" },
-  certificazioni: { label: "Certificazioni", color: "#06b6d4" },
-  fatture: { label: "Fatture", color: "#f97316" },
-  sal: { label: "SAL", color: "#8b5cf6" },
-  sicurezza: { label: "Sicurezza", color: "#ef4444" },
-  tecnici: { label: "Tecnici", color: "#14b8a6" },
-  foto: { label: "Foto", color: "#ec4899" },
-  corrispondenza: { label: "Corrispondenza", color: "#f59e0b" },
-  legale: { label: "Legale", color: "#f43f5e" },
-  altro: { label: "Altro", color: "#64748b" }
+  permessi: { label: "Permessi", color: "#a29bfe" },
+  contratti: { label: "Contratti", color: "#74b9ff" },
+  polizze: { label: "Polizze", color: "#00b894" },
+  certificazioni: { label: "Certificazioni", color: "#00cec9" },
+  fatture: { label: "Fatture", color: "#fdcb6e" },
+  sal: { label: "SAL", color: "#6c5ce7" },
+  sicurezza: { label: "Sicurezza", color: "#ff7675" },
+  tecnici: { label: "Tecnici", color: "#55efc4" },
+  foto: { label: "Foto", color: "#fd79a8" },
+  corrispondenza: { label: "Corrispondenza", color: "#ffeaa7" },
+  legale: { label: "Legale", color: "#fab1a0" },
+  altro: { label: "Altro", color: "#b2bec3" }
 };
 
 export default function GraficoDistribuzioneCosti({ documenti, salList }) {
@@ -75,11 +75,11 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white/95 backdrop-blur-sm p-4 border-none rounded-2xl shadow-2xl">
-          <p className="font-semibold text-slate-900 mb-2">{data.name}</p>
+        <div className="bg-white p-3 border-none rounded-xl shadow-lg">
+          <p className="font-semibold text-slate-900 mb-1">{data.name}</p>
           <p className="text-sm text-slate-600">Documenti: {data.value}</p>
           {data.valore > 0 && (
-            <p className="text-sm text-purple-600 font-medium">
+            <p className="text-sm text-[#6c5ce7] font-medium">
               Valore: €{Number(data.valore).toLocaleString('it-IT')}
             </p>
           )}
@@ -91,10 +91,10 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
 
   if (chartData.length === 0) {
     return (
-      <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm rounded-3xl">
+      <Card className="border-0 shadow-sm bg-white rounded-2xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-800">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+          <CardTitle className="flex items-center gap-3 text-slate-800">
+            <div className="w-10 h-10 rounded-xl bg-[#00b894] flex items-center justify-center">
               <PieChartIcon className="w-5 h-5 text-white" />
             </div>
             Distribuzione Documenti per Categoria
@@ -109,10 +109,10 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
   }
 
   return (
-    <Card className="border-0 shadow-lg hover:shadow-xl transition-all bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden">
+    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-slate-800">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+        <CardTitle className="flex items-center gap-3 text-slate-800">
+          <div className="w-10 h-10 rounded-xl bg-[#00b894] flex items-center justify-center shadow-sm">
             <PieChartIcon className="w-5 h-5 text-white" />
           </div>
           Distribuzione Documenti per Categoria
@@ -135,7 +135,7 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
                 const categoria = Object.keys(categorieDocumenti).find(
                   key => categorieDocumenti[key].label === entry.name
                 );
-                const color = categoria ? categorieDocumenti[categoria].color : '#64748b';
+                const color = categoria ? categorieDocumenti[categoria].color : '#b2bec3';
                 return <Cell key={`cell-${index}`} fill={color} />;
               })}
             </Pie>
@@ -148,22 +148,22 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
           </PieChart>
         </ResponsiveContainer>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-6">
           {chartData.map((item, idx) => {
             const categoria = Object.keys(categorieDocumenti).find(
               key => categorieDocumenti[key].label === item.name
             );
-            const color = categoria ? categorieDocumenti[categoria].color : '#64748b';
+            const color = categoria ? categorieDocumenti[categoria].color : '#b2bec3';
             
             return (
-              <div key={idx} className="flex items-center gap-2 p-3 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl hover:shadow-md transition-all">
+              <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
                 <div 
-                  className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" 
+                  className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: color }}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-600 truncate">{item.name}</p>
-                  <p className="text-sm font-semibold text-slate-900">{item.value} doc</p>
+                  <p className="text-sm font-semibold text-slate-900">{item.value}</p>
                 </div>
               </div>
             );

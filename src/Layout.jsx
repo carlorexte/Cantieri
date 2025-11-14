@@ -67,14 +67,14 @@ export default function Layout({ children }) {
       <Link 
         to={createPageUrl(item.href)} 
         className={`
-          flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all
+          flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
           ${isActive 
-            ? "bg-white/20 text-white shadow-lg backdrop-blur-sm" 
-            : "text-purple-100/80 hover:bg-white/10 hover:text-white"
+            ? "bg-white text-[#6c5ce7] shadow-sm" 
+            : "text-white/80 hover:text-white hover:bg-white/10"
           }
         `}
       >
-        <item.icon className={`w-5 h-5 ${isActive ? "text-white" : "text-purple-200/70"}`} />
+        <item.icon className="w-5 h-5" />
         <span>{item.label}</span>
       </Link>
     )
@@ -91,37 +91,30 @@ export default function Layout({ children }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <Sidebar className="border-none bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 shadow-2xl">
-          <SidebarHeader className="p-6 border-b border-white/10">
+      <div className="min-h-screen flex w-full bg-[#f5f6fa]">
+        <Sidebar className="border-none bg-[#6c5ce7] shadow-lg">
+          <SidebarHeader className="p-5 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-                <Building2 className="w-7 h-7 text-white" />
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <span className="font-bold text-xl text-white">
+                <span className="font-bold text-lg text-white">
                   CantierePRO
                 </span>
-                <p className="text-xs text-purple-200/70">Management Suite</p>
               </div>
             </div>
           </SidebarHeader>
           
-          <SidebarContent className="p-4 flex-1 overflow-y-auto">
-            <div className="space-y-2 mb-8">
-              <div className="px-4 py-2">
-                <p className="text-xs font-semibold text-purple-200/60 uppercase tracking-wider">Menu Principale</p>
-              </div>
+          <SidebarContent className="p-3 flex-1 overflow-y-auto">
+            <div className="space-y-1 mb-6">
               {visiblePrimaryNav.map(item => (
                 <NavItem key={item.href} item={item} pathname={location.pathname} />
               ))}
             </div>
             
             {visibleSettingsNav.length > 0 && (
-              <div className="space-y-2 pt-6 border-t border-white/10">
-                <div className="px-4 py-2">
-                  <p className="text-xs font-semibold text-purple-200/60 uppercase tracking-wider">Impostazioni</p>
-                </div>
+              <div className="space-y-1 pt-4 border-t border-white/10">
                 {visibleSettingsNav.map(item => (
                   <NavItem key={item.href} item={item} pathname={location.pathname} />
                 ))}
@@ -129,18 +122,18 @@ export default function Layout({ children }) {
             )}
           </SidebarContent>
 
-          <SidebarFooter className="p-4 border-t border-white/10">
-            <div className="flex items-center gap-3 p-3 bg-white/10 backdrop-blur-sm rounded-2xl">
-              <Avatar className="w-11 h-11 border-2 border-white/30 shadow-lg">
-                <AvatarFallback className="bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-sm">
+          <SidebarFooter className="p-3 border-t border-white/10">
+            <div className="flex items-center gap-3 p-2">
+              <Avatar className="w-9 h-9 border-2 border-white/20">
+                <AvatarFallback className="bg-white/20 text-white font-semibold text-xs">
                   {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white text-sm truncate">
+                <p className="font-medium text-white text-sm truncate">
                   {currentUser?.full_name || "Utente"}
                 </p>
-                <p className="text-xs text-purple-200/70 truncate capitalize">
+                <p className="text-xs text-white/60 truncate capitalize">
                   {currentUser?.role?.replace('_', ' ') || "user"}
                 </p>
               </div>
@@ -148,7 +141,7 @@ export default function Layout({ children }) {
                 variant="ghost" 
                 size="icon"
                 onClick={handleLogout} 
-                className="text-purple-200 hover:text-white hover:bg-white/10 transition-all flex-shrink-0 rounded-xl"
+                className="text-white/80 hover:text-white hover:bg-white/10 flex-shrink-0 h-8 w-8"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />

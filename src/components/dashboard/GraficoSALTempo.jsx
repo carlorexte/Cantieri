@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -57,14 +57,14 @@ export default function GraficoSALTempo({ cantieri, salList }) {
     return cantieri.filter(c => cantieriConSAL.has(c.id)).slice(0, 5);
   }, [cantieri, salList]);
 
-  const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
+  const colors = ['#6c5ce7', '#00b894', '#fdcb6e', '#fd79a8', '#00cec9'];
 
   if (chartData.length === 0) {
     return (
-      <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm rounded-3xl">
+      <Card className="border-0 shadow-sm bg-white rounded-2xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-800">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+          <CardTitle className="flex items-center gap-3 text-slate-800">
+            <div className="w-10 h-10 rounded-xl bg-[#6c5ce7] flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
             Andamento SAL nel Tempo
@@ -79,10 +79,10 @@ export default function GraficoSALTempo({ cantieri, salList }) {
   }
 
   return (
-    <Card className="border-0 shadow-lg hover:shadow-xl transition-all bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden">
+    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-slate-800">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+        <CardTitle className="flex items-center gap-3 text-slate-800">
+          <div className="w-10 h-10 rounded-xl bg-[#6c5ce7] flex items-center justify-center shadow-sm">
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           Andamento SAL nel Tempo
@@ -94,36 +94,38 @@ export default function GraficoSALTempo({ cantieri, salList }) {
             <defs>
               {cantieriAttivi.map((cantiere, idx) => (
                 <linearGradient key={cantiere.id} id={`color${idx}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={colors[idx]} stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor={colors[idx]} stopOpacity={0.05}/>
+                  <stop offset="5%" stopColor={colors[idx]} stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor={colors[idx]} stopOpacity={0}/>
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
             <XAxis 
               dataKey="dataFormatted" 
-              tick={{ fontSize: 12, fill: '#64748b' }}
-              stroke="#cbd5e1"
+              tick={{ fontSize: 12, fill: '#94a3b8' }}
+              stroke="#e5e7eb"
+              axisLine={false}
             />
             <YAxis 
-              tick={{ fontSize: 12, fill: '#64748b' }}
-              stroke="#cbd5e1"
+              tick={{ fontSize: 12, fill: '#94a3b8' }}
+              stroke="#e5e7eb"
+              axisLine={false}
               tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
             />
             <Tooltip 
               contentStyle={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                backgroundColor: 'white', 
                 border: 'none',
-                borderRadius: '16px',
-                boxShadow: '0 8px 24px -4px rgba(103, 126, 234, 0.2)',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                 padding: '12px'
               }}
               formatter={(value) => [`€${Number(value).toLocaleString('it-IT')}`, '']}
-              labelStyle={{ fontWeight: 'bold', marginBottom: '8px', color: '#1e293b' }}
+              labelStyle={{ fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}
             />
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
-              iconType="line"
+              iconType="circle"
             />
             {cantieriAttivi.map((cantiere, idx) => (
               <Area
@@ -131,7 +133,7 @@ export default function GraficoSALTempo({ cantieri, salList }) {
                 type="monotone"
                 dataKey={cantiere.denominazione}
                 stroke={colors[idx]}
-                strokeWidth={3}
+                strokeWidth={2}
                 fill={`url(#color${idx})`}
                 name={cantiere.denominazione}
               />

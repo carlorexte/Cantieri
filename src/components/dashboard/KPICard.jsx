@@ -4,39 +4,24 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const colorSchemes = {
   indigo: {
-    gradient: 'from-indigo-500 to-purple-600',
-    bg: 'bg-gradient-to-br from-indigo-500/10 to-purple-600/10',
-    icon: 'bg-gradient-to-br from-indigo-500 to-purple-600',
-    text: 'text-indigo-700',
-    light: 'text-indigo-500'
+    icon: 'bg-[#6c5ce7]',
+    text: 'text-slate-700',
   },
   cyan: {
-    gradient: 'from-cyan-400 to-blue-500',
-    bg: 'bg-gradient-to-br from-cyan-400/10 to-blue-500/10',
-    icon: 'bg-gradient-to-br from-cyan-400 to-blue-500',
-    text: 'text-cyan-700',
-    light: 'text-cyan-500'
+    icon: 'bg-[#00cec9]',
+    text: 'text-slate-700',
   },
   emerald: {
-    gradient: 'from-emerald-400 to-green-600',
-    bg: 'bg-gradient-to-br from-emerald-400/10 to-green-600/10',
-    icon: 'bg-gradient-to-br from-emerald-400 to-green-600',
-    text: 'text-emerald-700',
-    light: 'text-emerald-500'
+    icon: 'bg-[#00b894]',
+    text: 'text-slate-700',
   },
   amber: {
-    gradient: 'from-amber-400 to-orange-500',
-    bg: 'bg-gradient-to-br from-amber-400/10 to-orange-500/10',
-    icon: 'bg-gradient-to-br from-amber-400 to-orange-500',
-    text: 'text-amber-700',
-    light: 'text-amber-500'
+    icon: 'bg-[#fdcb6e]',
+    text: 'text-slate-700',
   },
   rose: {
-    gradient: 'from-rose-400 to-pink-600',
-    bg: 'bg-gradient-to-br from-rose-400/10 to-pink-600/10',
-    icon: 'bg-gradient-to-br from-rose-400 to-pink-600',
-    text: 'text-rose-700',
-    light: 'text-rose-500'
+    icon: 'bg-[#fd79a8]',
+    text: 'text-slate-700',
   }
 };
 
@@ -51,17 +36,17 @@ const KPICard = React.memo(({
   const colors = colorSchemes[colorScheme];
 
   return (
-    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden group">
+    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-            <h3 className={`text-3xl font-bold ${colors.text} tracking-tight`}>
+            <h3 className={`text-3xl font-bold ${colors.text}`}>
               {value}
             </h3>
           </div>
-          <div className={`w-14 h-14 rounded-2xl ${colors.icon} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-            <Icon className="w-7 h-7 text-white" />
+          <div className={`w-12 h-12 rounded-xl ${colors.icon} flex items-center justify-center shadow-sm`}>
+            <Icon className="w-6 h-6 text-white" />
           </div>
         </div>
         

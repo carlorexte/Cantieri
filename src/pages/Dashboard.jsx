@@ -7,13 +7,25 @@ import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
 import CantieriAttivi from "../components/dashboard/CantieriAttivi";
 import TaskPersonali from "../components/dashboard/TaskPersonali";
+import CantieriPerStatoChart from "../components/dashboard/CantieriPerStatoChart";
+import ValorePerCommittenteChart from "../components/dashboard/ValorePerCommittenteChart";
+import AvanzamentoCantieriChart from "../components/dashboard/AvanzamentoCantieriChart";
+import TrendSALChart from "../components/dashboard/TrendSALChart";
+import DashboardFilters from "../components/dashboard/DashboardFilters";
 
 export default function Dashboard() {
   const { cantieri: allCantieri, currentUser } = useData();
   const [cantieri, setCantieri] = useState([]);
   const [taskPersonali, setTaskPersonali] = useState([]);
   const [documenti, setDocumenti] = useState([]);
+  const [salData, setSalData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    stato: 'tutti',
+    committente: 'tutti',
+    anno: 'tutti',
+    valoreMin: ''
+  });
   const [kpis, setKpis] = useState({
     cantieriAttivi: 0,
     valorePortafoglio: 0,
@@ -22,16 +34,17 @@ export default function Dashboard() {
   });
 
   const loadAdminDashboard = useCallback(async () => {
-    const [cantieriAttivi, salData, documentiData] = await Promise.all([
+    const [cantieriAttivi, salDataResult, documentiData] = await Promise.all([
       base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 30),
-      base44.entities.SAL.list("-data_sal", 100),
+      base44.entities.SAL.list("-data_sal", 200),
       base44.entities.Documento.filter({}, "-data_scadenza", 50)
     ]);
 
+    setSalData(salDataResult);
     setDocumenti(documentiData);
 
     const salByCantiere = new Map();
-    salData.forEach(sal => {
+    salDataResult.forEach(sal => {
       if (sal.tipo_sal_dettaglio !== 'anticipazione') {
         const current = salByCantiere.get(sal.cantiere_id) || 0;
         salByCantiere.set(sal.cantiere_id, current + (sal.imponibile || 0));
@@ -200,12 +213,64 @@ export default function Dashboard() {
     }
   }, [currentUser, taskPersonali, documenti, cantieri]);
 
+  const filteredCantieri = useMemo(() => {
+    let filtered = allCantieri;
+
+    if (filters.stato !== 'tutti') {
+      filtered = filtered.filter(c => c.stato === filters.stato);
+    }
+
+    if (filters.committente !== 'tutti') {
+      filtered = filtered.filter(c => c.committente_ragione_sociale === filters.committente);
+    }
+
+    if (filters.anno !== 'tutti') {
+      filtered = filtered.filter(c => {
+        if (!c.data_inizio) return false;
+        const year = new Date(c.data_inizio).getFullYear().toString();
+        return year === filters.anno;
+      });
+    }
+
+    if (filters.valoreMin) {
+      const minVal = parseFloat(filters.valoreMin);
+      filtered = filtered.filter(c => (c.importo_contratto || 0) >= minVal);
+    }
+
+    return filtered;
+  }, [allCantieri, filters]);
+
+  const committentiList = useMemo(() => {
+    const committenti = new Set(
+      allCantieri
+        .map(c => c.committente_ragione_sociale)
+        .filter(Boolean)
+    );
+    return Array.from(committenti).sort();
+  }, [allCantieri]);
+
+  const handleResetFilters = useCallback(() => {
+    setFilters({
+      stato: 'tutti',
+      committente: 'tutti',
+      anno: 'tutti',
+      valoreMin: ''
+    });
+  }, []);
+
   const renderAdminDashboard = useCallback(() => (
     <>
       <div className="mb-10">
         <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
         <p className="text-slate-600 mt-2 text-lg">Panoramica generale e monitoraggio KPI</p>
       </div>
+
+      <DashboardFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        onReset={handleResetFilters}
+        committenti={committentiList}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <KPICard
@@ -238,6 +303,19 @@ export default function Dashboard() {
         />
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <CantieriPerStatoChart cantieri={filteredCantieri} />
+        <TrendSALChart salData={salData} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 mb-6">
+        <ValorePerCommittenteChart cantieri={filteredCantieri} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 mb-6">
+        <AvanzamentoCantieriChart cantieri={filteredCantieri} />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CantieriAttivi 
@@ -250,7 +328,7 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  ), [kpis, cantieri, isLoading, getAlertsForUser]);
+  ), [kpis, cantieri, filteredCantieri, salData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters]);
 
   const renderUserDashboard = useCallback(() => (
     <>

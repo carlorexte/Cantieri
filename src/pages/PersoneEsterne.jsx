@@ -28,6 +28,8 @@ export default function PersoneEsterne() {
   const [showForm, setShowForm] = useState(false);
   const [editingPersona, setEditingPersona] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState(null);
 
   useEffect(() => {
     loadPersone();
@@ -51,7 +53,13 @@ export default function PersoneEsterne() {
     setIsLoading(true);
     try {
       const data = await PersonaEsterna.list("-created_date");
-      setPersone(data);
+      // Ordina alfabeticamente per cognome e poi per nome
+      const sortedData = data.sort((a, b) => {
+        const cognomeCompare = (a.cognome || '').localeCompare(b.cognome || '');
+        if (cognomeCompare !== 0) return cognomeCompare;
+        return (a.nome || '').localeCompare(b.nome || '');
+      });
+      setPersone(sortedData);
     } catch (error) {
       console.error("Errore caricamento persone:", error);
     }
@@ -181,43 +189,26 @@ export default function PersoneEsterne() {
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
+                        <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
                             <UserIcon className="w-5 h-5 text-indigo-600" />
                           </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-slate-900">
-                              {persona.nome} {persona.cognome}
-                            </h3>
-                            {persona.qualifica && (
-                              <p className="text-sm text-slate-500">{persona.qualifica}</p>
-                            )}
+                          <div className="flex-1">
+                            <button
+                              onClick={() => {
+                                setSelectedPersona(persona);
+                                setShowDetailDialog(true);
+                              }}
+                              className="text-left w-full"
+                            >
+                              <h3 className="text-xl font-bold text-slate-900 hover:text-indigo-600 transition-colors cursor-pointer">
+                                {persona.nome} {persona.cognome}
+                              </h3>
+                              {persona.qualifica && (
+                                <p className="text-sm text-slate-500">{persona.qualifica}</p>
+                              )}
+                            </button>
                           </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600 mt-4">
-                          {persona.email && (
-                            <div className="flex items-center gap-2">
-                              <Mail className="w-4 h-4 text-slate-400" />
-                              <span>{persona.email}</span>
-                            </div>
-                          )}
-                          {persona.telefono && (
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-4 h-4 text-slate-400" />
-                              <span>{persona.telefono}</span>
-                            </div>
-                          )}
-                          {persona.codice_fiscale && (
-                            <div>
-                              <span className="font-medium">CF:</span> {persona.codice_fiscale}
-                            </div>
-                          )}
-                          {persona.citta && (
-                            <div>
-                              <span className="font-medium">Città:</span> {persona.citta}
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -276,6 +267,110 @@ export default function PersoneEsterne() {
                   setEditingPersona(null);
                 }}
               />
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog Dettagli */}
+          <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Dettagli Persona Esterna</DialogTitle>
+              </DialogHeader>
+              {selectedPersona && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 pb-4 border-b">
+                    <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <UserIcon className="w-8 h-8 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-900">
+                        {selectedPersona.nome} {selectedPersona.cognome}
+                      </h3>
+                      {selectedPersona.qualifica && (
+                        <p className="text-slate-600 text-lg">{selectedPersona.qualifica}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {selectedPersona.codice_fiscale && (
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-1">Codice Fiscale</p>
+                        <p className="text-slate-900">{selectedPersona.codice_fiscale}</p>
+                      </div>
+                    )}
+                    {selectedPersona.partita_iva && (
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-1">Partita IVA</p>
+                        <p className="text-slate-900">{selectedPersona.partita_iva}</p>
+                      </div>
+                    )}
+                    {selectedPersona.data_nascita && (
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-1">Data di Nascita</p>
+                        <p className="text-slate-900">{new Date(selectedPersona.data_nascita).toLocaleDateString('it-IT')}</p>
+                      </div>
+                    )}
+                    {selectedPersona.email && (
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-1">Email</p>
+                        <p className="text-slate-900">{selectedPersona.email}</p>
+                      </div>
+                    )}
+                    {selectedPersona.pec && (
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-1">PEC</p>
+                        <p className="text-slate-900">{selectedPersona.pec}</p>
+                      </div>
+                    )}
+                    {selectedPersona.telefono && (
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 mb-1">Telefono</p>
+                        <p className="text-slate-900">{selectedPersona.telefono}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {(selectedPersona.indirizzo || selectedPersona.cap || selectedPersona.citta || selectedPersona.provincia) && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium text-slate-500 mb-3">Indirizzo</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedPersona.indirizzo && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Via</p>
+                            <p className="text-slate-900">{selectedPersona.indirizzo}</p>
+                          </div>
+                        )}
+                        {selectedPersona.cap && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">CAP</p>
+                            <p className="text-slate-900">{selectedPersona.cap}</p>
+                          </div>
+                        )}
+                        {selectedPersona.citta && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Città</p>
+                            <p className="text-slate-900">{selectedPersona.citta}</p>
+                          </div>
+                        )}
+                        {selectedPersona.provincia && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Provincia</p>
+                            <p className="text-slate-900">{selectedPersona.provincia}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPersona.note && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium text-slate-500 mb-2">Note</p>
+                      <p className="text-slate-900 whitespace-pre-wrap">{selectedPersona.note}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import DashboardPersonalizzata from "../components/dashboard/DashboardPersonalizzata";
+import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
+
+import KPICard from "../components/dashboard/KPICard";
+import AlertCard from "../components/dashboard/AlertCard";
+import CantieriAttivi from "../components/dashboard/CantieriAttivi";
+import TaskPersonali from "../components/dashboard/TaskPersonali";
 
 export default function Dashboard() {
   const [cantieri, setCantieri] = useState([]);
@@ -13,12 +18,6 @@ export default function Dashboard() {
     valorePortafoglio: 0,
     avanzamentoMedio: 0,
     documentiInScadenza: 0
-  });
-  const [statistiche, setStatistiche] = useState({
-    nuoviCantieri: 0,
-    cantieriCompletati: 0,
-    salEmessi: 0,
-    documentiCaricati: 0
   });
 
   const loadAdminDashboard = useCallback(async () => {
@@ -76,33 +75,11 @@ export default function Dashboard() {
       return (diff >= 0 && diff <= trentaGiorniMs) ? count + 1 : count;
     }, 0);
 
-    // Calcola statistiche mensili
-    const meseFa = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    const nuoviCantieri = allCantieri.filter(c => 
-      c.created_date && new Date(c.created_date).getTime() >= meseFa
-    ).length;
-    const cantieriCompletati = allCantieri.filter(c => 
-      c.stato === 'completato' && c.updated_date && new Date(c.updated_date).getTime() >= meseFa
-    ).length;
-    const salEmessi = salData.filter(sal => 
-      sal.data_sal && new Date(sal.data_sal).getTime() >= meseFa
-    ).length;
-    const documentiCaricati = documentiData.filter(doc => 
-      doc.created_date && new Date(doc.created_date).getTime() >= meseFa
-    ).length;
-
     setKpis({
       cantieriAttivi,
       valorePortafoglio,
       avanzamentoMedio,
       documentiInScadenza
-    });
-
-    setStatistiche({
-      nuoviCantieri,
-      cantieriCompletati,
-      salEmessi,
-      documentiCaricati
     });
   }, []);
 
@@ -137,9 +114,7 @@ export default function Dashboard() {
       taskTotali: taskData.length,
       taskCompletati,
       taskInCorso,
-      taskInRitardo,
-      cantieriAttivi: cantieriData.filter(c => c.stato === 'attivo').length,
-      avanzamentoMedio: 0
+      taskInRitardo
     });
   }, []);
 
@@ -228,44 +203,115 @@ export default function Dashboard() {
     }
   }, [currentUser, taskPersonali, documenti, cantieri]);
 
-  const documentiInScadenzaList = useMemo(() => {
-    const oggi = Date.now();
-    const trentaGiorniMs = 30 * 24 * 60 * 60 * 1000;
-    
-    return documenti
-      .filter(doc => {
-        if (!doc.data_scadenza) return false;
-        const scadenzaMs = new Date(doc.data_scadenza).getTime();
-        const diff = scadenzaMs - oggi;
-        return diff >= -7 * 24 * 60 * 60 * 1000 && diff <= trentaGiorniMs;
-      })
-      .sort((a, b) => new Date(a.data_scadenza) - new Date(b.data_scadenza));
-  }, [documenti]);
+  const renderAdminDashboard = useCallback(() => (
+    <>
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
+        <p className="text-slate-600 mt-2 text-lg">Panoramica generale e monitoraggio KPI</p>
+      </div>
 
-  const dashboardData = useMemo(() => ({
-    cantieri,
-    taskPersonali,
-    documenti,
-    documentiInScadenza: documentiInScadenzaList,
-    isLoading,
-    kpis,
-    statistiche,
-    alerts: getAlertsForUser
-  }), [cantieri, taskPersonali, documenti, documentiInScadenzaList, isLoading, kpis, statistiche, getAlertsForUser]);
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <KPICard
+          title="Cantieri Attivi"
+          value={kpis.cantieriAttivi}
+          subtitle="In corso di esecuzione"
+          icon={Building2}
+          colorScheme="indigo"
+        />
+        <KPICard
+          title="Valore Portafoglio"
+          value={`€ ${(kpis.valorePortafoglio / 1000000).toFixed(1)}M`}
+          subtitle="Totale contratti"
+          icon={Euro}
+          colorScheme="emerald"
+        />
+        <KPICard
+          title="Avanzamento Medio"
+          value={`${kpis.avanzamentoMedio}%`}
+          subtitle="Media ponderata"
+          icon={TrendingUp}
+          colorScheme="cyan"
+        />
+        <KPICard
+          title="Documenti in Scadenza"
+          value={kpis.documentiInScadenza}
+          subtitle="Prossimi 30 giorni"
+          icon={AlertTriangle}
+          colorScheme="amber"
+        />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <CantieriAttivi 
+            cantieri={cantieri}
+            isLoading={isLoading}
+          />
+        </div>
+        <div>
+          <AlertCard alerts={getAlertsForUser} />
+        </div>
+      </div>
+    </>
+  ), [kpis, cantieri, isLoading, getAlertsForUser]);
+
+  const renderUserDashboard = useCallback(() => (
+    <>
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">I Miei Compiti</h1>
+        <p className="text-slate-600 mt-2 text-lg">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <KPICard
+          title="Totale Compiti"
+          value={kpis.taskTotali || 0}
+          subtitle="Assegnati a te"
+          icon={FileText}
+          colorScheme="indigo"
+        />
+        <KPICard
+          title="In Corso"
+          value={kpis.taskInCorso || 0}
+          subtitle="Attualmente in lavorazione"
+          icon={Clock}
+          colorScheme="cyan"
+        />
+        <KPICard
+          title="Completati"
+          value={kpis.taskCompletati || 0}
+          subtitle="Portati a termine"
+          icon={CheckCircle2}
+          colorScheme="emerald"
+        />
+        <KPICard
+          title="In Ritardo"
+          value={kpis.taskInRitardo || 0}
+          subtitle="Scaduti o in scadenza"
+          icon={AlertTriangle}
+          colorScheme="rose"
+        />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <TaskPersonali 
+            tasks={taskPersonali}
+            cantieri={cantieri}
+            isLoading={isLoading}
+          />
+        </div>
+        <div>
+          <AlertCard alerts={getAlertsForUser} />
+        </div>
+      </div>
+    </>
+  ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       <div className="p-10">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-10">
-            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-slate-600 mt-2 text-lg">
-              {currentUser?.role === 'admin' 
-                ? 'Panoramica generale e monitoraggio KPI' 
-                : `Benvenuto ${currentUser?.full_name || currentUser?.email}`}
-            </p>
-          </div>
-
           {isLoading ? (
             <div className="animate-pulse space-y-8">
               <div className="h-10 bg-slate-200 rounded-xl w-64"></div>
@@ -276,12 +322,7 @@ export default function Dashboard() {
               </div>
               <div className="h-96 bg-slate-200 rounded-2xl"></div>
             </div>
-          ) : (
-            <DashboardPersonalizzata 
-              currentUser={currentUser}
-              dashboardData={dashboardData}
-            />
-          )}
+          ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}
         </div>
       </div>
     </div>

@@ -1,21 +1,21 @@
 import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { PieChart as PieChartIcon } from 'lucide-react';
+import { Euro } from 'lucide-react';
 
 const categorieDocumenti = {
-  permessi: { label: "Permessi", color: "#a29bfe" },
-  contratti: { label: "Contratti", color: "#74b9ff" },
-  polizze: { label: "Polizze", color: "#00b894" },
-  certificazioni: { label: "Certificazioni", color: "#00cec9" },
-  fatture: { label: "Fatture", color: "#fdcb6e" },
-  sal: { label: "SAL", color: "#6c5ce7" },
-  sicurezza: { label: "Sicurezza", color: "#ff7675" },
-  tecnici: { label: "Tecnici", color: "#55efc4" },
-  foto: { label: "Foto", color: "#fd79a8" },
-  corrispondenza: { label: "Corrispondenza", color: "#ffeaa7" },
-  legale: { label: "Legale", color: "#fab1a0" },
-  altro: { label: "Altro", color: "#b2bec3" }
+  permessi: { label: "Permessi", color: "#a855f7" },
+  contratti: { label: "Contratti", color: "#3b82f6" },
+  polizze: { label: "Polizze", color: "#10b981" },
+  certificazioni: { label: "Certificazioni", color: "#06b6d4" },
+  fatture: { label: "Fatture", color: "#f97316" },
+  sal: { label: "SAL", color: "#6366f1" },
+  sicurezza: { label: "Sicurezza", color: "#ef4444" },
+  tecnici: { label: "Tecnici", color: "#14b8a6" },
+  foto: { label: "Foto", color: "#ec4899" },
+  corrispondenza: { label: "Corrispondenza", color: "#f59e0b" },
+  legale: { label: "Legale", color: "#f43f5e" },
+  altro: { label: "Altro", color: "#64748b" }
 };
 
 export default function GraficoDistribuzioneCosti({ documenti, salList }) {
@@ -24,6 +24,7 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
 
     const distribuzionePerCategoria = {};
     
+    // Conta documenti per categoria
     documenti.forEach(doc => {
       const categoria = doc.categoria_principale || 'altro';
       if (!distribuzionePerCategoria[categoria]) {
@@ -36,9 +37,11 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
       distribuzionePerCategoria[categoria].count++;
     });
 
+    // Aggiungi valore dai SAL per categoria "sal" e "fatture"
     if (salList && salList.length > 0) {
       salList.forEach(sal => {
         if (sal.imponibile) {
+          // SAL
           if (!distribuzionePerCategoria['sal']) {
             distribuzionePerCategoria['sal'] = {
               categoria: 'SAL',
@@ -48,6 +51,7 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
           }
           distribuzionePerCategoria['sal'].valore += sal.imponibile;
           
+          // Fatture (se fatturato)
           if (sal.stato_pagamento !== 'da_fatturare' && sal.totale_fattura) {
             if (!distribuzionePerCategoria['fatture']) {
               distribuzionePerCategoria['fatture'] = {
@@ -75,11 +79,11 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 border-none rounded-xl shadow-lg">
-          <p className="font-semibold text-slate-900 mb-1">{data.name}</p>
+        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-slate-900">{data.name}</p>
           <p className="text-sm text-slate-600">Documenti: {data.value}</p>
           {data.valore > 0 && (
-            <p className="text-sm text-[#6c5ce7] font-medium">
+            <p className="text-sm text-slate-600">
               Valore: €{Number(data.valore).toLocaleString('it-IT')}
             </p>
           )}
@@ -91,17 +95,15 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
 
   if (chartData.length === 0) {
     return (
-      <Card className="border-0 shadow-sm bg-white rounded-2xl">
+      <Card className="border-0 shadow-lg bg-white">
         <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-[#00b894] flex items-center justify-center">
-              <PieChartIcon className="w-5 h-5 text-white" />
-            </div>
+          <CardTitle className="flex items-center gap-2">
+            <Euro className="w-5 h-5 text-indigo-600" />
             Distribuzione Documenti per Categoria
           </CardTitle>
         </CardHeader>
         <CardContent className="p-12 text-center">
-          <PieChartIcon className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+          <Euro className="w-16 h-16 mx-auto mb-4 text-slate-300" />
           <p className="text-slate-500">Nessun documento disponibile</p>
         </CardContent>
       </Card>
@@ -109,12 +111,10 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
   }
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
+    <Card className="border-0 shadow-lg bg-white">
       <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-slate-800">
-          <div className="w-10 h-10 rounded-xl bg-[#00b894] flex items-center justify-center shadow-sm">
-            <PieChartIcon className="w-5 h-5 text-white" />
-          </div>
+        <CardTitle className="flex items-center gap-2">
+          <Euro className="w-5 h-5 text-indigo-600" />
           Distribuzione Documenti per Categoria
         </CardTitle>
       </CardHeader>
@@ -135,7 +135,7 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
                 const categoria = Object.keys(categorieDocumenti).find(
                   key => categorieDocumenti[key].label === entry.name
                 );
-                const color = categoria ? categorieDocumenti[categoria].color : '#b2bec3';
+                const color = categoria ? categorieDocumenti[categoria].color : '#64748b';
                 return <Cell key={`cell-${index}`} fill={color} />;
               })}
             </Pie>
@@ -148,12 +148,12 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
           </PieChart>
         </ResponsiveContainer>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
           {chartData.map((item, idx) => {
             const categoria = Object.keys(categorieDocumenti).find(
               key => categorieDocumenti[key].label === item.name
             );
-            const color = categoria ? categorieDocumenti[categoria].color : '#b2bec3';
+            const color = categoria ? categorieDocumenti[categoria].color : '#64748b';
             
             return (
               <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
@@ -163,7 +163,7 @@ export default function GraficoDistribuzioneCosti({ documenti, salList }) {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-600 truncate">{item.name}</p>
-                  <p className="text-sm font-semibold text-slate-900">{item.value}</p>
+                  <p className="text-sm font-semibold text-slate-900">{item.value} doc</p>
                 </div>
               </div>
             );

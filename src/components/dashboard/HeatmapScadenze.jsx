@@ -10,7 +10,7 @@ export default function HeatmapScadenze({ documenti }) {
 
     const oggi = new Date();
     const inizioRange = startOfMonth(oggi);
-    const fineRange = endOfMonth(addMonths(oggi, 11));
+    const fineRange = endOfMonth(addMonths(oggi, 11)); // Prossimi 12 mesi
 
     const mesi = eachMonthOfInterval({ start: inizioRange, end: fineRange });
 
@@ -24,8 +24,10 @@ export default function HeatmapScadenze({ documenti }) {
         return scadenza >= inizioMese && scadenza <= fineMese;
       });
 
+      // Calcola intensità (numero documenti in scadenza)
       const count = documentiInScadenza.length;
       
+      // Calcola criticità (quanti sono scaduti o in scadenza imminente)
       const critici = documentiInScadenza.filter(doc => {
         const scadenza = new Date(doc.data_scadenza);
         const diffGiorni = Math.ceil((scadenza - oggi) / (1000 * 60 * 60 * 24));
@@ -47,29 +49,41 @@ export default function HeatmapScadenze({ documenti }) {
     [heatmapData]
   );
 
-  const getCellStyle = (count, critici) => {
-    if (count === 0) return 'bg-slate-100 text-slate-400';
+  const getIntensityColor = (count, critici) => {
+    if (count === 0) return 'bg-slate-50';
     
     const intensity = count / maxCount;
     
     if (critici > 0) {
-      if (intensity > 0.7) return 'bg-[#ff7675] text-white';
-      if (intensity > 0.4) return 'bg-[#ff7675]/70 text-white';
-      return 'bg-[#ff7675]/40 text-slate-900';
+      // Rosso per mesi con documenti critici
+      if (intensity > 0.7) return 'bg-red-600';
+      if (intensity > 0.4) return 'bg-red-400';
+      return 'bg-red-200';
     } else {
-      if (intensity > 0.7) return 'bg-[#6c5ce7] text-white';
-      if (intensity > 0.4) return 'bg-[#6c5ce7]/70 text-white';
-      return 'bg-[#6c5ce7]/40 text-slate-900';
+      // Blu per mesi senza criticità
+      if (intensity > 0.7) return 'bg-blue-600';
+      if (intensity > 0.4) return 'bg-blue-400';
+      return 'bg-blue-200';
+    }
+  };
+
+  const getTextColor = (count, critici) => {
+    if (count === 0) return 'text-slate-400';
+    
+    const intensity = count / maxCount;
+    
+    if (critici > 0) {
+      return intensity > 0.4 ? 'text-white' : 'text-red-900';
+    } else {
+      return intensity > 0.4 ? 'text-white' : 'text-blue-900';
     }
   };
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
+    <Card className="border-0 shadow-lg bg-white">
       <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-slate-800">
-          <div className="w-10 h-10 rounded-xl bg-[#fdcb6e] flex items-center justify-center shadow-sm">
-            <Calendar className="w-5 h-5 text-white" />
-          </div>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-indigo-600" />
           Heatmap Scadenze Documenti
         </CardTitle>
       </CardHeader>
@@ -79,40 +93,46 @@ export default function HeatmapScadenze({ documenti }) {
             <div
               key={idx}
               className={`
-                relative p-3 rounded-xl transition-all cursor-pointer
-                ${getCellStyle(mese.count, mese.critici)}
-                hover:shadow-md
+                relative p-3 rounded-lg transition-all duration-200 cursor-pointer
+                ${getIntensityColor(mese.count, mese.critici)}
+                hover:scale-105 hover:shadow-lg
               `}
               title={`${mese.meseCompleto}: ${mese.count} documenti in scadenza${mese.critici > 0 ? ` (${mese.critici} critici)` : ''}`}
             >
               <div className="text-center">
-                <p className="text-xs font-semibold uppercase">
+                <p className={`text-xs font-semibold uppercase ${getTextColor(mese.count, mese.critici)}`}>
                   {mese.mese}
                 </p>
-                <p className="text-2xl font-bold mt-1">
+                <p className={`text-2xl font-bold mt-1 ${getTextColor(mese.count, mese.critici)}`}>
                   {mese.count}
                 </p>
+                {mese.critici > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    !
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-slate-200">
+        {/* Legenda */}
+        <div className="flex items-center justify-center gap-6 mt-6 pt-6 border-t">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-slate-100 rounded"></div>
-            <span className="text-xs text-slate-600">Nessuna</span>
+            <div className="w-4 h-4 bg-slate-50 border border-slate-200 rounded"></div>
+            <span className="text-sm text-slate-600">Nessuna scadenza</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#6c5ce7]/40 rounded"></div>
-            <span className="text-xs text-slate-600">Bassa</span>
+            <div className="w-4 h-4 bg-blue-200 rounded"></div>
+            <span className="text-sm text-slate-600">Bassa intensità</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#6c5ce7] rounded"></div>
-            <span className="text-xs text-slate-600">Alta</span>
+            <div className="w-4 h-4 bg-blue-600 rounded"></div>
+            <span className="text-sm text-slate-600">Alta intensità</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#ff7675] rounded"></div>
-            <span className="text-xs text-slate-600">Critica</span>
+            <div className="w-4 h-4 bg-red-600 rounded"></div>
+            <span className="text-sm text-slate-600">Scadenze critiche</span>
           </div>
         </div>
       </CardContent>

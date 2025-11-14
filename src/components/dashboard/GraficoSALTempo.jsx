@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -9,10 +9,11 @@ export default function GraficoSALTempo({ cantieri, salList }) {
   const chartData = useMemo(() => {
     if (!salList || salList.length === 0) return [];
 
+    // Raggruppa SAL per cantiere e ordina per data
     const salByCantiere = {};
     
     salList.forEach(sal => {
-      if (sal.tipo_sal_dettaglio === 'anticipazione') return;
+      if (sal.tipo_sal_dettaglio === 'anticipazione') return; // Escludi anticipazioni
       
       if (!salByCantiere[sal.cantiere_id]) {
         salByCantiere[sal.cantiere_id] = [];
@@ -20,6 +21,7 @@ export default function GraficoSALTempo({ cantieri, salList }) {
       salByCantiere[sal.cantiere_id].push(sal);
     });
 
+    // Crea timeline cumulativa per ogni cantiere
     const allDataPoints = new Map();
     
     Object.entries(salByCantiere).forEach(([cantiereId, sals]) => {
@@ -44,6 +46,7 @@ export default function GraficoSALTempo({ cantieri, salList }) {
       });
     });
 
+    // Converti Map in array e ordina per data
     return Array.from(allDataPoints.values())
       .sort((a, b) => new Date(a.data) - new Date(b.data))
       .map(punto => ({
@@ -54,19 +57,17 @@ export default function GraficoSALTempo({ cantieri, salList }) {
 
   const cantieriAttivi = useMemo(() => {
     const cantieriConSAL = new Set(salList.map(s => s.cantiere_id));
-    return cantieri.filter(c => cantieriConSAL.has(c.id)).slice(0, 5);
+    return cantieri.filter(c => cantieriConSAL.has(c.id)).slice(0, 5); // Massimo 5 cantieri per leggibilità
   }, [cantieri, salList]);
 
-  const colors = ['#6c5ce7', '#00b894', '#fdcb6e', '#fd79a8', '#00cec9'];
+  const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
   if (chartData.length === 0) {
     return (
-      <Card className="border-0 shadow-sm bg-white rounded-2xl">
+      <Card className="border-0 shadow-lg bg-white">
         <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-[#6c5ce7] flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-indigo-600" />
             Andamento SAL nel Tempo
           </CardTitle>
         </CardHeader>
@@ -79,12 +80,10 @@ export default function GraficoSALTempo({ cantieri, salList }) {
   }
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
+    <Card className="border-0 shadow-lg bg-white">
       <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-slate-800">
-          <div className="w-10 h-10 rounded-xl bg-[#6c5ce7] flex items-center justify-center shadow-sm">
-            <TrendingUp className="w-5 h-5 text-white" />
-          </div>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-indigo-600" />
           Andamento SAL nel Tempo
         </CardTitle>
       </CardHeader>
@@ -94,38 +93,35 @@ export default function GraficoSALTempo({ cantieri, salList }) {
             <defs>
               {cantieriAttivi.map((cantiere, idx) => (
                 <linearGradient key={cantiere.id} id={`color${idx}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={colors[idx]} stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor={colors[idx]} stopOpacity={0.3}/>
                   <stop offset="95%" stopColor={colors[idx]} stopOpacity={0}/>
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis 
               dataKey="dataFormatted" 
-              tick={{ fontSize: 12, fill: '#94a3b8' }}
-              stroke="#e5e7eb"
-              axisLine={false}
+              tick={{ fontSize: 12 }}
+              stroke="#64748b"
             />
             <YAxis 
-              tick={{ fontSize: 12, fill: '#94a3b8' }}
-              stroke="#e5e7eb"
-              axisLine={false}
+              tick={{ fontSize: 12 }}
+              stroke="#64748b"
               tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
             />
             <Tooltip 
               contentStyle={{ 
                 backgroundColor: 'white', 
-                border: 'none',
-                borderRadius: '12px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                padding: '12px'
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
               }}
               formatter={(value) => [`€${Number(value).toLocaleString('it-IT')}`, '']}
-              labelStyle={{ fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}
+              labelStyle={{ fontWeight: 'bold', marginBottom: '8px' }}
             />
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
-              iconType="circle"
+              iconType="line"
             />
             {cantieriAttivi.map((cantiere, idx) => (
               <Area

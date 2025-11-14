@@ -1,65 +1,75 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertTriangle } from 'lucide-react';
 
-const alertStyles = {
-  critico: {
-    bg: 'bg-red-50',
-    border: 'border-l-4 border-red-500',
-    text: 'text-red-900'
-  },
-  medio: {
-    bg: 'bg-amber-50',
-    border: 'border-l-4 border-amber-500',
-    text: 'text-amber-900'
-  },
-  basso: {
-    bg: 'bg-blue-50',
-    border: 'border-l-4 border-blue-500',
-    text: 'text-blue-900'
-  }
+import React from 'react';
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, Clock, FileX, DollarSign } from "lucide-react";
+
+const alertIcons = {
+  scadenza: Clock,
+  budget: DollarSign,  
+  documento: FileX,
+  generale: AlertTriangle
+};
+
+const alertColors = {
+  critico: "border-rose-200 bg-rose-50",
+  medio: "border-amber-200 bg-amber-50",
+  basso: "border-blue-200 bg-blue-50"
+};
+
+const alertDotColors = {
+  critico: "bg-rose-500",
+  medio: "bg-amber-500",
+  basso: "bg-blue-500"
 };
 
 const AlertCard = React.memo(({ alerts }) => {
+  if (!alerts || alerts.length === 0) {
+    return (
+      <Card className="border-0 shadow-sm bg-white">
+        <CardHeader className="pb-3">
+          <h3 className="text-lg font-semibold text-slate-900">Allarmi e Notifiche</h3>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12 text-slate-500">
+            <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">Nessun allarme attivo</p>
+            <p className="text-sm mt-1">Tutto procede regolarmente</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-slate-800">
-          <div className="w-10 h-10 rounded-xl bg-[#ff7675] flex items-center justify-center shadow-sm">
-            <AlertTriangle className="w-5 h-5 text-white" />
-          </div>
-          Allarmi e Notifiche
-        </CardTitle>
+    <Card className="border-0 shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <h3 className="text-lg font-semibold text-slate-900">Allarmi e Notifiche</h3>
       </CardHeader>
-      <CardContent>
-        {(!alerts || alerts.length === 0) ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-              <AlertTriangle className="w-8 h-8 text-emerald-600" />
+      <CardContent className="space-y-3">
+        {alerts.map((alert, index) => {
+          // const Icon = alertIcons[alert.tipo] || AlertTriangle; // Icon is removed in the new design
+          return (
+            <div 
+              key={index} 
+              className={`flex items-start gap-3 p-4 rounded-lg border ${alertColors[alert.priorita] || alertColors.medio} transition-all hover:shadow-sm`}
+            >
+              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${alertDotColors[alert.priorita] || alertDotColors.medio}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 mb-1">{alert.messaggio}</p>
+                <p className="text-xs text-slate-600">{alert.cantiere}</p>
+              </div>
+              {/* Badge is removed in the new design
+              <Badge 
+                variant="secondary"
+                className={alertColors[alert.priorita] || alertColors.medio}
+              >
+                {alert.priorita}
+              </Badge>
+              */}
             </div>
-            <p className="text-slate-700 font-medium">Nessun allarme attivo</p>
-            <p className="text-sm text-slate-500 mt-1">Tutto sotto controllo</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {alerts.map((alert, idx) => {
-              const style = alertStyles[alert.priorita] || alertStyles.basso;
-              return (
-                <div 
-                  key={idx} 
-                  className={`p-3 rounded-lg ${style.bg} ${style.border}`}
-                >
-                  <p className={`text-sm font-medium ${style.text} mb-1`}>
-                    {alert.messaggio}
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    {alert.cantiere}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
+          );
+        })}
       </CardContent>
     </Card>
   );

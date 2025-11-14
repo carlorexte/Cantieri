@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Building2, Euro, TrendingUp, Calendar, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
 
 import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
@@ -216,7 +216,7 @@ export default function Dashboard() {
         <p className="text-slate-600 mt-1">Panoramica generale e monitoraggio KPI</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Cantieri Attivi"
           value={kpis.cantieriAttivi}
@@ -247,6 +247,7 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Grafici Avanzati */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <GraficoSALTempo cantieri={cantieri} salList={salList} />
         <GraficoDistribuzioneCosti documenti={documenti} salList={salList} />
@@ -278,7 +279,7 @@ export default function Dashboard() {
         <p className="text-slate-600 mt-1">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Totale Compiti"
           value={kpis.taskTotali || 0}
@@ -289,7 +290,7 @@ export default function Dashboard() {
         <KPICard
           title="In Corso"
           value={kpis.taskInCorso || 0}
-          subtitle="In lavorazione"
+          subtitle="Attualmente in lavorazione"
           icon={Clock}
           colorScheme="cyan"
         />
@@ -303,7 +304,7 @@ export default function Dashboard() {
         <KPICard
           title="In Ritardo"
           value={kpis.taskInRitardo || 0}
-          subtitle="Scaduti"
+          subtitle="Scaduti o in scadenza"
           icon={AlertTriangle}
           colorScheme="rose"
         />
@@ -325,19 +326,19 @@ export default function Dashboard() {
   ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
-    <div className="p-8 min-h-screen">
+    <div className="p-8 bg-slate-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {isLoading ? (
           <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-slate-200 rounded-xl w-48"></div>
+            <div className="h-8 bg-slate-200 rounded w-64"></div>
             <div className="grid grid-cols-4 gap-6">
               {Array(4).fill(0).map((_, i) => (
-                <div key={i} className="h-32 bg-white rounded-2xl"></div>
+                <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-6">
-              <div className="h-96 bg-white rounded-2xl"></div>
-              <div className="h-96 bg-white rounded-2xl"></div>
+              <div className="h-96 bg-slate-200 rounded-xl"></div>
+              <div className="h-96 bg-slate-200 rounded-xl"></div>
             </div>
           </div>
         ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}

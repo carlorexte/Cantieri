@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { X, Download, ZoomIn, ZoomOut, Loader2, FileText } from 'lucide-react';
+import { Download, ZoomIn, ZoomOut, Loader2, FileText } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
@@ -15,10 +15,6 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     if (isOpen && documento) {
       loadDocument();
     } else {
-      // Cleanup: revoca l'URL blob quando il dialog si chiude
-      if (fileUrl && fileUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(fileUrl);
-      }
       setFileUrl(null);
       setZoom(100);
       setFileType(null);
@@ -30,24 +26,19 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     
     setIsLoading(true);
     try {
-      let signedUrl = documento.cloud_file_url;
+      let url = documento.cloud_file_url;
       
       if (documento.file_uri) {
         const result = await base44.integrations.Core.CreateFileSignedUrl({
           file_uri: documento.file_uri,
           expires_in: 3600
         });
-        signedUrl = result.signed_url;
+        url = result.signed_url;
       }
 
-      if (signedUrl) {
-        // Scarica il file come blob per evitare problemi di Content-Disposition
-        const response = await fetch(signedUrl);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        setFileUrl(blobUrl);
-        detectFileType(signedUrl, documento.nome_documento, documento.file_uri);
+      if (url) {
+        setFileUrl(url);
+        detectFileType(url, documento.nome_documento, documento.file_uri);
       } else {
         toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas || 'Non disponibile'}`);
       }
@@ -60,21 +51,17 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
   };
 
   const detectFileType = (url, fileName, fileUri) => {
-    // Prova prima dal nome del file
     let extension = fileName?.split('.').pop()?.toLowerCase();
     
-    // Se non trovata, prova dall'URI del file
     if (!extension || extension === fileName?.toLowerCase()) {
       extension = fileUri?.split('.').pop()?.toLowerCase().split('?')[0];
     }
     
-    // Se ancora non trovata, prova dall'URL
     if (!extension || extension.length > 5) {
       const urlPath = url?.split('?')[0];
       extension = urlPath?.split('.').pop()?.toLowerCase();
     }
     
-    // Determina il tipo in base all'estensione
     if (['pdf'].includes(extension)) {
       setFileType('pdf');
     } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
@@ -84,7 +71,6 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     } else if (['txt', 'csv', 'json', 'xml'].includes(extension)) {
       setFileType('text');
     } else {
-      // Fallback: prova a capire dal content-type se è un PDF
       setFileType('pdf');
     }
   };
@@ -93,12 +79,18 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     if (!fileUrl || !documento) return;
     
     try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
       const a = document.createElement('a');
-      a.href = fileUrl;
+      a.href = blobUrl;
       a.download = documento.nome_documento || 'documento';
       document.body.appendChild(a);
       a.click();
       a.remove();
+      
+      URL.revokeObjectURL(blobUrl);
       toast.success('Download avviato');
     } catch (error) {
       toast.error('Errore durante il download');
@@ -137,11 +129,17 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       case 'pdf':
         return (
           <div className="w-full h-[80vh] bg-slate-100 rounded-lg overflow-hidden">
-            <iframe
-              src={`${fileUrl}#zoom=${zoom}`}
-              className="w-full h-full border-0"
-              title={documento.nome_documento || 'Documento'}
-            />
+            <object
+              data={fileUrl}
+              type="application/pdf"
+              className="w-full h-full"
+            >
+              <iframe
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                className="w-full h-full border-0"
+                title={documento.nome_documento || 'Documento'}
+              />
+            </object>
           </div>
         );
 
@@ -200,7 +198,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
           <DialogTitle className="flex items-center justify-between pr-8">
             <span className="truncate">{documento?.nome_documento || 'Documento'}</span>
             <div className="flex items-center gap-2">
-              {(fileType === 'pdf' || fileType === 'image') && (
+              {(fileType === 'pdf' || fileType === 'image') && fileType === 'image' && (
                 <>
                   <Button
                     variant="outline"

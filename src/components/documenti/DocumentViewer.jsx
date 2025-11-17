@@ -36,7 +36,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
 
       if (url) {
         setFileUrl(url);
-        detectFileType(url, documento.nome_documento);
+        detectFileType(url, documento.nome_documento, documento.file_uri);
       } else {
         toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas}`);
       }
@@ -48,9 +48,22 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     }
   };
 
-  const detectFileType = (url, fileName) => {
-    const extension = fileName?.split('.').pop()?.toLowerCase();
+  const detectFileType = (url, fileName, fileUri) => {
+    // Prova prima dal nome del file
+    let extension = fileName?.split('.').pop()?.toLowerCase();
     
+    // Se non trovata, prova dall'URI del file
+    if (!extension || extension === fileName?.toLowerCase()) {
+      extension = fileUri?.split('.').pop()?.toLowerCase().split('?')[0];
+    }
+    
+    // Se ancora non trovata, prova dall'URL
+    if (!extension || extension.length > 5) {
+      const urlPath = url?.split('?')[0];
+      extension = urlPath?.split('.').pop()?.toLowerCase();
+    }
+    
+    // Determina il tipo in base all'estensione
     if (['pdf'].includes(extension)) {
       setFileType('pdf');
     } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
@@ -60,7 +73,8 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     } else if (['txt', 'csv', 'json', 'xml'].includes(extension)) {
       setFileType('text');
     } else {
-      setFileType('unknown');
+      // Fallback: prova a capire dal content-type se è un PDF
+      setFileType('pdf');
     }
   };
 

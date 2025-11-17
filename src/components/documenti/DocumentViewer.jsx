@@ -15,6 +15,10 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     if (isOpen && documento) {
       loadDocument();
     } else {
+      // Cleanup: revoca l'URL blob quando il dialog si chiude
+      if (fileUrl && fileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(fileUrl);
+      }
       setFileUrl(null);
       setZoom(100);
       setFileType(null);
@@ -26,19 +30,24 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     
     setIsLoading(true);
     try {
-      let url = documento.cloud_file_url;
+      let signedUrl = documento.cloud_file_url;
       
       if (documento.file_uri) {
         const result = await base44.integrations.Core.CreateFileSignedUrl({
           file_uri: documento.file_uri,
           expires_in: 3600
         });
-        url = result.signed_url;
+        signedUrl = result.signed_url;
       }
 
-      if (url) {
-        setFileUrl(url);
-        detectFileType(url, documento.nome_documento, documento.file_uri);
+      if (signedUrl) {
+        // Scarica il file come blob per evitare problemi di Content-Disposition
+        const response = await fetch(signedUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        setFileUrl(blobUrl);
+        detectFileType(signedUrl, documento.nome_documento, documento.file_uri);
       } else {
         toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas || 'Non disponibile'}`);
       }

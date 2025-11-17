@@ -23,6 +23,7 @@ import { format } from "date-fns";
 
 import DocumentoFormEnhanced from "../components/documenti/DocumentoFormEnhanced";
 import RicercaAvanzataDocumenti from "../components/documenti/RicercaAvanzataDocumenti";
+import DocumentViewer from "../components/documenti/DocumentViewer";
 
 const categorieDocumenti = {
   permessi: { label: "Permessi", color: "bg-purple-100 text-purple-800" },
@@ -49,6 +50,7 @@ export default function DocumentiPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [showViewer, setShowViewer] = useState(false);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -104,26 +106,13 @@ export default function DocumentiPage() {
     }
   };
 
-  const handleViewDocument = async (doc) => {
+  const handleViewDocument = (doc) => {
     if (!doc.file_uri && !doc.cloud_file_url) {
       toast.info(`Documento disponibile solo sul NAS: ${doc.percorso_nas}`);
       return;
     }
-
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 3600
-        });
-        url = result.signed_url;
-      }
-      window.open(url, '_blank');
-    } catch (error) {
-      console.error("Errore apertura documento:", error);
-      toast.error("Impossibile aprire il documento");
-    }
+    setViewingDocument(doc);
+    setShowViewer(true);
   };
 
   const filteredDocumenti = useMemo(() => {
@@ -134,7 +123,8 @@ export default function DocumentiPage() {
       filtered = filtered.filter(doc => 
         doc.nome_documento?.toLowerCase().includes(term) ||
         doc.descrizione?.toLowerCase().includes(term) ||
-        doc.numero_documento?.toLowerCase().includes(term)
+        doc.numero_documento?.toLowerCase().includes(term) ||
+        doc.testo_estratto?.toLowerCase().includes(term)
       );
     }
 
@@ -187,7 +177,7 @@ export default function DocumentiPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Documenti</h1>
-              <p className="text-slate-600 mt-1">Gestione centralizzata di tutti i documenti</p>
+              <p className="text-slate-600 mt-1">Gestione centralizzata con OCR e categorizzazione automatica</p>
             </div>
             <Button 
               onClick={() => {
@@ -244,7 +234,7 @@ export default function DocumentiPage() {
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <Input
-                        placeholder="Cerca documenti..."
+                        placeholder="Cerca documenti (anche nel testo estratto)..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"
@@ -437,6 +427,16 @@ export default function DocumentiPage() {
               />
             </DialogContent>
           </Dialog>
+
+          {/* Document Viewer */}
+          <DocumentViewer
+            documento={viewingDocument}
+            isOpen={showViewer}
+            onClose={() => {
+              setShowViewer(false);
+              setViewingDocument(null);
+            }}
+          />
         </div>
       </div>
     </div>

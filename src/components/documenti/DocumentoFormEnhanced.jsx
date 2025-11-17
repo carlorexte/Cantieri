@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Save, X, FileText, Folder, UploadCloud, Loader2, Search, Plus, Tag, Sparkles } from "lucide-react";
+import { Save, X, FileText, Folder, UploadCloud, Loader2, Search, Plus, Tag, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -76,6 +76,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
   const [fileToUpload, setFileToUpload] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtractingText, setIsExtractingText] = useState(false);
+  const [isCategorizing, setIsCategorizing] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [cantieri, setCantieri] = useState([]);
   const [imprese, setImprese] = useState([]);
@@ -180,6 +181,36 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       toast.error("Errore durante l'estrazione del testo");
     } finally {
       setIsExtractingText(false);
+    }
+  };
+
+  const handleAutoCategorize = async (fileUri) => {
+    setIsCategorizing(true);
+    try {
+      const { categorizzaDocumento } = await import("@/functions/categorizzaDocumento");
+      toast.info("Analisi del documento in corso...", { duration: 3000 });
+      
+      const result = await categorizzaDocumento({
+        file_uri: fileUri,
+        nome_documento: formData.nome_documento,
+        descrizione: formData.descrizione
+      });
+
+      if (result.data.categoria_principale && result.data.tipo_documento) {
+        setFormData(prev => ({
+          ...prev,
+          categoria_principale: result.data.categoria_principale,
+          tipo_documento: result.data.tipo_documento
+        }));
+        toast.success(`Categorizzazione completata! ${result.data.spiegazione || ''}`);
+      } else {
+        toast.error("Impossibile categorizzare il documento");
+      }
+    } catch (error) {
+      console.error("Errore categorizzazione:", error);
+      toast.error("Errore durante la categorizzazione automatica");
+    } finally {
+      setIsCategorizing(false);
     }
   };
 
@@ -315,7 +346,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
               />
             </div>
             {formData.file_uri && !fileToUpload && (
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 <Badge variant="secondary" className="bg-green-50 text-green-700">
                   File già caricato
                 </Badge>
@@ -336,6 +367,28 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
                         Estrai Testo (OCR)
+                      </>
+                    )}
+                  </Button>
+                )}
+                {(!formData.categoria_principale || !formData.tipo_documento) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAutoCategorize(formData.file_uri)}
+                    disabled={isCategorizing}
+                    className="gap-2"
+                  >
+                    {isCategorizing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analisi...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-4 h-4" />
+                        Auto-Categorizza
                       </>
                     )}
                   </Button>
@@ -574,7 +627,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
           <X className="w-4 h-4 mr-2" />
           Annulla
         </Button>
-        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isUploading || isExtractingText}>
+        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isUploading || isExtractingText || isCategorizing}>
           {isUploading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

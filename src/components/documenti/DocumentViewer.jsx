@@ -22,6 +22,8 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
   }, [isOpen, documento]);
 
   const loadDocument = async () => {
+    if (!documento) return;
+    
     setIsLoading(true);
     try {
       let url = documento.cloud_file_url;
@@ -38,7 +40,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
         setFileUrl(url);
         detectFileType(url, documento.nome_documento, documento.file_uri);
       } else {
-        toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas}`);
+        toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas || 'Non disponibile'}`);
       }
     } catch (error) {
       console.error('Errore caricamento documento:', error);
@@ -79,6 +81,8 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
   };
 
   const handleDownload = async () => {
+    if (!fileUrl || !documento) return;
+    
     try {
       const a = document.createElement('a');
       a.href = fileUrl;
@@ -93,6 +97,15 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
   };
 
   const renderContent = () => {
+    if (!documento) {
+      return (
+        <div className="flex flex-col items-center justify-center h-96 text-slate-500">
+          <FileText className="w-16 h-16 mb-4" />
+          <p>Nessun documento selezionato</p>
+        </div>
+      );
+    }
+
     if (isLoading) {
       return (
         <div className="flex items-center justify-center h-96">
@@ -106,7 +119,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
         <div className="flex flex-col items-center justify-center h-96 text-slate-500">
           <FileText className="w-16 h-16 mb-4" />
           <p>Documento non disponibile per l'anteprima</p>
-          <p className="text-sm mt-2">Percorso NAS: {documento?.percorso_nas}</p>
+          <p className="text-sm mt-2">Percorso NAS: {documento.percorso_nas}</p>
         </div>
       );
     }
@@ -118,7 +131,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
             <iframe
               src={`${fileUrl}#zoom=${zoom}`}
               className="w-full h-full border-0"
-              title={documento.nome_documento}
+              title={documento.nome_documento || 'Documento'}
             />
           </div>
         );
@@ -128,7 +141,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
           <div className="w-full h-[80vh] bg-slate-100 rounded-lg flex items-center justify-center overflow-auto p-4">
             <img
               src={fileUrl}
-              alt={documento.nome_documento}
+              alt={documento.nome_documento || 'Immagine'}
               style={{ transform: `scale(${zoom / 100})` }}
               className="max-w-full max-h-full object-contain transition-transform"
             />
@@ -141,7 +154,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
             <iframe
               src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
               className="w-full h-full border-0"
-              title={documento.nome_documento}
+              title={documento.nome_documento || 'Documento'}
             />
           </div>
         );
@@ -152,7 +165,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
             <iframe
               src={fileUrl}
               className="w-full h-full border-0"
-              title={documento.nome_documento}
+              title={documento.nome_documento || 'Documento'}
             />
           </div>
         );
@@ -176,7 +189,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       <DialogContent className="max-w-[95vw] max-h-[95vh] p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8">
-            <span className="truncate">{documento?.nome_documento}</span>
+            <span className="truncate">{documento?.nome_documento || 'Documento'}</span>
             <div className="flex items-center gap-2">
               {(fileType === 'pdf' || fileType === 'image') && (
                 <>

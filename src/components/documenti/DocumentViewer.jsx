@@ -50,9 +50,17 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       if (!response.ok) throw new Error('Errore download documento');
       
       const blob = await response.blob();
-      detectFileType(documento.nome_documento, documento.file_uri, blob.type);
+      const detectedType = detectFileType(documento.nome_documento, documento.file_uri, blob.type);
+      
+      // Forza il tipo MIME corretto quando creiamo il blob URL
+      let finalBlob = blob;
+      if (detectedType === 'pdf' && blob.type !== 'application/pdf') {
+        finalBlob = new Blob([blob], { type: 'application/pdf' });
+      } else if (detectedType === 'image' && !blob.type.includes('image')) {
+        finalBlob = new Blob([blob], { type: 'image/png' });
+      }
 
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(finalBlob);
       setBlobUrl(url);
       setPreviewUrl(url);
     } catch (error) {
@@ -64,28 +72,30 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
   };
 
   const detectFileType = (fileName, fileUri, mimeType) => {
+    let type = 'pdf';
+    
     if (mimeType?.includes('pdf')) {
-      setFileType('pdf');
-      return;
-    }
-    if (mimeType?.includes('image')) {
-      setFileType('image');
-      return;
-    }
-
-    let extension = fileName?.split('.').pop()?.toLowerCase();
-    
-    if (!extension || extension === fileName?.toLowerCase()) {
-      extension = fileUri?.split('.').pop()?.toLowerCase().split('?')[0];
-    }
-    
-    if (['pdf'].includes(extension)) {
-      setFileType('pdf');
-    } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
-      setFileType('image');
+      type = 'pdf';
+    } else if (mimeType?.includes('image')) {
+      type = 'image';
     } else {
-      setFileType('pdf');
+      let extension = fileName?.split('.').pop()?.toLowerCase();
+      
+      if (!extension || extension === fileName?.toLowerCase()) {
+        extension = fileUri?.split('.').pop()?.toLowerCase().split('?')[0];
+      }
+      
+      if (['pdf'].includes(extension)) {
+        type = 'pdf';
+      } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
+        type = 'image';
+      } else {
+        type = 'pdf';
+      }
     }
+    
+    setFileType(type);
+    return type;
   };
 
   const handleDownload = () => {
@@ -151,12 +161,19 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
 
     return (
       <div className="w-full h-[80vh] bg-slate-100 rounded-lg overflow-hidden">
-        <iframe
-          src={previewUrl}
+        <object
+          data={previewUrl}
           type="application/pdf"
-          className="w-full h-full border-0"
+          className="w-full h-full"
           title={documento.nome_documento || 'Documento'}
-        />
+        >
+          <iframe
+            src={previewUrl}
+            type="application/pdf"
+            className="w-full h-full border-0"
+            title={documento.nome_documento || 'Documento'}
+          />
+        </object>
       </div>
     );
   };

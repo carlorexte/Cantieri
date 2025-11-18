@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const getColorByAvanzamento = (avanzamento) => {
   if (avanzamento >= 75) return '#10b981';
@@ -11,7 +12,10 @@ const getColorByAvanzamento = (avanzamento) => {
 };
 
 export default function AvanzamentoCantieriChart({ cantieri }) {
-  const data = React.useMemo(() => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const ITEMS_PER_PAGE = 10;
+
+  const allData = React.useMemo(() => {
     return cantieri
       .filter(c => c.stato === 'attivo')
       .map(cantiere => ({
@@ -21,9 +25,19 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
         nomeCompleto: cantiere.denominazione,
         avanzamento: cantiere.avanzamento || 0
       }))
-      .sort((a, b) => a.avanzamento - b.avanzamento)
-      .slice(0, 15);
+      .sort((a, b) => a.avanzamento - b.avanzamento);
   }, [cantieri]);
+
+  const totalPages = Math.ceil(allData.length / ITEMS_PER_PAGE);
+  const data = allData.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE);
+
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+  };
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -41,8 +55,38 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
 
   return (
     <Card className="border border-slate-200 shadow-sm">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold text-slate-900">Avanzamento Cantieri Attivi</CardTitle>
+      <CardHeader className="pb-4 flex flex-row items-center justify-between">
+        <CardTitle className="text-lg font-semibold text-slate-900">
+          Avanzamento Cantieri Attivi
+          <span className="text-sm font-normal text-slate-500 ml-2">
+            ({allData.length} cantieri)
+          </span>
+        </CardTitle>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrevPage}
+              disabled={currentPage === 0}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-slate-600">
+              {currentPage + 1} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages - 1}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>

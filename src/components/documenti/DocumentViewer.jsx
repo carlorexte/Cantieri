@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 export default function DocumentViewer({ documento, isOpen, onClose }) {
   const [blobUrl, setBlobUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [fileType, setFileType] = useState(null);
@@ -44,15 +45,18 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
         return;
       }
 
-      // Fetch come blob
+      detectFileType(documento.nome_documento, documento.file_uri);
+      
+      // Usa signedUrl per preview (PDF e immagini)
+      setPreviewUrl(signedUrl);
+      
+      // Scarica blob solo per il download
       const response = await fetch(signedUrl);
       if (!response.ok) throw new Error('Errore download documento');
       
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      
       setBlobUrl(url);
-      detectFileType(documento.nome_documento, documento.file_uri, blob.type);
     } catch (error) {
       console.error('Errore caricamento documento:', error);
       toast.error('Impossibile caricare il documento');
@@ -61,18 +65,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     }
   };
 
-  const detectFileType = (fileName, fileUri, mimeType) => {
-    // Prova prima con mime type
-    if (mimeType?.includes('pdf')) {
-      setFileType('pdf');
-      return;
-    }
-    if (mimeType?.includes('image')) {
-      setFileType('image');
-      return;
-    }
-    
-    // Fallback su estensione
+  const detectFileType = (fileName, fileUri) => {
     let extension = fileName?.split('.').pop()?.toLowerCase();
     
     if (!extension || extension === fileName?.toLowerCase()) {
@@ -84,7 +77,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
       setFileType('image');
     } else {
-      setFileType('pdf'); // Default a PDF
+      setFileType('pdf');
     }
   };
 
@@ -101,8 +94,8 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
   };
 
   const handleOpenInNewTab = () => {
-    if (!blobUrl) return;
-    window.open(blobUrl, '_blank');
+    if (!previewUrl) return;
+    window.open(previewUrl, '_blank');
     toast.success('Documento aperto in una nuova scheda');
   };
 
@@ -124,7 +117,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       );
     }
 
-    if (!blobUrl) {
+    if (!previewUrl) {
       return (
         <div className="flex flex-col items-center justify-center h-96 text-slate-500">
           <FileText className="w-16 h-16 mb-4" />
@@ -140,7 +133,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       return (
         <div className="w-full h-[80vh] bg-slate-100 rounded-lg flex items-center justify-center overflow-auto p-4">
           <img
-            src={blobUrl}
+            src={previewUrl}
             alt={documento.nome_documento || 'Immagine'}
             style={{ transform: `scale(${zoom / 100})` }}
             className="max-w-full max-h-full object-contain transition-transform"
@@ -149,11 +142,10 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       );
     }
 
-    // Per PDF - usa iframe con blob URL
     return (
       <div className="w-full h-[80vh] bg-slate-100 rounded-lg overflow-hidden">
         <iframe
-          src={blobUrl}
+          src={previewUrl}
           type="application/pdf"
           className="w-full h-full border-0"
           title={documento.nome_documento || 'Documento'}
@@ -169,7 +161,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
           <DialogTitle className="flex items-center justify-between pr-8">
             <span className="truncate">{documento?.nome_documento || 'Documento'}</span>
             <div className="flex items-center gap-2">
-              {fileType === 'image' && blobUrl && (
+              {fileType === 'image' && previewUrl && (
                 <>
                   <Button
                     variant="outline"
@@ -192,7 +184,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
                   </Button>
                 </>
               )}
-              {blobUrl && (
+              {previewUrl && (
                 <>
                   <Button variant="outline" size="icon" onClick={handleOpenInNewTab} title="Apri in nuova scheda">
                     <ExternalLink className="w-4 h-4" />

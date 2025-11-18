@@ -114,14 +114,11 @@ export default function Layout({ children }) {
           <Sidebar className="border-r border-slate-200 bg-white">
             <SidebarHeader className="border-b border-slate-100 p-5">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background: '#F5A623'}}>
-                  <Building2 className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <span className="font-bold text-lg" style={{color: '#4A4A4A'}}>
-                    CantierePRO
-                  </span>
-                </div>
+                <img 
+                  src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
+                  alt="RCS Italia Logo" 
+                  className="h-10 w-auto object-contain"
+                />
               </div>
             </SidebarHeader>
             

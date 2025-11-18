@@ -45,18 +45,16 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
         return;
       }
 
-      detectFileType(documento.nome_documento, documento.file_uri);
-      
-      // Usa signedUrl per preview (PDF e immagini)
-      setPreviewUrl(signedUrl);
-      
-      // Scarica blob solo per il download
+      // Recupera il file come blob per preview e download
       const response = await fetch(signedUrl);
       if (!response.ok) throw new Error('Errore download documento');
       
       const blob = await response.blob();
+      detectFileType(documento.nome_documento, documento.file_uri, blob.type);
+
       const url = URL.createObjectURL(blob);
       setBlobUrl(url);
+      setPreviewUrl(url);
     } catch (error) {
       console.error('Errore caricamento documento:', error);
       toast.error('Impossibile caricare il documento');
@@ -65,7 +63,16 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
     }
   };
 
-  const detectFileType = (fileName, fileUri) => {
+  const detectFileType = (fileName, fileUri, mimeType) => {
+    if (mimeType?.includes('pdf')) {
+      setFileType('pdf');
+      return;
+    }
+    if (mimeType?.includes('image')) {
+      setFileType('image');
+      return;
+    }
+
     let extension = fileName?.split('.').pop()?.toLowerCase();
     
     if (!extension || extension === fileName?.toLowerCase()) {

@@ -1,9 +1,4 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Cantiere } from '@/entities/Cantiere';
-import { Subappalto } from '@/entities/Subappalto';
-import { Documento } from '@/entities/Documento';
-import { Impresa } from '@/entities/Impresa';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -73,10 +68,10 @@ export default function CantiereDashboardPage() {
     setIsLoading(true);
     try {
       const [cantiereData, subappaltiData, documentiData, impreseData, salData] = await Promise.all([
-        Cantiere.get(cantiereId),
-        Subappalto.filter({ cantiere_id: cantiereId }),
-        Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
-        Impresa.list("-created_date", 100),
+        base44.entities.Cantiere.filter({ id: cantiereId }).then(list => list[0]),
+        base44.entities.Subappalto.filter({ cantiere_id: cantiereId }),
+        base44.entities.Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
+        base44.entities.Impresa.list("-created_date", 100),
         base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal")
       ]);
       setCantiere(cantiereData);
@@ -139,7 +134,7 @@ export default function CantiereDashboardPage() {
         toast.error("Errore: ID Cantiere non disponibile.");
         return;
       }
-      await Documento.create({
+      await base44.entities.Documento.create({
         ...formData,
         entita_collegata_id: cantiere.id,
         entita_collegata_tipo: 'cantiere',
@@ -156,7 +151,7 @@ export default function CantiereDashboardPage() {
   const handleCantiereSubmit = useCallback(async (formData) => {
     try {
       if (cantiere?.id) {
-        await Cantiere.update(cantiere.id, formData);
+        await base44.entities.Cantiere.update(cantiere.id, formData);
         setShowCantiereForm(false);
         loadData(cantiere.id);
         toast.success("Cantiere aggiornato con successo!");

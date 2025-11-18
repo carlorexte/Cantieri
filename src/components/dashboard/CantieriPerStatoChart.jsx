@@ -49,6 +49,9 @@ export default function CantieriPerStatoChart({ cantieri }) {
               dataKey="value"
               strokeWidth={2}
               stroke="#fff"
+              animationBegin={0}
+              animationDuration={800}
+              animationEasing="ease-out"
             >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />

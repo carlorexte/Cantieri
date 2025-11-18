@@ -111,6 +111,9 @@ export default function TrendSALChart({ salData }) {
               activeDot={{ r: 5, fill: '#6366f1' }}
               fillOpacity={1} 
               fill="url(#colorFatturato)"
+              animationBegin={0}
+              animationDuration={1000}
+              animationEasing="ease-in-out"
             />
             <Line 
               type="monotone" 
@@ -122,6 +125,9 @@ export default function TrendSALChart({ salData }) {
               activeDot={{ r: 5, fill: '#10b981' }}
               fillOpacity={1} 
               fill="url(#colorIncassato)"
+              animationBegin={100}
+              animationDuration={1000}
+              animationEasing="ease-in-out"
             />
           </LineChart>
         </ResponsiveContainer>

@@ -107,8 +107,15 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
               axisLine={{ stroke: '#e2e8f0' }}
               tickLine={false}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="avanzamento" radius={[0, 6, 6, 0]} barSize={18}>
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} />
+            <Bar 
+              dataKey="avanzamento" 
+              radius={[0, 6, 6, 0]} 
+              barSize={18}
+              animationBegin={0}
+              animationDuration={800}
+              animationEasing="ease-out"
+            >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={getColorByAvanzamento(entry.avanzamento)} />
               ))}

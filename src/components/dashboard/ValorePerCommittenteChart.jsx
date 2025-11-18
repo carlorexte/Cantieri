@@ -66,8 +66,16 @@ export default function ValorePerCommittenteChart({ cantieri }) {
               axisLine={{ stroke: '#e2e8f0' }}
               tickLine={false}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="valoreM" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={20} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }} />
+            <Bar 
+              dataKey="valoreM" 
+              fill="#6366f1" 
+              radius={[0, 6, 6, 0]} 
+              barSize={20}
+              animationBegin={0}
+              animationDuration={800}
+              animationEasing="ease-out"
+            />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

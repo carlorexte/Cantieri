@@ -7,6 +7,7 @@ import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
 import CantieriAttivi from "../components/dashboard/CantieriAttivi";
 import TaskPersonali from "../components/dashboard/TaskPersonali";
+import AttivitaInterneCard from "../components/dashboard/AttivitaInterneCard";
 import CantieriPerStatoChart from "../components/dashboard/CantieriPerStatoChart";
 import ValorePerCommittenteChart from "../components/dashboard/ValorePerCommittenteChart";
 import AvanzamentoCantieriChart from "../components/dashboard/AvanzamentoCantieriChart";
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const { cantieri: allCantieri, currentUser } = useData();
   const [cantieri, setCantieri] = useState([]);
   const [taskPersonali, setTaskPersonali] = useState([]);
+  const [attivitaInterne, setAttivitaInterne] = useState([]);
   const [documenti, setDocumenti] = useState([]);
   const [salData, setSalData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,14 +36,16 @@ export default function Dashboard() {
   });
 
   const loadAdminDashboard = useCallback(async () => {
-    const [cantieriAttivi, salDataResult, documentiData] = await Promise.all([
+    const [cantieriAttivi, salDataResult, documentiData, attivitaData] = await Promise.all([
       base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 30),
       base44.entities.SAL.list("-data_sal", 200),
-      base44.entities.Documento.filter({}, "-data_scadenza", 50)
+      base44.entities.Documento.filter({}, "-data_scadenza", 50),
+      base44.entities.AttivitaInterna.filter({}, "-data_scadenza", 100)
     ]);
 
     setSalData(salDataResult);
     setDocumenti(documentiData);
+    setAttivitaInterne(attivitaData);
 
     const salByCantiere = new Map();
     salDataResult.forEach(sal => {
@@ -316,7 +320,7 @@ export default function Dashboard() {
         <AvanzamentoCantieriChart cantieri={filteredCantieri} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
           <CantieriAttivi 
             cantieri={cantieri}
@@ -326,6 +330,14 @@ export default function Dashboard() {
         <div>
           <AlertCard alerts={getAlertsForUser} />
         </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <AttivitaInterneCard 
+          attivita={attivitaInterne}
+          cantieri={allCantieri}
+          isLoading={isLoading}
+        />
       </div>
     </>
   ), [kpis, cantieri, filteredCantieri, salData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters]);

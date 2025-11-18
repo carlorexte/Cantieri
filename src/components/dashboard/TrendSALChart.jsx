@@ -55,10 +55,10 @@ export default function TrendSALChart({ salData }) {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-slate-900 mb-2">{payload[0].payload.month}</p>
-          <p className="text-sm text-blue-600">Fatturato: €{payload[0].value}K</p>
-          <p className="text-sm text-green-600">Incassato: €{payload[1].value}K</p>
+        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-md">
+          <p className="font-semibold text-slate-800 mb-2">{payload[0].payload.month}</p>
+          <p className="text-sm text-indigo-600">Fatturato: <span className="font-bold">€{payload[0].value}K</span></p>
+          <p className="text-sm text-emerald-600">Incassato: <span className="font-bold">€{payload[1].value}K</span></p>
         </div>
       );
     }
@@ -73,6 +73,16 @@ export default function TrendSALChart({ salData }) {
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data} margin={{ left: 10, right: 10, bottom: 20 }}>
+            <defs>
+              <linearGradient id="colorFatturato" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorIncassato" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis 
               dataKey="month" 
@@ -99,6 +109,8 @@ export default function TrendSALChart({ salData }) {
               name="Fatturato"
               dot={false}
               activeDot={{ r: 5, fill: '#6366f1' }}
+              fillOpacity={1} 
+              fill="url(#colorFatturato)"
             />
             <Line 
               type="monotone" 
@@ -108,6 +120,8 @@ export default function TrendSALChart({ salData }) {
               name="Incassato"
               dot={false}
               activeDot={{ r: 5, fill: '#10b981' }}
+              fillOpacity={1} 
+              fill="url(#colorIncassato)"
             />
           </LineChart>
         </ResponsiveContainer>

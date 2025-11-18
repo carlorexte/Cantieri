@@ -12,6 +12,7 @@ import CantieriPerStatoChart from "../components/dashboard/CantieriPerStatoChart
 import ValorePerCommittenteChart from "../components/dashboard/ValorePerCommittenteChart";
 import AvanzamentoCantieriChart from "../components/dashboard/AvanzamentoCantieriChart";
 import TrendSALChart from "../components/dashboard/TrendSALChart";
+import CostiMensiliChart from "../components/dashboard/CostiMensiliChart";
 import DashboardFilters from "../components/dashboard/DashboardFilters";
 
 export default function Dashboard() {
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [attivitaInterne, setAttivitaInterne] = useState([]);
   const [documenti, setDocumenti] = useState([]);
   const [salData, setSalData] = useState([]);
+  const [costiData, setCostiData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     stato: 'tutti',
@@ -36,16 +38,18 @@ export default function Dashboard() {
   });
 
   const loadAdminDashboard = useCallback(async () => {
-    const [cantieriAttivi, salDataResult, documentiData, attivitaData] = await Promise.all([
+    const [cantieriAttivi, salDataResult, documentiData, attivitaData, costiDataResult] = await Promise.all([
       base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 30),
       base44.entities.SAL.list("-data_sal", 200),
       base44.entities.Documento.filter({}, "-data_scadenza", 50),
-      base44.entities.AttivitaInterna.filter({}, "-data_scadenza", 100)
+      base44.entities.AttivitaInterna.filter({}, "-data_scadenza", 100),
+      base44.entities.Costo.list("-data_sostenimento", 200)
     ]);
 
     setSalData(salDataResult);
     setDocumenti(documentiData);
     setAttivitaInterne(attivitaData);
+    setCostiData(costiDataResult);
 
     const salByCantiere = new Map();
     salDataResult.forEach(sal => {
@@ -311,8 +315,9 @@ export default function Dashboard() {
         <TrendSALChart salData={salData} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <ValorePerCommittenteChart cantieri={filteredCantieri} />
+        <CostiMensiliChart costiData={costiData} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 mb-8">
@@ -336,7 +341,7 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  ), [kpis, cantieri, filteredCantieri, salData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters]);
+  ), [kpis, cantieri, filteredCantieri, salData, costiData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters, attivitaInterne, allCantieri]);
 
   const renderUserDashboard = useCallback(() => (
     <>

@@ -1,24 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { TrendingUp } from 'lucide-react';
-
-const COLORS = {
-  attivo: '#10b981',
-  sospeso: '#f59e0b',
-  completato: '#3b82f6',
-  in_gara: '#8b5cf6'
-};
-
-const STATUS_LABELS = {
-  attivo: 'Attivi',
-  sospeso: 'Sospesi',
-  completato: 'Completati',
-  in_gara: 'In Gara'
-};
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 const COLORS = {
   attivo: "#6366f1",
@@ -50,32 +32,40 @@ export default function CantieriPerStatoChart({ cantieri }) {
   }, [cantieri]);
 
   return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-indigo-600" />
-          Distribuzione per Stato
-        </CardTitle>
+    <Card className="border border-slate-200 shadow-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-slate-900">Cantieri per Stato</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={100}
+              outerRadius={90}
               fill="#8884d8"
               dataKey="value"
+              strokeWidth={2}
+              stroke="#fff"
             >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip />
-            <Legend />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'white', 
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}
+            />
+            <Legend 
+              wrapperStyle={{ fontSize: '12px' }}
+              iconType="circle"
+            />
           </PieChart>
         </ResponsiveContainer>
       </CardContent>

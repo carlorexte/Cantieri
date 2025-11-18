@@ -40,26 +40,31 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-indigo-600" />
-          Avanzamento Cantieri Attivi
-        </CardTitle>
+    <Card className="border border-slate-200 shadow-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-slate-900">Avanzamento Cantieri Attivi</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={data} layout="vertical" margin={{ left: 150, right: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" domain={[0, 100]} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+            <XAxis 
+              type="number" 
+              domain={[0, 100]} 
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              axisLine={{ stroke: '#e2e8f0' }}
+              tickLine={false}
+            />
             <YAxis 
               type="category" 
               dataKey="nome" 
               width={140}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              axisLine={{ stroke: '#e2e8f0' }}
+              tickLine={false}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="avanzamento" radius={[0, 8, 8, 0]}>
+            <Bar dataKey="avanzamento" radius={[0, 6, 6, 0]} barSize={18}>
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={getColorByAvanzamento(entry.avanzamento)} />
               ))}

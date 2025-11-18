@@ -66,44 +66,48 @@ export default function TrendSALChart({ salData }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-indigo-600" />
-          Trend SAL (Ultimi 12 Mesi)
-        </CardTitle>
+    <Card className="border border-slate-200 shadow-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-slate-900">Trend SAL Ultimi 12 Mesi</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ left: 10, right: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" />
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={data} margin={{ left: 10, right: 10, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis 
               dataKey="month" 
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 11, fill: '#64748b' }}
               angle={-45}
               textAnchor="end"
               height={80}
+              axisLine={{ stroke: '#e2e8f0' }}
+              tickLine={false}
             />
             <YAxis 
-              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft' }}
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              axisLine={{ stroke: '#e2e8f0' }}
+              tickLine={false}
+              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
             <Line 
               type="monotone" 
               dataKey="fatturato" 
-              stroke="#3b82f6" 
-              strokeWidth={2}
+              stroke="#6366f1" 
+              strokeWidth={3}
               name="Fatturato"
-              dot={{ r: 4 }}
+              dot={false}
+              activeDot={{ r: 5, fill: '#6366f1' }}
             />
             <Line 
               type="monotone" 
               dataKey="incassato" 
               stroke="#10b981" 
-              strokeWidth={2}
+              strokeWidth={3}
               name="Incassato"
-              dot={{ r: 4 }}
+              dot={false}
+              activeDot={{ r: 5, fill: '#10b981' }}
             />
           </LineChart>
         </ResponsiveContainer>

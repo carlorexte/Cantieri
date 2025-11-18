@@ -43,26 +43,31 @@ export default function ValorePerCommittenteChart({ cantieri }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-indigo-600" />
-          Top 10 Committenti per Valore
-        </CardTitle>
+    <Card className="border border-slate-200 shadow-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-slate-900">Valore per Committente (Top 10)</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={350}>
           <BarChart data={data} layout="vertical" margin={{ left: 150, right: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" label={{ value: 'Milioni €', position: 'insideBottom', offset: -5 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+            <XAxis 
+              type="number" 
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              axisLine={{ stroke: '#e2e8f0' }}
+              tickLine={false}
+              label={{ value: 'Milioni €', position: 'insideBottom', offset: -5, style: { fontSize: 11, fill: '#64748b' } }}
+            />
             <YAxis 
               type="category" 
               dataKey="committente" 
               width={140}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              axisLine={{ stroke: '#e2e8f0' }}
+              tickLine={false}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="valoreM" fill="#6366f1" radius={[0, 8, 8, 0]} />
+            <Bar dataKey="valoreM" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={20} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

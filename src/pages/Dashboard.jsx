@@ -320,24 +320,21 @@ export default function Dashboard() {
         <AvanzamentoCantieriChart cantieri={filteredCantieri} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CantieriAttivi 
             cantieri={cantieri}
             isLoading={isLoading}
           />
         </div>
-        <div>
+        <div className="space-y-6">
           <AlertCard alerts={getAlertsForUser} />
+          <AttivitaInterneCard 
+            attivita={attivitaInterne}
+            cantieri={allCantieri}
+            isLoading={isLoading}
+          />
         </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <AttivitaInterneCard 
-          attivita={attivitaInterne}
-          cantieri={allCantieri}
-          isLoading={isLoading}
-        />
       </div>
     </>
   ), [kpis, cantieri, filteredCantieri, salData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters]);

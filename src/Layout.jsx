@@ -72,12 +72,13 @@ export default function Layout({ children }) {
         className={`
           flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
           ${isActive 
-            ? "bg-indigo-50 text-indigo-600" 
+            ? "text-white" 
             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
           }
         `}
+        style={isActive ? {backgroundColor: '#F5A623'} : {}}
       >
-        <item.icon className={`w-5 h-5 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+        <item.icon className={`w-5 h-5 ${isActive ? "text-white" : "text-slate-400"}`} />
         <span>{item.label}</span>
       </Link>
     )
@@ -99,8 +100,11 @@ export default function Layout({ children }) {
           {`
             :root {
               --header-height: 0px;
+              --rcs-orange: #F5A623;
+              --rcs-dark-gray: #4A4A4A;
+              --rcs-light-gray: #5C5C5C;
             }
-            
+
             body {
               background: #f8fafc;
             }
@@ -110,11 +114,11 @@ export default function Layout({ children }) {
           <Sidebar className="border-r border-slate-200 bg-white">
             <SidebarHeader className="border-b border-slate-100 p-5">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background: '#F5A623'}}>
                   <Building2 className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <span className="font-bold text-lg bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  <span className="font-bold text-lg" style={{color: '#4A4A4A'}}>
                     CantierePRO
                   </span>
                 </div>
@@ -145,8 +149,8 @@ export default function Layout({ children }) {
 
             <SidebarFooter className="border-t border-slate-100 p-4">
               <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10 border-2 border-indigo-100">
-                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-sm">
+                <Avatar className="w-10 h-10 border-2" style={{borderColor: '#F5A623'}}>
+                  <AvatarFallback className="text-white font-semibold text-sm" style={{backgroundColor: '#F5A623'}}>
                     {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>

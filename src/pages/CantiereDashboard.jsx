@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Cantiere } from '@/entities/Cantiere';
+import { Subappalto } from '@/entities/Subappalto';
+import { Documento } from '@/entities/Documento';
+import { Impresa } from '@/entities/Impresa';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -68,10 +72,10 @@ export default function CantiereDashboardPage() {
     setIsLoading(true);
     try {
       const [cantiereData, subappaltiData, documentiData, impreseData, salData] = await Promise.all([
-        base44.entities.Cantiere.filter({ id: cantiereId }).then(list => list[0]),
-        base44.entities.Subappalto.filter({ cantiere_id: cantiereId }),
-        base44.entities.Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
-        base44.entities.Impresa.list("-created_date", 100),
+        Cantiere.get(cantiereId),
+        Subappalto.filter({ cantiere_id: cantiereId }),
+        Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
+        Impresa.list("-created_date", 100),
         base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal")
       ]);
       setCantiere(cantiereData);
@@ -134,7 +138,7 @@ export default function CantiereDashboardPage() {
         toast.error("Errore: ID Cantiere non disponibile.");
         return;
       }
-      await base44.entities.Documento.create({
+      await Documento.create({
         ...formData,
         entita_collegata_id: cantiere.id,
         entita_collegata_tipo: 'cantiere',
@@ -151,7 +155,7 @@ export default function CantiereDashboardPage() {
   const handleCantiereSubmit = useCallback(async (formData) => {
     try {
       if (cantiere?.id) {
-        await base44.entities.Cantiere.update(cantiere.id, formData);
+        await Cantiere.update(cantiere.id, formData);
         setShowCantiereForm(false);
         loadData(cantiere.id);
         toast.success("Cantiere aggiornato con successo!");
@@ -314,6 +318,41 @@ export default function CantiereDashboardPage() {
     [salList]
   );
 
+  const allImprese = useMemo(() => {
+    const imprese = [];
+    
+    if (cantiere?.azienda_appaltatrice_ragione_sociale) {
+      imprese.push({
+        ragione_sociale: cantiere.azienda_appaltatrice_ragione_sociale,
+        tipo_impresa: cantiere.tipologia_azienda_appaltatrice || 'singola',
+        indirizzo: cantiere.azienda_appaltatrice_indirizzo,
+        cap: cantiere.azienda_appaltatrice_cap,
+        citta: cantiere.azienda_appaltatrice_citta,
+        telefono: cantiere.azienda_appaltatrice_telefono,
+        email: cantiere.azienda_appaltatrice_email,
+        cf: cantiere.azienda_appaltatrice_cf,
+        piva: cantiere.azienda_appaltatrice_piva,
+        isPrincipale: true
+      });
+    }
+    
+    if (cantiere?.partner_consorziati?.length > 0) {
+      imprese.push(...cantiere.partner_consorziati.map(p => ({ ...p, isPrincipale: false })));
+    }
+    
+    return sortImpresaByPriority(imprese);
+  }, [cantiere, sortImpresaByPriority]);
+
+  const subappaltiList = useMemo(() => 
+    subappalti.filter(s => s.tipo_relazione === "subappalto" || !s.tipo_relazione),
+    [subappalti]
+  );
+  
+  const subaffidamentiList = useMemo(() => 
+    subappalti.filter(s => s.tipo_relazione === "subaffidamento"),
+    [subappalti]
+  );
+
   if (isLoading) {
     return <div className="p-6">Caricamento...</div>;
   }
@@ -374,41 +413,6 @@ export default function CantiereDashboardPage() {
   };
 
   const StatoIcon = statoAvanzamento.icon;
-
-  const allImprese = useMemo(() => {
-    const imprese = [];
-    
-    if (cantiere?.azienda_appaltatrice_ragione_sociale) {
-      imprese.push({
-        ragione_sociale: cantiere.azienda_appaltatrice_ragione_sociale,
-        tipo_impresa: cantiere.tipologia_azienda_appaltatrice || 'singola',
-        indirizzo: cantiere.azienda_appaltatrice_indirizzo,
-        cap: cantiere.azienda_appaltatrice_cap,
-        citta: cantiere.azienda_appaltatrice_citta,
-        telefono: cantiere.azienda_appaltatrice_telefono,
-        email: cantiere.azienda_appaltatrice_email,
-        cf: cantiere.azienda_appaltatrice_cf,
-        piva: cantiere.azienda_appaltatrice_piva,
-        isPrincipale: true
-      });
-    }
-    
-    if (cantiere?.partner_consorziati?.length > 0) {
-      imprese.push(...cantiere.partner_consorziati.map(p => ({ ...p, isPrincipale: false })));
-    }
-    
-    return sortImpresaByPriority(imprese);
-  }, [cantiere, sortImpresaByPriority]);
-
-  const subappaltiList = useMemo(() => 
-    subappalti.filter(s => s.tipo_relazione === "subappalto" || !s.tipo_relazione),
-    [subappalti]
-  );
-  
-  const subaffidamentiList = useMemo(() => 
-    subappalti.filter(s => s.tipo_relazione === "subaffidamento"),
-    [subappalti]
-  );
 
   return (
     <div className="p-6 bg-slate-50 min-h-full">

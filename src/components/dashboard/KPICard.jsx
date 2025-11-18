@@ -59,36 +59,37 @@ const KPICard = React.memo(({
   const colors = colorSchemes[colorScheme] || colorSchemes.indigo;
   
   return (
-    <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-white opacity-60"></div>
+    <Card className="relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white group">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/40"></div>
+      <div className={`absolute top-0 left-0 right-0 h-1 ${colors.bg}`}></div>
       
-      <CardContent className="relative p-6">
+      <CardContent className="relative p-7">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-slate-500 mb-2">{title}</p>
-            <div className="flex items-baseline gap-2">
-              <p className={`text-3xl font-bold ${colors.text} tracking-tight`}>
+            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{title}</p>
+            <div className="flex items-baseline gap-3 mb-3">
+              <p className={`text-4xl font-black ${colors.text} tracking-tight`}>
                 {value}
               </p>
               {trend && (
-                <div className={`flex items-center gap-1 text-xs font-semibold ${
+                <div className={`flex items-center gap-1 text-sm font-bold ${
                   trend === 'up' ? 'text-emerald-600' : 'text-rose-600'
                 }`}>
                   {trend === 'up' ? (
-                    <TrendingUp className="w-3 h-3" />
+                    <TrendingUp className="w-4 h-4" />
                   ) : (
-                    <TrendingDown className="w-3 h-3" />
+                    <TrendingDown className="w-4 h-4" />
                   )}
                   <span>{trendValue}</span>
                 </div>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-2">{subtitle}</p>
+            <p className="text-xs font-medium text-slate-600">{subtitle}</p>
           </div>
           
-          <div className={`relative w-14 h-14 rounded-2xl ${colors.bg} shadow-lg flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300`}>
-            <Icon className="w-7 h-7 text-white" strokeWidth={2} />
-            <div className={`absolute inset-0 rounded-2xl ring-4 ${colors.ring} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+          <div className={`relative w-16 h-16 rounded-2xl ${colors.bg} shadow-2xl flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
+            <Icon className="w-8 h-8 text-white" strokeWidth={2.5} />
+            <div className={`absolute inset-0 rounded-2xl ring-8 ${colors.ring} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
           </div>
         </div>
       </CardContent>

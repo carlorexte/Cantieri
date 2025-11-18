@@ -264,9 +264,14 @@ export default function Dashboard() {
 
   const renderAdminDashboard = useCallback(() => (
     <>
-      <div className="mb-10">
-        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-        <p className="text-slate-600 mt-2 text-lg">Panoramica generale e monitoraggio KPI</p>
+      <div className="mb-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl blur-3xl"></div>
+        <div className="relative">
+          <h1 className="text-5xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-slate-600 mt-3 text-lg font-medium">Panoramica generale e monitoraggio KPI</p>
+        </div>
       </div>
 
       <DashboardFilters
@@ -276,7 +281,7 @@ export default function Dashboard() {
         committenti={committentiList}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Cantieri Attivi"
           value={kpis.cantieriAttivi}
@@ -307,16 +312,16 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <CantieriPerStatoChart cantieri={filteredCantieri} />
         <TrendSALChart salData={salData} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-6 mb-8">
         <ValorePerCommittenteChart cantieri={filteredCantieri} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-6 mb-8">
         <AvanzamentoCantieriChart cantieri={filteredCantieri} />
       </div>
 
@@ -341,12 +346,17 @@ export default function Dashboard() {
 
   const renderUserDashboard = useCallback(() => (
     <>
-      <div className="mb-10">
-        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">I Miei Compiti</h1>
-        <p className="text-slate-600 mt-2 text-lg">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
+      <div className="mb-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 rounded-3xl blur-3xl"></div>
+        <div className="relative">
+          <h1 className="text-5xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
+            I Miei Compiti
+          </h1>
+          <p className="text-slate-600 mt-3 text-lg font-medium">Benvenuto {currentUser?.full_name || currentUser?.email}</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
           title="Totale Compiti"
           value={kpis.taskTotali || 0}
@@ -393,18 +403,18 @@ export default function Dashboard() {
   ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="p-10">
-        <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
+      <div className="p-8">
+        <div className="max-w-[1600px] mx-auto">
           {isLoading ? (
             <div className="animate-pulse space-y-8">
-              <div className="h-10 bg-slate-200 rounded-xl w-64"></div>
-              <div className="grid grid-cols-4 gap-6">
+              <div className="h-12 bg-slate-200/60 rounded-2xl w-80"></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {Array(4).fill(0).map((_, i) => (
-                  <div key={i} className="h-36 bg-slate-200 rounded-2xl"></div>
+                  <div key={i} className="h-40 bg-slate-200/60 rounded-3xl"></div>
                 ))}
               </div>
-              <div className="h-96 bg-slate-200 rounded-2xl"></div>
+              <div className="h-96 bg-slate-200/60 rounded-3xl"></div>
             </div>
           ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}
         </div>

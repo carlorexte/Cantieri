@@ -21,15 +21,15 @@ const alertDotClasses = {
 
 export default function AlertCard({ alerts }) {
   return (
-    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+    <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500"></div>
       
-      <CardHeader className="pb-4 pt-6">
-        <CardTitle className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200">
-            <AlertTriangle className="w-5 h-5 text-white" />
+      <CardHeader className="pb-5 pt-7">
+        <CardTitle className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-2xl shadow-rose-200/50">
+            <AlertTriangle className="w-6 h-6 text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-lg">Allarmi e Notifiche</span>
+          <span className="text-xl font-bold">Allarmi e Notifiche</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -40,17 +40,17 @@ export default function AlertCard({ alerts }) {
               return (
                 <div 
                   key={idx} 
-                  className={`p-4 rounded-xl border transition-all duration-300 hover:scale-[1.02] cursor-pointer ${alertCardClasses[alert.priorita] || alertCardClasses.medio}`}
+                  className={`p-5 rounded-2xl border-2 transition-all duration-500 hover:scale-[1.03] cursor-pointer hover:shadow-lg ${alertCardClasses[alert.priorita] || alertCardClasses.medio}`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${alertDotClasses[alert.priorita] || alertDotClasses.medio}`}></div>
+                  <div className="flex items-start gap-4">
+                    <div className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${alertDotClasses[alert.priorita] || alertDotClasses.medio} animate-pulse`}></div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-900 text-sm leading-snug mb-1">
+                      <p className="font-bold text-slate-900 text-sm leading-snug mb-2">
                         {alert.messaggio}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
-                        <Icon className="w-3 h-3 text-slate-500" />
-                        <p className="text-xs text-slate-600 truncate">
+                        <Icon className="w-4 h-4 text-slate-500" />
+                        <p className="text-xs font-medium text-slate-600 truncate">
                           {alert.cantiere}
                         </p>
                       </div>

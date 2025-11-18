@@ -91,6 +91,9 @@ export default function CostiMensiliChart({ costiData }) {
               activeDot={{ r: 5, fill: '#ef4444' }}
               fillOpacity={1} 
               fill="url(#colorCosti)"
+              animationBegin={0}
+              animationDuration={1000}
+              animationEasing="ease-in-out"
             />
           </LineChart>
         </ResponsiveContainer>

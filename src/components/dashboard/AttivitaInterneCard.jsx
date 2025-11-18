@@ -76,18 +76,11 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
   }
 
   return (
-    <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"></div>
-      
-      <CardHeader className="pb-5 pt-7">
+    <Card className="border border-slate-200 shadow-sm bg-white">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-200/50">
-              <ClipboardList className="w-6 h-6 text-white" strokeWidth={2.5} />
-            </div>
-            <span className="text-xl font-bold">Attività Interne</span>
-          </CardTitle>
-          <Badge className="px-4 py-2 text-sm font-bold shadow-lg" style={{backgroundColor: '#F5A623', color: 'white'}}>
+          <CardTitle className="text-lg font-semibold text-slate-900">Attività Interne</CardTitle>
+          <Badge variant="secondary" className="text-xs">
             {attivitaDaCompletare.length} da completare
           </Badge>
         </div>
@@ -101,40 +94,40 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
             return (
               <div 
                 key={task.id}
-                className="p-5 rounded-2xl border-2 border-slate-100 bg-white hover:shadow-xl transition-all duration-500 hover:scale-[1.02]"
-                style={overdue ? {borderLeftWidth: '5px', borderLeftColor: '#EF4444'} : {}}
+                className="p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-slate-50/50 transition-all duration-200"
+                style={overdue ? {borderLeftWidth: '3px', borderLeftColor: '#EF4444'} : {}}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h4 className="font-bold text-slate-900 truncate text-base">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-semibold text-slate-900 truncate text-sm">
                         {task.descrizione}
                       </h4>
                       <Badge 
                         variant="outline" 
-                        className={`${priorityColors[task.priorita]} border-2 text-xs font-bold px-3 py-1`}
+                        className={`${priorityColors[task.priorita]} text-xs px-2 py-0.5`}
                       >
                         {task.priorita}
                       </Badge>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-                      <div className={`flex items-center gap-2 font-semibold ${statusConfig[task.stato]?.color}`}>
-                        <StatusIcon className="w-4 h-4" />
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                      <div className={`flex items-center gap-1 ${statusConfig[task.stato]?.color}`}>
+                        <StatusIcon className="w-3.5 h-3.5" />
                         <span>{statusConfig[task.stato]?.label}</span>
                       </div>
                       
                       {task.data_scadenza && (
-                        <div className={`flex items-center gap-2 ${overdue ? 'text-red-600 font-bold' : 'font-medium'}`}>
-                          <Calendar className="w-4 h-4" />
+                        <div className={`flex items-center gap-1 ${overdue ? 'text-red-600 font-semibold' : ''}`}>
+                          <Calendar className="w-3.5 h-3.5" />
                           <span>
                             {new Date(task.data_scadenza).toLocaleDateString('it-IT')}
                           </span>
-                          {overdue && <span className="ml-1 font-extrabold">SCADUTA</span>}
+                          {overdue && <span className="ml-1 font-bold">SCADUTA</span>}
                         </div>
                       )}
                       
-                      <div className="text-slate-500 font-medium">
+                      <div className="text-slate-500">
                         {getCantiereNome(task.cantiere_id)}
                       </div>
                     </div>

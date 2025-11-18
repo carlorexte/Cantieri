@@ -59,38 +59,34 @@ const KPICard = React.memo(({
   const colors = colorSchemes[colorScheme] || colorSchemes.indigo;
   
   return (
-    <Card className="relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500 bg-white group">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50/80 via-white to-slate-50/40"></div>
-      <div className={`absolute top-0 left-0 right-0 h-1 ${colors.bg}`}></div>
-      
-      <CardContent className="relative p-7">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{title}</p>
-            <div className="flex items-baseline gap-3 mb-3">
-              <p className={`text-4xl font-black ${colors.text} tracking-tight`}>
-                {value}
-              </p>
-              {trend && (
-                <div className={`flex items-center gap-1 text-sm font-bold ${
-                  trend === 'up' ? 'text-emerald-600' : 'text-rose-600'
-                }`}>
-                  {trend === 'up' ? (
-                    <TrendingUp className="w-4 h-4" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4" />
-                  )}
-                  <span>{trendValue}</span>
-                </div>
+    <Card className="relative overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 bg-white">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between mb-4">
+          <p className="text-sm font-medium text-slate-600">{title}</p>
+          <div className={`w-10 h-10 rounded-xl ${colors.light} flex items-center justify-center`}>
+            <Icon className={`w-5 h-5 ${colors.text}`} strokeWidth={2} />
+          </div>
+        </div>
+        <div className="flex items-baseline gap-2 mb-2">
+          <p className="text-3xl font-bold text-slate-900">
+            {value}
+          </p>
+          {trend && (
+            <div className={`flex items-center gap-1 text-xs font-semibold ${
+              trend === 'up' ? 'text-emerald-600' : 'text-rose-600'
+            }`}>
+              {trend === 'up' ? (
+                <TrendingUp className="w-3 h-3" />
+              ) : (
+                <TrendingDown className="w-3 h-3" />
               )}
+              <span>{trendValue}</span>
             </div>
-            <p className="text-xs font-medium text-slate-600">{subtitle}</p>
-          </div>
-          
-          <div className={`relative w-16 h-16 rounded-2xl ${colors.bg} shadow-2xl flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
-            <Icon className="w-8 h-8 text-white" strokeWidth={2.5} />
-            <div className={`absolute inset-0 rounded-2xl ring-8 ${colors.ring} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
-          </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`h-1 w-16 rounded-full ${colors.bg}`}></div>
+          <p className="text-xs text-slate-500">{subtitle}</p>
         </div>
       </CardContent>
     </Card>

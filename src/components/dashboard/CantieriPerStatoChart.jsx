@@ -17,6 +17,23 @@ const STATUS_LABELS = {
   in_gara: 'In Gara'
 };
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+
+const COLORS = {
+  attivo: "#6366f1",
+  sospeso: "#f59e0b",
+  completato: "#10b981",
+  in_gara: "#8b5cf6"
+};
+
+const STATUS_LABELS = {
+  attivo: "Attivi",
+  sospeso: "Sospesi",
+  completato: "Completati",
+  in_gara: "In Gara"
+};
+
 export default function CantieriPerStatoChart({ cantieri }) {
   const data = React.useMemo(() => {
     const grouped = cantieri.reduce((acc, cantiere) => {

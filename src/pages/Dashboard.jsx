@@ -268,24 +268,27 @@ export default function Dashboard() {
 
   const renderAdminDashboard = useCallback(() => (
     <>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold" style={{ color: '#17171C' }}>Dashboard</h1>
+        <p className="text-sm mt-1" style={{ color: '#626671' }}>Panoramica generale dell'attività</p>
       </div>
 
-      <DashboardFilters
-        filters={filters}
-        onFiltersChange={setFilters}
-        onReset={handleResetFilters}
-        committenti={committentiList}
-      />
+      <div className="mb-8">
+        <DashboardFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onReset={handleResetFilters}
+          committenti={committentiList}
+        />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <KPICard
           title="Cantieri Attivi"
           value={kpis.cantieriAttivi}
           subtitle="In corso di esecuzione"
           icon={Building2}
-          colorScheme="indigo"
+          colorScheme="orange"
         />
         <KPICard
           title="Valore Portafoglio"
@@ -320,7 +323,7 @@ export default function Dashboard() {
         <CostiMensiliChart costiData={costiData} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-8">
+      <div className="mb-8">
         <AvanzamentoCantieriChart cantieri={filteredCantieri} />
       </div>
 
@@ -397,18 +400,18 @@ export default function Dashboard() {
   ), [kpis, currentUser, taskPersonali, cantieri, isLoading, getAlertsForUser]);
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA]">
-      <div className="p-6">
-        <div className="max-w-[1400px] mx-auto">
+    <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
+      <div className="p-8">
+        <div className="max-w-[1600px] mx-auto">
           {isLoading ? (
             <div className="animate-pulse space-y-8">
               <div className="h-12 bg-slate-200/60 rounded-2xl w-80"></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {Array(4).fill(0).map((_, i) => (
-                  <div key={i} className="h-40 bg-slate-200/60 rounded-3xl"></div>
+                  <div key={i} className="h-32 bg-slate-200/60 rounded-2xl"></div>
                 ))}
               </div>
-              <div className="h-96 bg-slate-200/60 rounded-3xl"></div>
+              <div className="h-96 bg-slate-200/60 rounded-2xl"></div>
             </div>
           ) : currentUser?.role === 'admin' ? renderAdminDashboard() : renderUserDashboard()}
         </div>

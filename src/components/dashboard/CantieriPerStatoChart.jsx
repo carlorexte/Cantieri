@@ -38,7 +38,10 @@ export default function CantieriPerStatoChart({ cantieri }) {
   return (
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Cantieri per Stato</CardTitle>
+        <div>
+          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Distribuzione Cantieri</CardTitle>
+          <p className="text-sm font-medium" style={{ color: '#626671' }}>Stato attuale di tutti i progetti</p>
+        </div>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>

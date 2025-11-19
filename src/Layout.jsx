@@ -69,15 +69,6 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
     )
   }
 
-  const getUserInitials = () => {
-    if (!currentUser?.full_name) return 'U';
-    const names = currentUser.full_name.split(' ');
-    if (names.length >= 2) {
-      return `${names[0][0]}${names[1][0]}`.toUpperCase();
-    }
-    return currentUser.full_name.substring(0, 2).toUpperCase();
-  };
-
   return (
     <div className="min-h-screen flex w-full bg-slate-50">
       <Sidebar className="border-r border-slate-200 bg-white transition-all duration-300" collapsible="icon">

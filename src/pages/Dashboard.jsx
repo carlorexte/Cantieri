@@ -269,8 +269,8 @@ export default function Dashboard() {
   const renderAdminDashboard = useCallback(() => (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold" style={{ color: '#17171C' }}>Dashboard</h1>
-        <p className="text-sm mt-1" style={{ color: '#626671' }}>Panoramica generale dell'attività</p>
+        <h1 className="text-4xl font-bold mb-2" style={{ color: '#17171C' }}>Dashboard RCS</h1>
+        <p className="text-base" style={{ color: '#626671' }}>Panoramica generale dell'attività aziendale</p>
       </div>
 
       <div className="mb-8">

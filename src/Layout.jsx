@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft } from "lucide-react";
+import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -10,10 +10,12 @@ import {
   SidebarTrigger,
   SidebarFooter,
   SidebarProvider,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DataProvider } from "@/components/shared/DataContext";
+import { cn } from "@/lib/utils";
 
 const primaryNavConfig = [
   { href: "Dashboard", icon: LayoutDashboard, label: "Dashboard", perm: "all" },
@@ -34,26 +36,9 @@ const settingsNavConfig = [
   { href: "MyProfile", icon: Users, label: "Il Mio Profilo", perm: "all" },
 ];
 
-export default function Layout({ children }) {
+function LayoutContent({ children, currentUser, handleLogout, getUserInitials }) {
   const location = useLocation();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Not logged in");
-      }
-    };
-    fetchUser();
-  }, []);
-
-  const handleLogout = async () => {
-    await base44.auth.logout();
-  };
+  const { open, setOpen } = useSidebar();
 
   const hasPermission = (perm) => {
     if (perm === "all" || currentUser?.role === 'admin') return true;
@@ -63,23 +48,23 @@ export default function Layout({ children }) {
   const visiblePrimaryNav = primaryNavConfig.filter(item => hasPermission(item.perm));
   const visibleSettingsNav = settingsNavConfig.filter(item => hasPermission(item.perm));
 
-  function NavItem({ item, pathname }) {
+  function NavItem({ item, pathname, collapsed }) {
     const isActive = pathname === createPageUrl(item.href);
     
     return (
       <Link 
         to={createPageUrl(item.href)} 
-        className={`
-          flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-          ${isActive 
-            ? "text-white" 
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+          isActive 
+            ? "text-white shadow-md" 
             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-          }
-        `}
-        style={isActive ? {backgroundColor: '#F5A623'} : {}}
+        )}
+        style={isActive ? {backgroundColor: '#FF902C'} : {}}
+        title={collapsed ? item.label : ''}
       >
-        <item.icon className={`w-5 h-5 ${isActive ? "text-white" : "text-slate-400"}`} />
-        <span>{item.label}</span>
+        <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-white" : "text-slate-400")} />
+        {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
     )
   }
@@ -94,63 +79,62 @@ export default function Layout({ children }) {
   };
 
   return (
-    <DataProvider>
-      <SidebarProvider>
-        <style>
-          {`
-            :root {
-              --header-height: 0px;
-              --rcs-orange: #F5A623;
-              --rcs-dark-gray: #4A4A4A;
-              --rcs-light-gray: #5C5C5C;
-            }
-
-            body {
-              background: #f8fafc;
-            }
-          `}
-        </style>
-        <div className="min-h-screen flex w-full bg-slate-50">
-          <Sidebar className="border-r border-slate-200 bg-white">
-            <SidebarHeader className="border-b border-slate-100 p-5">
-              <div className="flex items-center gap-3">
-                <img 
-                  src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
-                  alt="RCS Italia Logo" 
-                  className="h-10 w-auto object-contain"
-                />
-              </div>
-            </SidebarHeader>
+    <div className="min-h-screen flex w-full bg-slate-50">
+      <Sidebar className="border-r border-slate-200 bg-white transition-all duration-300" collapsible="icon">
+        <SidebarHeader className="border-b border-slate-100 p-5 flex flex-row items-center justify-between">
+          <div className={cn("flex items-center gap-3 transition-opacity duration-200", !open && "opacity-0 w-0")}>
+            <img 
+              src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
+              alt="RCS Italia Logo" 
+              className="h-10 w-auto object-contain"
+            />
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(!open)}
+            className="ml-auto hover:bg-slate-100 transition-colors"
+            style={{ color: '#FF902C' }}
+          >
+            {open ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </Button>
+        </SidebarHeader>
             
-            <SidebarContent className="p-3 flex-1 overflow-y-auto">
-              <div className="space-y-1 mb-6">
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generale</p>
-                </div>
-                {visiblePrimaryNav.map(item => (
-                  <NavItem key={item.href} item={item} pathname={location.pathname} />
-                ))}
+        <SidebarContent className="p-3 flex-1 overflow-y-auto">
+          <div className="space-y-1 mb-6">
+            {open && (
+              <div className="px-3 py-2">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generale</p>
               </div>
-              
-              {visibleSettingsNav.length > 0 && (
-                <div className="space-y-1 pt-6 border-t border-slate-100">
-                  <div className="px-3 py-2">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Impostazioni</p>
-                  </div>
-                  {visibleSettingsNav.map(item => (
-                    <NavItem key={item.href} item={item} pathname={location.pathname} />
-                  ))}
+            )}
+            {visiblePrimaryNav.map(item => (
+              <NavItem key={item.href} item={item} pathname={location.pathname} collapsed={!open} />
+            ))}
+          </div>
+          
+          {visibleSettingsNav.length > 0 && (
+            <div className="space-y-1 pt-6 border-t border-slate-100">
+              {open && (
+                <div className="px-3 py-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Impostazioni</p>
                 </div>
               )}
-            </SidebarContent>
+              {visibleSettingsNav.map(item => (
+                <NavItem key={item.href} item={item} pathname={location.pathname} collapsed={!open} />
+              ))}
+            </div>
+          )}
+        </SidebarContent>
 
-            <SidebarFooter className="border-t border-slate-100 p-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10 border-2" style={{borderColor: '#F5A623'}}>
-                  <AvatarFallback className="text-white font-semibold text-sm" style={{backgroundColor: '#F5A623'}}>
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
+        <SidebarFooter className="border-t border-slate-100 p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-10 h-10 border-2 flex-shrink-0" style={{borderColor: '#FF902C'}}>
+              <AvatarFallback className="text-white font-semibold text-sm" style={{backgroundColor: '#FF902C'}}>
+                {getUserInitials()}
+              </AvatarFallback>
+            </Avatar>
+            {open && (
+              <>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-900 text-sm truncate">
                     {currentUser?.full_name || "Utente"}
@@ -168,16 +152,90 @@ export default function Layout({ children }) {
                 >
                   <LogOut className="w-4 h-4" />
                 </Button>
-              </div>
-            </SidebarFooter>
-          </Sidebar>
+              </>
+            )}
+            {!open && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleLogout} 
+                className="text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors ml-auto"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </SidebarFooter>
+      </Sidebar>
 
-          <main className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto">
-              {children}
-            </div>
-          </main>
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          {children}
         </div>
+      </main>
+    </div>
+  );
+}
+
+export default function Layout({ children }) {
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) {
+        console.error("Not logged in");
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const handleLogout = async () => {
+    await base44.auth.logout();
+  };
+
+  const getUserInitials = () => {
+    if (!currentUser?.full_name) return 'U';
+    const names = currentUser.full_name.split(' ');
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase();
+    }
+    return currentUser.full_name.substring(0, 2).toUpperCase();
+  };
+
+  return (
+    <DataProvider>
+      <SidebarProvider defaultOpen={true}>
+        <style>
+          {`
+            :root {
+              --header-height: 0px;
+              --rcs-orange: #FF902C;
+              --rcs-yellow: #FFC60D;
+              --rcs-dark-gray: #17171C;
+              --rcs-medium-gray: #2C2E33;
+              --rcs-light-gray: #626671;
+            }
+
+            body {
+              background: #F8FAFC;
+            }
+
+            [data-sidebar] {
+              transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            }
+          `}
+        </style>
+        <LayoutContent 
+          currentUser={currentUser}
+          handleLogout={handleLogout}
+          getUserInitials={getUserInitials}
+        >
+          {children}
+        </LayoutContent>
       </SidebarProvider>
     </DataProvider>
   );

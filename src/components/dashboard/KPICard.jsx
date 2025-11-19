@@ -3,6 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 const colorSchemes = {
+  orange: {
+    bg: "bg-gradient-to-br from-orange-500 to-orange-600",
+    light: "bg-orange-50",
+    text: "text-[#FF902C]",
+    ring: "ring-orange-100"
+  },
   indigo: {
     bg: "bg-gradient-to-br from-indigo-500 to-indigo-600",
     light: "bg-indigo-50",
@@ -59,16 +65,16 @@ const KPICard = React.memo(({
   const colors = colorSchemes[colorScheme] || colorSchemes.indigo;
   
   return (
-    <Card className="relative overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 bg-white">
-      <CardContent className="p-5">
+    <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-200 bg-white" style={{ borderRadius: '16px' }}>
+      <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <p className="text-sm font-medium text-slate-600">{title}</p>
-          <div className={`w-10 h-10 rounded-xl ${colors.light} flex items-center justify-center`}>
-            <Icon className={`w-5 h-5 ${colors.text}`} strokeWidth={2} />
+          <p className="text-sm font-medium" style={{ color: '#626671' }}>{title}</p>
+          <div className={`w-11 h-11 rounded-xl ${colors.light} flex items-center justify-center`}>
+            <Icon className={`w-6 h-6 ${colors.text}`} strokeWidth={2.5} />
           </div>
         </div>
         <div className="flex items-baseline gap-2 mb-2">
-          <p className="text-3xl font-bold text-slate-900">
+          <p className="text-3xl font-bold" style={{ color: '#17171C' }}>
             {value}
           </p>
           {trend && (
@@ -85,8 +91,8 @@ const KPICard = React.memo(({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className={`h-1 w-16 rounded-full ${colors.bg}`}></div>
-          <p className="text-xs text-slate-500">{subtitle}</p>
+          <div className={`h-1.5 w-16 rounded-full ${colors.bg}`}></div>
+          <p className="text-xs" style={{ color: '#626671' }}>{subtitle}</p>
         </div>
       </CardContent>
     </Card>

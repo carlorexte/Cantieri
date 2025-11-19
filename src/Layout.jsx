@@ -119,7 +119,7 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
         </SidebarContent>
 
         <SidebarFooter className="border-t border-slate-100 p-4">
-          <div className="flex items-center gap-3">
+          <div className={cn("flex items-center gap-3", !open && "flex-col")}>
             <Avatar className="w-10 h-10 border-2 flex-shrink-0" style={{borderColor: '#FF902C'}}>
               <AvatarFallback className="text-white font-semibold text-sm" style={{backgroundColor: '#FF902C'}}>
                 {getUserInitials()}
@@ -151,7 +151,7 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
                 variant="ghost" 
                 size="icon"
                 onClick={handleLogout} 
-                className="text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors ml-auto"
+                className="text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />

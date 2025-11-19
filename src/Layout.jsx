@@ -50,12 +50,13 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
 
   function NavItem({ item, pathname, collapsed }) {
     const isActive = pathname === createPageUrl(item.href);
-    
+
     return (
       <Link 
         to={createPageUrl(item.href)} 
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+          "flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+          collapsed ? "justify-center px-2" : "px-3",
           isActive 
             ? "text-white shadow-md" 
             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"

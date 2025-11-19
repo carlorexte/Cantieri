@@ -76,10 +76,10 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
   }
 
   return (
-    <Card className="border border-slate-200 shadow-sm bg-white">
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-slate-900">Attività Interne</CardTitle>
+          <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Attività Interne</CardTitle>
           <Badge variant="secondary" className="text-xs">
             {attivitaDaCompletare.length} da completare
           </Badge>

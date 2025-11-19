@@ -245,8 +245,27 @@ export default function Dashboard() {
       filtered = filtered.filter(c => (c.importo_contratto || 0) >= minVal);
     }
 
-    return filtered;
-  }, [allCantieri, filters]);
+    // Calcola avanzamento per i cantieri filtrati
+    const salByCantiere = new Map();
+    salData.forEach(sal => {
+      if (sal.tipo_sal_dettaglio !== 'anticipazione') {
+        const current = salByCantiere.get(sal.cantiere_id) || 0;
+        salByCantiere.set(sal.cantiere_id, current + (sal.imponibile || 0));
+      }
+    });
+
+    return filtered.map(cantiere => {
+      const totaleSAL = salByCantiere.get(cantiere.id) || 0;
+      const importoContratto = cantiere.importo_contrattuale_oltre_iva || 0;
+      
+      let avanzamento = 0;
+      if (importoContratto > 0) {
+        avanzamento = Math.min(Math.round((totaleSAL / importoContratto) * 100), 100);
+      }
+      
+      return { ...cantiere, avanzamento };
+    });
+  }, [allCantieri, filters, salData]);
 
   const committentiList = useMemo(() => {
     const committenti = new Set(

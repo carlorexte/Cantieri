@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 
 const getColorByAvanzamento = (avanzamento) => {
   if (avanzamento >= 75) return '#10b981';
-  if (avanzamento >= 50) return '#3b82f6';
-  if (avanzamento >= 25) return '#f59e0b';
+  if (avanzamento >= 50) return '#FF902C';
+  if (avanzamento >= 25) return '#FFC60D';
   return '#ef4444';
 };
 
@@ -42,9 +42,9 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-slate-900 mb-1">{payload[0].payload.nomeCompleto}</p>
-          <p className="text-sm text-indigo-600 font-semibold">
+        <div className="bg-white p-3 border-0 rounded-xl shadow-xl" style={{ borderRadius: '12px' }}>
+          <p className="font-semibold mb-1" style={{ color: '#17171C' }}>{payload[0].payload.nomeCompleto}</p>
+          <p className="text-sm font-semibold" style={{ color: '#FF902C' }}>
             Avanzamento: {payload[0].payload.avanzamento}%
           </p>
         </div>
@@ -54,11 +54,11 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
   };
 
   return (
-    <Card className="border border-slate-200 shadow-sm">
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4 flex flex-row items-center justify-between">
-        <CardTitle className="text-lg font-semibold text-slate-900">
+        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>
           Avanzamento Cantieri Attivi
-          <span className="text-sm font-normal text-slate-500 ml-2">
+          <span className="text-sm font-normal ml-2" style={{ color: '#626671' }}>
             ({allData.length} cantieri)
           </span>
         </CardTitle>
@@ -91,27 +91,27 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={data} layout="vertical" margin={{ left: 150, right: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
             <XAxis 
               type="number" 
               domain={[0, 100]} 
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={{ stroke: '#e2e8f0' }}
+              tick={{ fontSize: 11, fill: '#626671' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
             />
             <YAxis 
               type="category" 
               dataKey="nome" 
               width={140}
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={{ stroke: '#e2e8f0' }}
+              tick={{ fontSize: 11, fill: '#2C2E33' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 144, 44, 0.06)' }} />
             <Bar 
               dataKey="avanzamento" 
-              radius={[0, 6, 6, 0]} 
-              barSize={18}
+              radius={[0, 8, 8, 0]} 
+              barSize={20}
               animationBegin={0}
               animationDuration={800}
               animationEasing="ease-out"

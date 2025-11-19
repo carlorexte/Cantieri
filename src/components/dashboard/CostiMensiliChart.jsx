@@ -7,9 +7,9 @@ import { it } from 'date-fns/locale';
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-md">
-        <p className="font-semibold text-slate-800 mb-2">{label}</p>
-        <p className="text-sm text-red-600">Costi: <span className="font-bold">€{payload[0].value}K</span></p>
+      <div className="bg-white p-3 border-0 rounded-xl shadow-xl" style={{ borderRadius: '12px' }}>
+        <p className="font-semibold mb-2" style={{ color: '#17171C' }}>{label}</p>
+        <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>Costi: €{payload[0].value}K</p>
       </div>
     );
   }
@@ -51,34 +51,34 @@ export default function CostiMensiliChart({ costiData }) {
   }, [costiData]);
 
   return (
-    <Card className="border border-slate-200 shadow-sm">
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold text-slate-900">Costi Mensili (Ultimi 12 Mesi)</CardTitle>
+        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Costi Mensili (Ultimi 12 Mesi)</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data}>
             <defs>
               <linearGradient id="colorCosti" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
             <XAxis 
               dataKey="month" 
-              tick={{ fontSize: 11, fill: '#64748b' }}
+              tick={{ fontSize: 11, fill: '#626671' }}
               angle={-45}
               textAnchor="end"
               height={80}
-              axisLine={{ stroke: '#e2e8f0' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
             />
             <YAxis 
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={{ stroke: '#e2e8f0' }}
+              tick={{ fontSize: 11, fill: '#626671' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
-              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
+              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#626671' } }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line 
@@ -88,7 +88,7 @@ export default function CostiMensiliChart({ costiData }) {
               strokeWidth={3}
               name="Costi"
               dot={false}
-              activeDot={{ r: 5, fill: '#ef4444' }}
+              activeDot={{ r: 6, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }}
               fillOpacity={1} 
               fill="url(#colorCosti)"
               animationBegin={0}

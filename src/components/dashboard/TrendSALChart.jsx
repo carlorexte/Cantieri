@@ -55,10 +55,10 @@ export default function TrendSALChart({ salData }) {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-md">
-          <p className="font-semibold text-slate-800 mb-2">{payload[0].payload.month}</p>
-          <p className="text-sm text-indigo-600">Fatturato: <span className="font-bold">€{payload[0].value}K</span></p>
-          <p className="text-sm text-emerald-600">Incassato: <span className="font-bold">€{payload[1].value}K</span></p>
+        <div className="bg-white p-3 border-0 rounded-xl shadow-xl" style={{ borderRadius: '12px' }}>
+          <p className="font-semibold mb-2" style={{ color: '#17171C' }}>{payload[0].payload.month}</p>
+          <p className="text-sm" style={{ color: '#FF902C' }}>Fatturato: <span className="font-bold">€{payload[0].value}K</span></p>
+          <p className="text-sm" style={{ color: '#10b981' }}>Incassato: <span className="font-bold">€{payload[1].value}K</span></p>
         </div>
       );
     }
@@ -66,49 +66,49 @@ export default function TrendSALChart({ salData }) {
   };
 
   return (
-    <Card className="border border-slate-200 shadow-sm">
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold text-slate-900">Trend SAL Ultimi 12 Mesi</CardTitle>
+        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Trend SAL Ultimi 12 Mesi</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data} margin={{ left: 10, right: 10, bottom: 20 }}>
             <defs>
               <linearGradient id="colorFatturato" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#FF902C" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#FF902C" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="colorIncassato" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
                 <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
             <XAxis 
               dataKey="month" 
-              tick={{ fontSize: 11, fill: '#64748b' }}
+              tick={{ fontSize: 11, fill: '#626671' }}
               angle={-45}
               textAnchor="end"
               height={80}
-              axisLine={{ stroke: '#e2e8f0' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
             />
             <YAxis 
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              axisLine={{ stroke: '#e2e8f0' }}
+              tick={{ fontSize: 11, fill: '#626671' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
-              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
+              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#626671' } }}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+            <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#2C2E33' }} />
             <Line 
               type="monotone" 
               dataKey="fatturato" 
-              stroke="#6366f1" 
+              stroke="#FF902C" 
               strokeWidth={3}
               name="Fatturato"
               dot={false}
-              activeDot={{ r: 5, fill: '#6366f1' }}
+              activeDot={{ r: 6, fill: '#FF902C', strokeWidth: 2, stroke: '#fff' }}
               fillOpacity={1} 
               fill="url(#colorFatturato)"
               animationBegin={0}
@@ -122,7 +122,7 @@ export default function TrendSALChart({ salData }) {
               strokeWidth={3}
               name="Incassato"
               dot={false}
-              activeDot={{ r: 5, fill: '#10b981' }}
+              activeDot={{ r: 6, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
               fillOpacity={1} 
               fill="url(#colorIncassato)"
               animationBegin={100}

@@ -16,6 +16,7 @@ import ImpresaDashboard from './pages/ImpresaDashboard';
 import PersoneEsterne from './pages/PersoneEsterne';
 import RiepilogoCantieri from './pages/RiepilogoCantieri';
 import SALDashboard from './pages/SALDashboard';
+import GestionePermessi from './pages/GestionePermessi';
 import __Layout from './Layout.jsx';
 
 
@@ -38,6 +39,7 @@ export const PAGES = {
     "PersoneEsterne": PersoneEsterne,
     "RiepilogoCantieri": RiepilogoCantieri,
     "SALDashboard": SALDashboard,
+    "GestionePermessi": GestionePermessi,
 }
 
 export const pagesConfig = {

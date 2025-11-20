@@ -296,17 +296,17 @@ export default function Dashboard() {
       </div>
 
       <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mb-8">
-        <div className="flex items-center justify-between space-x-4 px-5 py-3 rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-500" />
-            <h4 className="text-sm font-semibold text-slate-900">Filtri Analisi</h4>
-          </div>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-9 h-9 p-0">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between space-x-4 px-5 py-3 rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-500" />
+              <h4 className="text-sm font-semibold text-slate-900">Filtri Analisi</h4>
+            </div>
+            <div className="w-9 h-9 flex items-center justify-center">
               {isFiltersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-        </div>
+            </div>
+          </div>
+        </CollapsibleTrigger>
         <CollapsibleContent className="pt-4">
           <DashboardFilters
             filters={filters}
@@ -379,7 +379,7 @@ export default function Dashboard() {
         </div>
       </div>
     </>
-  ), [kpis, cantieri, filteredCantieri, salData, costiData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters, attivitaInterne, allCantieri]);
+  ), [kpis, cantieri, filteredCantieri, salData, costiData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters, attivitaInterne, allCantieri, isFiltersOpen]);
 
   const renderUserDashboard = useCallback(() => (
     <>

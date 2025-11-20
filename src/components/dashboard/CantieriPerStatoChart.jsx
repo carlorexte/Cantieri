@@ -83,7 +83,7 @@ export default function CantieriPerStatoChart({ cantieri }) {
             />
             <text 
               x="40%" 
-              y="50%" 
+              y="45%" 
               textAnchor="middle" 
               dominantBaseline="middle"
               style={{ fontSize: '32px', fontWeight: '700', fill: '#17171C' }}
@@ -92,7 +92,7 @@ export default function CantieriPerStatoChart({ cantieri }) {
             </text>
             <text 
               x="40%" 
-              y="60%" 
+              y="55%" 
               textAnchor="middle" 
               dominantBaseline="middle"
               style={{ fontSize: '13px', fill: '#626671' }}

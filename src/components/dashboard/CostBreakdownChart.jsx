@@ -83,12 +83,21 @@ export default function CostBreakdownChart({ costiData }) {
               />
               <text 
                 x="40%" 
-                y="50%" 
+                y="45%" 
                 textAnchor="middle" 
                 dominantBaseline="middle"
-                className="fill-slate-900 font-bold text-lg"
+                className="fill-slate-900 font-bold text-2xl"
               >
                 €{(totalCosts / 1000).toFixed(0)}k
+              </text>
+              <text 
+                x="40%" 
+                y="55%" 
+                textAnchor="middle" 
+                dominantBaseline="middle"
+                className="fill-slate-500 text-xs"
+              >
+                Totale
               </text>
             </PieChart>
           </ResponsiveContainer>

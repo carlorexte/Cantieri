@@ -13,9 +13,12 @@ import AttivitaInterneCard from "../components/dashboard/AttivitaInterneCard";
 import CantieriPerStatoChart from "../components/dashboard/CantieriPerStatoChart";
 import ValorePerCommittenteChart from "../components/dashboard/ValorePerCommittenteChart";
 import AvanzamentoCantieriChart from "../components/dashboard/AvanzamentoCantieriChart";
-import TrendSALChart from "../components/dashboard/TrendSALChart";
-import CostiMensiliChart from "../components/dashboard/CostiMensiliChart";
 import DashboardFilters from "../components/dashboard/DashboardFilters";
+// Nuovi Grafici
+import CashFlowChart from "../components/dashboard/CashFlowChart";
+import CostBreakdownChart from "../components/dashboard/CostBreakdownChart";
+import PerformanceMatrixChart from "../components/dashboard/PerformanceMatrixChart";
+import TimelineOverview from "../components/dashboard/TimelineOverview";
 
 export default function Dashboard() {
   const { cantieri: allCantieri, currentUser } = useData();
@@ -348,17 +351,30 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <CantieriPerStatoChart cantieri={filteredCantieri} />
-        <TrendSALChart salData={salData} />
+      {/* Nuova Sezione Finanziaria Avanzata */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2">
+          <CashFlowChart salData={salData} costiData={costiData} />
+        </div>
+        <div>
+          <CostBreakdownChart costiData={costiData} />
+        </div>
       </div>
 
+      {/* Nuova Sezione Performance Operativa */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <PerformanceMatrixChart cantieri={filteredCantieri} />
+        <CantieriPerStatoChart cantieri={filteredCantieri} />
+      </div>
+
+      {/* Timeline e Avanzamento */}
+      <div className="mb-8">
+        <TimelineOverview cantieri={filteredCantieri} />
+      </div>
+
+      {/* Analisi Secondaria */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <ValorePerCommittenteChart cantieri={filteredCantieri} />
-        <CostiMensiliChart costiData={costiData} />
-      </div>
-
-      <div className="mb-8">
         <AvanzamentoCantieriChart cantieri={filteredCantieri} />
       </div>
 

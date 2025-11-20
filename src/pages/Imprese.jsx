@@ -35,19 +35,25 @@ export default function ImpresePage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [impreseData, user, subappaltiData, sociData] = await Promise.all([
+      const [impreseData, user, subappaltiData, sociData, cantieriAttiviData] = await Promise.all([
         Impresa.list("-created_date"),
         User.me(),
         base44.entities.Subappalto.filter({ stato: 'attivo' }),
-        base44.entities.SocioConsorzio.filter({ stato: 'attivo' })
+        base44.entities.SocioConsorzio.filter({ stato: 'attivo' }),
+        base44.entities.Cantiere.filter({ stato: 'attivo' })
       ]);
       
       const impreseWithCounts = impreseData.map(impresa => {
         const subCount = subappaltiData.filter(s => s.impresa_id === impresa.id).length;
         const socioCount = sociData.filter(s => s.partita_iva === impresa.partita_iva).length;
+        const mainContractorCount = cantieriAttiviData.filter(c => 
+          c.azienda_appaltatrice_piva === impresa.partita_iva || 
+          (c.partner_consorziati && c.partner_consorziati.some(p => p.piva === impresa.partita_iva))
+        ).length;
+
         return {
             ...impresa,
-            cantieri_count: subCount + socioCount
+            cantieri_count: subCount + socioCount + mainContractorCount
         };
       });
       

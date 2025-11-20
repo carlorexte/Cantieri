@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { base44 } from "@/api/base44Client";
 import { Impresa } from "@/entities/Impresa";
 import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
@@ -34,11 +35,23 @@ export default function ImpresePage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [impreseData, user] = await Promise.all([
+      const [impreseData, user, subappaltiData, sociData] = await Promise.all([
         Impresa.list("-created_date"),
-        User.me()
+        User.me(),
+        base44.entities.Subappalto.filter({ stato: 'attivo' }),
+        base44.entities.SocioConsorzio.filter({ stato: 'attivo' })
       ]);
-      setImprese(impreseData);
+      
+      const impreseWithCounts = impreseData.map(impresa => {
+        const subCount = subappaltiData.filter(s => s.impresa_id === impresa.id).length;
+        const socioCount = sociData.filter(s => s.partita_iva === impresa.partita_iva).length;
+        return {
+            ...impresa,
+            cantieri_count: subCount + socioCount
+        };
+      });
+      
+      setImprese(impreseWithCounts);
       setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento imprese:", error);

@@ -69,7 +69,7 @@ export default function CantieriAttivi({ cantieri, isLoading }) {
   return (
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Cantieri Attivi</CardTitle>
+        <CardTitle className="text-lg font-bold text-slate-900">Cantieri Attivi</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (

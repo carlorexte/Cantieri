@@ -46,8 +46,8 @@ export default function ValorePerCommittenteChart({ cantieri }) {
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Top Committenti</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>Valore totale contratti per cliente</p>
+          <CardTitle className="text-lg font-bold text-slate-900">Top Committenti</CardTitle>
+          <p className="text-sm text-slate-500">Valore totale contratti per cliente</p>
         </div>
       </CardHeader>
       <CardContent>

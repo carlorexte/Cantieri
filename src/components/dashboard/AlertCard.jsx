@@ -23,7 +23,7 @@ export default function AlertCard({ alerts }) {
   return (
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Allarmi e Notifiche</CardTitle>
+        <CardTitle className="text-lg font-bold text-slate-900">Allarmi e Notifiche</CardTitle>
       </CardHeader>
       <CardContent>
         {alerts && alerts.length > 0 ? (

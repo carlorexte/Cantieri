@@ -54,8 +54,8 @@ export default function CostiMensiliChart({ costiData }) {
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Andamento Costi</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>Spese mensili degli ultimi 12 mesi</p>
+          <CardTitle className="text-lg font-bold text-slate-900">Andamento Costi</CardTitle>
+          <p className="text-sm text-slate-500">Spese mensili degli ultimi 12 mesi</p>
         </div>
       </CardHeader>
       <CardContent>

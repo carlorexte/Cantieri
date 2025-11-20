@@ -69,8 +69,8 @@ export default function TrendSALChart({ salData }) {
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Trend SAL Mensile</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>Fatturato e incassi degli ultimi 12 mesi</p>
+          <CardTitle className="text-lg font-bold text-slate-900">Trend SAL Mensile</CardTitle>
+          <p className="text-sm text-slate-500">Fatturato e incassi degli ultimi 12 mesi</p>
         </div>
       </CardHeader>
       <CardContent>

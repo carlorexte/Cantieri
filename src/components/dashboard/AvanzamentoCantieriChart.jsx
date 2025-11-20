@@ -57,10 +57,10 @@ export default function AvanzamentoCantieriChart({ cantieri }) {
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4 flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>
+          <CardTitle className="text-lg font-bold text-slate-900">
             Avanzamento Cantieri Attivi
           </CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>
+          <p className="text-sm text-slate-500">
             Monitoraggio {allData.length} cantieri in corso
           </p>
         </div>

@@ -5,10 +5,10 @@ import { BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const getColorByAvanzamento = (avanzamento) => {
-  if (avanzamento >= 75) return '#10b981';
-  if (avanzamento >= 50) return '#FF902C';
-  if (avanzamento >= 25) return '#FFC60D';
-  return '#ef4444';
+  if (avanzamento >= 75) return '#2ECC71';
+  if (avanzamento >= 50) return '#FF8C42';
+  if (avanzamento >= 25) return '#4ECDC4';
+  return '#FF6B6B';
 };
 
 export default function AvanzamentoCantieriChart({ cantieri }) {

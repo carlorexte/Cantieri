@@ -78,12 +78,12 @@ export default function TrendSALChart({ salData }) {
           <LineChart data={data} margin={{ left: 10, right: 10, bottom: 20 }}>
             <defs>
               <linearGradient id="colorFatturato" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FF902C" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#FF902C" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#FF8C42" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#FF8C42" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="colorIncassato" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#2ECC71" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#2ECC71" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
@@ -107,30 +107,32 @@ export default function TrendSALChart({ salData }) {
             <Line 
               type="monotone" 
               dataKey="fatturato" 
-              stroke="#FF902C" 
+              stroke="#FF8C42" 
               strokeWidth={3}
               name="Fatturato"
               dot={false}
-              activeDot={{ r: 6, fill: '#FF902C', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 6, fill: '#FF8C42', strokeWidth: 3, stroke: '#fff' }}
               fillOpacity={1} 
               fill="url(#colorFatturato)"
               animationBegin={0}
               animationDuration={1000}
-              animationEasing="ease-in-out"
+              animationEasing="ease-out"
+              tension={0.4}
             />
             <Line 
               type="monotone" 
               dataKey="incassato" 
-              stroke="#10b981" 
+              stroke="#2ECC71" 
               strokeWidth={3}
               name="Incassato"
               dot={false}
-              activeDot={{ r: 6, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 6, fill: '#2ECC71', strokeWidth: 3, stroke: '#fff' }}
               fillOpacity={1} 
               fill="url(#colorIncassato)"
               animationBegin={100}
               animationDuration={1000}
-              animationEasing="ease-in-out"
+              animationEasing="ease-out"
+              tension={0.4}
             />
           </LineChart>
         </ResponsiveContainer>

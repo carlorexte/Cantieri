@@ -1,55 +1,43 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 const colorSchemes = {
   orange: {
-    bg: "bg-gradient-to-br from-orange-500 to-orange-600",
-    light: "bg-orange-50",
-    text: "text-[#FF902C]",
-    ring: "ring-orange-100"
-  },
-  indigo: {
-    bg: "bg-gradient-to-br from-indigo-500 to-indigo-600",
-    light: "bg-indigo-50",
-    text: "text-indigo-600",
-    ring: "ring-indigo-100"
+    bg: "from-[#FF8C42] to-[#FF6B6B]",
+    light: "bg-[#FF8C42]/10",
+    text: "text-[#FF8C42]",
+    border: "#FF8C42"
   },
   emerald: {
-    bg: "bg-gradient-to-br from-emerald-500 to-emerald-600",
-    light: "bg-emerald-50",
-    text: "text-emerald-600",
-    ring: "ring-emerald-100"
+    bg: "from-[#2ECC71] to-[#27AE60]",
+    light: "bg-[#2ECC71]/10",
+    text: "text-[#2ECC71]",
+    border: "#2ECC71"
   },
   cyan: {
-    bg: "bg-gradient-to-br from-cyan-500 to-cyan-600",
-    light: "bg-cyan-50",
-    text: "text-cyan-600",
-    ring: "ring-cyan-100"
+    bg: "from-[#4ECDC4] to-[#3ABDB3]",
+    light: "bg-[#4ECDC4]/10",
+    text: "text-[#4ECDC4]",
+    border: "#4ECDC4"
   },
   amber: {
-    bg: "bg-gradient-to-br from-amber-500 to-amber-600",
-    light: "bg-amber-50",
-    text: "text-amber-600",
-    ring: "ring-amber-100"
+    bg: "from-[#FF6B6B] to-[#EE5A5A]",
+    light: "bg-[#FF6B6B]/10",
+    text: "text-[#FF6B6B]",
+    border: "#FF6B6B"
+  },
+  indigo: {
+    bg: "from-indigo-500 to-indigo-600",
+    light: "bg-indigo-50",
+    text: "text-indigo-600",
+    border: "#6366f1"
   },
   rose: {
-    bg: "bg-gradient-to-br from-rose-500 to-rose-600",
+    bg: "from-rose-500 to-rose-600",
     light: "bg-rose-50",
     text: "text-rose-600",
-    ring: "ring-rose-100"
-  },
-  purple: {
-    bg: "bg-gradient-to-br from-purple-500 to-purple-600",
-    light: "bg-purple-50",
-    text: "text-purple-600",
-    ring: "ring-purple-100"
-  },
-  blue: {
-    bg: "bg-gradient-to-br from-blue-500 to-blue-600",
-    light: "bg-blue-50",
-    text: "text-blue-600",
-    ring: "ring-blue-100"
+    border: "#f43f5e"
   }
 };
 
@@ -65,34 +53,49 @@ const KPICard = React.memo(({
   const colors = colorSchemes[colorScheme] || colorSchemes.indigo;
   
   return (
-    <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-200 bg-white" style={{ borderRadius: '16px' }}>
+    <Card 
+      className="border-0 bg-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl group"
+      style={{ 
+        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+        borderRadius: '16px',
+        borderTop: `3px solid ${colors.border}`
+      }}
+    >
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>{title}</p>
-          <div className={`w-11 h-11 rounded-xl ${colors.light} flex items-center justify-center`}>
-            <Icon className={`w-6 h-6 ${colors.text}`} strokeWidth={2.5} />
+          <div 
+            className={`rounded-full ${colors.light} transition-transform duration-300 group-hover:scale-110`}
+            style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon className={`w-6 h-6 ${colors.text}`} strokeWidth={2} />
           </div>
-        </div>
-        <div className="flex items-baseline gap-2 mb-2">
-          <p className="text-3xl font-bold" style={{ color: '#17171C' }}>
-            {value}
-          </p>
           {trend && (
-            <div className={`flex items-center gap-1 text-xs font-semibold ${
-              trend === 'up' ? 'text-emerald-600' : 'text-rose-600'
+            <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
+              trend === 'up' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
             }`}>
-              {trend === 'up' ? (
-                <TrendingUp className="w-3 h-3" />
-              ) : (
-                <TrendingDown className="w-3 h-3" />
-              )}
-              <span>{trendValue}</span>
+              {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+              {trendValue && <span>{trendValue}</span>}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`h-1.5 w-16 rounded-full ${colors.bg}`}></div>
-          <p className="text-xs" style={{ color: '#626671' }}>{subtitle}</p>
+        
+        <div>
+          <h3 
+            className={`text-[42px] font-bold leading-none mb-2 ${colors.text}`}
+            style={{ fontWeight: 700 }}
+          >
+            {value}
+          </h3>
+          <p 
+            className="text-[14px] font-medium uppercase mb-1" 
+            style={{ 
+              color: '#6C757D',
+              letterSpacing: '0.5px'
+            }}
+          >
+            {title}
+          </p>
+          <p className="text-xs text-slate-500">{subtitle}</p>
         </div>
       </CardContent>
     </Card>

@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const COLORS = {
-  attivo: "#FF902C",
+  attivo: "#FF8C42",
   sospeso: "#FFC60D",
-  completato: "#10b981",
-  in_gara: "#6366f1"
+  completato: "#2ECC71",
+  in_gara: "#4ECDC4"
 };
 
 const STATUS_LABELS = {
@@ -55,10 +55,10 @@ export default function CantieriPerStatoChart({ cantieri }) {
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
-              strokeWidth={3}
+              strokeWidth={4}
               stroke="#fff"
               animationBegin={0}
-              animationDuration={800}
+              animationDuration={1200}
               animationEasing="ease-out"
             >
               {data.map((entry, index) => (
@@ -80,21 +80,21 @@ export default function CantieriPerStatoChart({ cantieri }) {
             />
             <text 
               x="50%" 
-              y="50%" 
+              y="48%" 
               textAnchor="middle" 
               dominantBaseline="middle"
-              style={{ fontSize: '32px', fontWeight: '700', fill: '#17171C' }}
+              style={{ fontSize: '36px', fontWeight: '700', fill: '#17171C' }}
             >
               {totalCantieri}
             </text>
             <text 
               x="50%" 
-              y="57%" 
+              y="58%" 
               textAnchor="middle" 
               dominantBaseline="middle"
-              style={{ fontSize: '13px', fill: '#626671' }}
+              style={{ fontSize: '12px', fill: '#6C757D', fontWeight: '500' }}
             >
-              Totale Cantieri
+              Cantieri Attivi
             </text>
           </PieChart>
         </ResponsiveContainer>

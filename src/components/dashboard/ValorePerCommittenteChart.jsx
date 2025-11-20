@@ -70,9 +70,15 @@ export default function ValorePerCommittenteChart({ cantieri }) {
               tickLine={false}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 144, 44, 0.08)' }} />
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#FF8C42" />
+                <stop offset="100%" stopColor="#FF6B6B" />
+              </linearGradient>
+            </defs>
             <Bar 
               dataKey="valoreM" 
-              fill="#FF902C" 
+              fill="url(#barGradient)"
               radius={[0, 8, 8, 0]} 
               barSize={22}
               animationBegin={0}

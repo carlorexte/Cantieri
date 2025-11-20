@@ -587,9 +587,22 @@ export default function CantiereDashboardPage() {
                       <DetailField label="Importo Totale Contratto" value={renderImporto(cantiere.importo_contratto)} />
                     </div>
                     
-                    {(cantiere.contratto_data_firma || cantiere.contratto_file_url) && (
-                      <div className="border-t pt-4">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Documenti Contratto</h4>
+                    <div className="border-t pt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-slate-700">Documenti Contratto</h4>
+                        {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setShowDocumentoForm(true)}
+                            className="text-xs"
+                          >
+                            <PlusCircle className="w-3 h-3 mr-1" />
+                            Inserisci Doc
+                          </Button>
+                        )}
+                      </div>
+                      {(cantiere.contratto_data_firma || cantiere.contratto_file_url) ? (
                         <div className="grid grid-cols-2 gap-4">
                           {cantiere.contratto_data_firma && <DetailField label="Data Firma Contratto" value={renderDate(cantiere.contratto_data_firma)} />}
                           {cantiere.contratto_file_url && (
@@ -601,8 +614,10 @@ export default function CantiereDashboardPage() {
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="text-sm text-slate-500 italic">Nessun documento presente</p>
+                      )}
+                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>

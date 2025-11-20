@@ -10,11 +10,6 @@ export default function DashboardFilters({ filters, onFiltersChange, onReset, co
   return (
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardContent className="p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Filter className="w-5 h-5" style={{ color: '#FF902C' }} />
-          <h3 className="font-semibold" style={{ color: '#17171C' }}>Filtri Analisi</h3>
-        </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label className="text-sm text-slate-600 mb-2">Stato Cantiere</Label>

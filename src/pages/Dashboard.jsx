@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Building2, Euro, TrendingUp, AlertTriangle, FileText, CheckCircle2, Clock, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { useData } from "@/components/shared/DataContext";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 
 import KPICard from "../components/dashboard/KPICard";
 import AlertCard from "../components/dashboard/AlertCard";
@@ -36,6 +38,7 @@ export default function Dashboard() {
     avanzamentoMedio: 0,
     documentiInScadenza: 0
   });
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const loadAdminDashboard = useCallback(async () => {
     const [cantieriAttivi, salDataResult, documentiData, attivitaData, costiDataResult] = await Promise.all([
@@ -292,14 +295,27 @@ export default function Dashboard() {
         <p className="text-base" style={{ color: '#626671' }}>Panoramica generale dell'attività aziendale</p>
       </div>
 
-      <div className="mb-8">
-        <DashboardFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          onReset={handleResetFilters}
-          committenti={committentiList}
-        />
-      </div>
+      <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mb-8">
+        <div className="flex items-center justify-between space-x-4 px-5 py-3 rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-500" />
+            <h4 className="text-sm font-semibold text-slate-900">Filtri Analisi</h4>
+          </div>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-9 h-9 p-0">
+              {isFiltersOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="pt-4">
+          <DashboardFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            onReset={handleResetFilters}
+            committenti={committentiList}
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <KPICard

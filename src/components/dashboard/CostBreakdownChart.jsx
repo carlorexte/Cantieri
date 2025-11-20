@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -49,9 +50,15 @@ export default function CostBreakdownChart({ costiData }) {
 
   return (
     <Card className="border-0 shadow-lg bg-white rounded-2xl h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-bold text-slate-900">Ripartizione Costi</CardTitle>
-        <p className="text-sm text-slate-500">Spese per categoria</p>
+      <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
+        <div>
+          <CardTitle className="text-lg font-bold text-slate-900">Ripartizione Costi</CardTitle>
+          <p className="text-sm text-slate-500">Spese per categoria</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-indigo-600">€{(totalCosts / 1000).toFixed(0)}k</p>
+          <p className="text-xs text-slate-500">Totale</p>
+        </div>
       </CardHeader>
       <CardContent className="flex items-center justify-center">
         {data.length > 0 ? (
@@ -81,24 +88,6 @@ export default function CostBreakdownChart({ costiData }) {
                 iconSize={8}
                 wrapperStyle={{ fontSize: '12px', color: '#64748b' }}
               />
-              <text 
-                x="40%" 
-                y="45%" 
-                textAnchor="middle" 
-                dominantBaseline="middle"
-                className="fill-slate-900 font-bold text-2xl"
-              >
-                €{(totalCosts / 1000).toFixed(0)}k
-              </text>
-              <text 
-                x="40%" 
-                y="55%" 
-                textAnchor="middle" 
-                dominantBaseline="middle"
-                className="fill-slate-500 text-xs"
-              >
-                Totale
-              </text>
             </PieChart>
           </ResponsiveContainer>
         ) : (

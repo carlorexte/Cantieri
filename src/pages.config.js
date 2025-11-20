@@ -17,6 +17,7 @@ import PersoneEsterne from './pages/PersoneEsterne';
 import RiepilogoCantieri from './pages/RiepilogoCantieri';
 import SALDashboard from './pages/SALDashboard';
 import GestionePermessi from './pages/GestionePermessi';
+import GestionePermessiCantieri from './pages/GestionePermessiCantieri';
 import __Layout from './Layout.jsx';
 
 
@@ -40,6 +41,7 @@ export const PAGES = {
     "RiepilogoCantieri": RiepilogoCantieri,
     "SALDashboard": SALDashboard,
     "GestionePermessi": GestionePermessi,
+    "GestionePermessiCantieri": GestionePermessiCantieri,
 }
 
 export const pagesConfig = {

@@ -33,6 +33,8 @@ const primaryNavConfig = [
 const settingsNavConfig = [
   { href: "ProfiloAzienda", icon: Database, label: "Profilo Azienda", perm: "admin" },
   { href: "UserManagement", icon: UserCog, label: "Gestione Utenti", perm: "admin" },
+  { href: "GestionePermessi", icon: Settings, label: "Ruoli e Permessi", perm: "admin" },
+  { href: "GestionePermessiCantieri", icon: Building2, label: "Permessi Cantieri", perm: "admin" },
   { href: "MyProfile", icon: Users, label: "Il Mio Profilo", perm: "all" },
 ];
 

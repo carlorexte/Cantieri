@@ -28,7 +28,7 @@ export default function CantieriPerStatoChart({ cantieri }) {
       name: STATUS_LABELS[stato] || stato,
       value: count,
       color: COLORS[stato] || '#626671'
-    }));
+    })).sort((a, b) => b.value - a.value);
   }, [cantieri]);
 
   const totalCantieri = React.useMemo(() => {
@@ -48,7 +48,7 @@ export default function CantieriPerStatoChart({ cantieri }) {
           <PieChart>
             <Pie
               data={data}
-              cx="50%"
+              cx="40%"
               cy="50%"
               labelLine={false}
               innerRadius={70}
@@ -75,11 +75,14 @@ export default function CantieriPerStatoChart({ cantieri }) {
               }}
             />
             <Legend 
+              layout="vertical"
+              verticalAlign="middle"
+              align="right"
               wrapperStyle={{ fontSize: '13px', color: '#2C2E33' }}
               iconType="circle"
             />
             <text 
-              x="50%" 
+              x="40%" 
               y="50%" 
               textAnchor="middle" 
               dominantBaseline="middle"
@@ -88,8 +91,8 @@ export default function CantieriPerStatoChart({ cantieri }) {
               {totalCantieri}
             </text>
             <text 
-              x="50%" 
-              y="57%" 
+              x="40%" 
+              y="60%" 
               textAnchor="middle" 
               dominantBaseline="middle"
               style={{ fontSize: '13px', fill: '#626671' }}

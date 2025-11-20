@@ -59,7 +59,7 @@ export default function CostBreakdownChart({ costiData }) {
             <PieChart>
               <Pie
                 data={data}
-                cx="50%"
+                cx="40%"
                 cy="50%"
                 innerRadius={65}
                 outerRadius={90}
@@ -82,7 +82,7 @@ export default function CostBreakdownChart({ costiData }) {
                 wrapperStyle={{ fontSize: '12px', color: '#64748b' }}
               />
               <text 
-                x="50%" 
+                x="40%" 
                 y="50%" 
                 textAnchor="middle" 
                 dominantBaseline="middle"

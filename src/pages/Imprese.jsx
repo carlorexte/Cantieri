@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Impresa } from "@/entities/Impresa";
 import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, Briefcase, Building2, Mail, Phone, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Briefcase, Building2, Mail, Phone, Edit, Trash2 } from "lucide-react";
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
@@ -201,7 +200,11 @@ export default function ImpresePage() {
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="font-bold text-slate-900 text-lg mb-2">{impresa.ragione_sociale}</h3>
+                        <Link to={createPageUrl(`ImpresaDashboard?id=${impresa.id}`)}>
+                          <h3 className="font-bold text-slate-900 text-lg mb-2 hover:text-indigo-600 transition-colors cursor-pointer">
+                            {impresa.ragione_sociale}
+                          </h3>
+                        </Link>
                         <p className="text-sm text-slate-500">P.IVA: {impresa.partita_iva}</p>
                       </div>
                       <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
@@ -230,34 +233,27 @@ export default function ImpresePage() {
                       )}
                     </div>
 
-                    <div className="flex gap-2 mt-4">
-                      <Link to={createPageUrl(`ImpresaDashboard?id=${impresa.id}`)} className="flex-1">
-                        <Button variant="outline" className="w-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Dettagli
+                    {currentUser?.role === 'admin' && (
+                      <div className="flex gap-2 mt-4">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEdit(impresa)}
+                          className="flex-1 hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Modifica
                         </Button>
-                      </Link>
-                      {currentUser?.role === 'admin' && (
-                        <>
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleEdit(impresa)}
-                            className="hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleDelete(impresa.id)}
-                            className="hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => handleDelete(impresa.id)}
+                          className="hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

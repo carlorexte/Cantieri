@@ -61,11 +61,12 @@ export default function CostBreakdownChart({ costiData }) {
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={85}
-                paddingAngle={5}
+                innerRadius={65}
+                outerRadius={90}
+                paddingAngle={0}
                 dataKey="value"
-                stroke="none"
+                stroke="#fff"
+                strokeWidth={2}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

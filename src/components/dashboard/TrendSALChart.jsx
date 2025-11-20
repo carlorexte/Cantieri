@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format, startOfMonth, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -55,10 +54,36 @@ export default function TrendSALChart({ salData }) {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border-0 rounded-xl shadow-xl" style={{ borderRadius: '12px' }}>
-          <p className="font-semibold mb-2" style={{ color: '#17171C' }}>{payload[0].payload.month}</p>
-          <p className="text-sm" style={{ color: '#FF902C' }}>Fatturato: <span className="font-bold">€{payload[0].value}K</span></p>
-          <p className="text-sm" style={{ color: '#10b981' }}>Incassato: <span className="font-bold">€{payload[1].value}K</span></p>
+        <div 
+          className="bg-white p-4 rounded-2xl border-0" 
+          style={{ 
+            boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <p className="font-bold text-base mb-3" style={{ color: '#2C3E50' }}>
+            {payload[0].payload.month}
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ background: 'linear-gradient(135deg, #FF8C42, #FF6B6B)' }} />
+                <span className="text-sm font-medium text-slate-600">Fatturato</span>
+              </div>
+              <span className="text-sm font-bold" style={{ color: '#FF8C42' }}>
+                €{payload[0].value}K
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ background: 'linear-gradient(135deg, #2ECC71, #27AE60)' }} />
+                <span className="text-sm font-medium text-slate-600">Incassato</span>
+              </div>
+              <span className="text-sm font-bold" style={{ color: '#2ECC71' }}>
+                €{payload[1].value}K
+              </span>
+            </div>
+          </div>
         </div>
       );
     }
@@ -66,75 +91,87 @@ export default function TrendSALChart({ salData }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
+    <Card className="border-0 shadow-lg bg-white overflow-hidden group" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Trend SAL Mensile</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>Fatturato e incassi degli ultimi 12 mesi</p>
+          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>
+            Trend SAL Mensile
+          </CardTitle>
+          <p className="text-sm font-medium" style={{ color: '#6C757D' }}>
+            Fatturato e incassi degli ultimi 12 mesi
+          </p>
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={data} margin={{ left: 10, right: 10, bottom: 20 }}>
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={data} margin={{ left: 10, right: 20, top: 10, bottom: 20 }}>
             <defs>
               <linearGradient id="colorFatturato" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FF8C42" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#FF8C42" stopOpacity={0}/>
+                <stop offset="0%" stopColor="#FF8C42" stopOpacity={0.4}/>
+                <stop offset="100%" stopColor="#FF8C42" stopOpacity={0.05}/>
               </linearGradient>
               <linearGradient id="colorIncassato" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#2ECC71" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#2ECC71" stopOpacity={0}/>
+                <stop offset="0%" stopColor="#2ECC71" stopOpacity={0.4}/>
+                <stop offset="100%" stopColor="#2ECC71" stopOpacity={0.05}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.3} vertical={false} />
             <XAxis 
               dataKey="month" 
-              tick={{ fontSize: 11, fill: '#626671' }}
+              tick={{ fontSize: 11, fill: '#6C757D', fontWeight: 500 }}
               angle={-45}
               textAnchor="end"
               height={80}
-              axisLine={{ stroke: '#E5E7EB' }}
+              axisLine={{ stroke: '#E5E7EB', strokeWidth: 1 }}
               tickLine={false}
             />
             <YAxis 
-              tick={{ fontSize: 11, fill: '#626671' }}
-              axisLine={{ stroke: '#E5E7EB' }}
+              tick={{ fontSize: 11, fill: '#6C757D', fontWeight: 500 }}
+              axisLine={{ stroke: '#E5E7EB', strokeWidth: 1 }}
               tickLine={false}
-              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#626671' } }}
+              label={{ 
+                value: 'Migliaia €', 
+                angle: -90, 
+                position: 'insideLeft', 
+                style: { fontSize: 11, fill: '#6C757D', fontWeight: 500 } 
+              }}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#2C2E33' }} />
-            <Line 
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#FF8C42', strokeWidth: 2, strokeDasharray: '5 5' }} />
+            <Legend 
+              wrapperStyle={{ 
+                fontSize: '13px', 
+                paddingTop: '20px', 
+                fontWeight: 600
+              }} 
+              iconType="circle"
+            />
+            <Area 
               type="monotone" 
               dataKey="fatturato" 
               stroke="#FF8C42" 
               strokeWidth={3}
               name="Fatturato"
-              dot={false}
-              activeDot={{ r: 6, fill: '#FF8C42', strokeWidth: 3, stroke: '#fff' }}
-              fillOpacity={1} 
+              dot={{ r: 4, fill: '#FF8C42', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 7, fill: '#FF8C42', strokeWidth: 3, stroke: '#fff', filter: 'drop-shadow(0 4px 6px rgba(255, 140, 66, 0.4))' }}
               fill="url(#colorFatturato)"
               animationBegin={0}
-              animationDuration={1000}
+              animationDuration={1200}
               animationEasing="ease-out"
-              tension={0.4}
             />
-            <Line 
+            <Area 
               type="monotone" 
               dataKey="incassato" 
               stroke="#2ECC71" 
               strokeWidth={3}
               name="Incassato"
-              dot={false}
-              activeDot={{ r: 6, fill: '#2ECC71', strokeWidth: 3, stroke: '#fff' }}
-              fillOpacity={1} 
+              dot={{ r: 4, fill: '#2ECC71', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 7, fill: '#2ECC71', strokeWidth: 3, stroke: '#fff', filter: 'drop-shadow(0 4px 6px rgba(46, 204, 113, 0.4))' }}
               fill="url(#colorIncassato)"
-              animationBegin={100}
-              animationDuration={1000}
+              animationBegin={200}
+              animationDuration={1200}
               animationEasing="ease-out"
-              tension={0.4}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

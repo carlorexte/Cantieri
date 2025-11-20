@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Building2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 export default function ValorePerCommittenteChart({ cantieri }) {
   const data = React.useMemo(() => {
@@ -21,21 +20,38 @@ export default function ValorePerCommittenteChart({ cantieri }) {
     return Object.values(grouped)
       .sort((a, b) => b.valore - a.valore)
       .slice(0, 10)
-      .map(item => ({
+      .map((item, index) => ({
         ...item,
-        valoreM: parseFloat((item.valore / 1000000).toFixed(2))
+        valoreM: parseFloat((item.valore / 1000000).toFixed(2)),
+        color: index === 0 ? '#FF8C42' : index < 3 ? '#4ECDC4' : '#94A3B8'
       }));
   }, [cantieri]);
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border-0 rounded-xl shadow-xl" style={{ borderRadius: '12px' }}>
-          <p className="font-semibold" style={{ color: '#17171C' }}>{payload[0].payload.committente}</p>
-          <p className="text-sm" style={{ color: '#626671' }}>Cantieri: {payload[0].payload.count}</p>
-          <p className="text-sm font-semibold" style={{ color: '#FF902C' }}>
-            Valore: €{payload[0].payload.valoreM.toFixed(2)}M
+        <div 
+          className="bg-white p-4 rounded-2xl border-0" 
+          style={{ 
+            boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <p className="font-bold text-base mb-3" style={{ color: '#2C3E50' }}>
+            {payload[0].payload.committente}
           </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-slate-600">Cantieri</span>
+              <span className="text-sm font-bold text-slate-900">{payload[0].payload.count}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm font-medium text-slate-600">Valore</span>
+              <span className="text-sm font-bold" style={{ color: '#FF8C42' }}>
+                €{payload[0].payload.valoreM.toFixed(2)}M
+              </span>
+            </div>
+          </div>
         </div>
       );
     }
@@ -43,48 +59,77 @@ export default function ValorePerCommittenteChart({ cantieri }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
+    <Card className="border-0 shadow-lg bg-white overflow-hidden" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Top Committenti</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>Valore totale contratti per cliente</p>
+          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>
+            Top Committenti
+          </CardTitle>
+          <p className="text-sm font-medium" style={{ color: '#6C757D' }}>
+            Valore totale contratti per cliente
+          </p>
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={data} layout="vertical" margin={{ left: 150, right: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={data} layout="vertical" margin={{ left: 150, right: 40, top: 10, bottom: 10 }}>
+            <defs>
+              <linearGradient id="topGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#FF8C42" />
+                <stop offset="100%" stopColor="#FF6B6B" />
+              </linearGradient>
+              <linearGradient id="secondGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#4ECDC4" />
+                <stop offset="100%" stopColor="#3ABDB3" />
+              </linearGradient>
+              <filter id="shadow">
+                <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15"/>
+              </filter>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.3} horizontal={false} />
             <XAxis 
               type="number" 
-              tick={{ fontSize: 11, fill: '#626671' }}
-              axisLine={{ stroke: '#E5E7EB' }}
+              tick={{ fontSize: 11, fill: '#6C757D', fontWeight: 500 }}
+              axisLine={{ stroke: '#E5E7EB', strokeWidth: 1 }}
               tickLine={false}
-              label={{ value: 'Milioni €', position: 'insideBottom', offset: -5, style: { fontSize: 11, fill: '#626671' } }}
+              label={{ 
+                value: 'Milioni €', 
+                position: 'insideBottom', 
+                offset: -5, 
+                style: { fontSize: 11, fill: '#6C757D', fontWeight: 500 } 
+              }}
             />
             <YAxis 
               type="category" 
               dataKey="committente" 
               width={140}
-              tick={{ fontSize: 11, fill: '#2C2E33' }}
-              axisLine={{ stroke: '#E5E7EB' }}
+              tick={{ fontSize: 11, fill: '#2C3E50', fontWeight: 600 }}
+              axisLine={{ stroke: '#E5E7EB', strokeWidth: 1 }}
               tickLine={false}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 144, 44, 0.08)' }} />
-            <defs>
-              <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#FF8C42" />
-                <stop offset="100%" stopColor="#FF6B6B" />
-              </linearGradient>
-            </defs>
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 140, 66, 0.06)' }} />
             <Bar 
               dataKey="valoreM" 
-              fill="url(#barGradient)"
-              radius={[0, 8, 8, 0]} 
-              barSize={22}
+              radius={[0, 12, 12, 0]} 
+              barSize={32}
               animationBegin={0}
-              animationDuration={800}
+              animationDuration={1000}
               animationEasing="ease-out"
-            />
+              filter="url(#shadow)"
+            >
+              {data.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={index === 0 ? 'url(#topGradient)' : index < 3 ? 'url(#secondGradient)' : entry.color}
+                />
+              ))}
+              <LabelList 
+                dataKey="valoreM" 
+                position="right" 
+                formatter={(value) => `€${value}M`}
+                style={{ fill: '#2C3E50', fontSize: 11, fontWeight: 600 }}
+              />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

@@ -36,15 +36,15 @@ export default function CantieriPerStatoChart({ cantieri }) {
   }, [data]);
 
   return (
-    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
+    <Card className="border-0 shadow-lg bg-white overflow-hidden" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
           <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Distribuzione Cantieri</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>Stato attuale di tutti i progetti</p>
+          <p className="text-sm font-medium" style={{ color: '#6C757D' }}>Stato attuale di tutti i progetti</p>
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
               data={data}
@@ -69,9 +69,11 @@ export default function CantieriPerStatoChart({ cantieri }) {
               contentStyle={{ 
                 backgroundColor: 'white', 
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: '16px',
                 fontSize: '13px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                padding: '12px 16px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                backdropFilter: 'blur(10px)'
               }}
             />
             <Legend 

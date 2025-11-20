@@ -1,57 +1,51 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, FileText, Calendar, CheckCircle2, Clock } from "lucide-react";
+import { AlertTriangle, FileText, Calendar, CheckCircle } from "lucide-react";
 
 const alertIcons = {
   scadenza: FileText,
   task_scadenza: Calendar,
 };
 
+const alertCardClasses = {
+  critico: "bg-gradient-to-br from-red-50 to-rose-50 border-red-200",
+  medio: "bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200",
+  basso: "bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200"
+};
+
+const alertDotClasses = {
+  critico: "bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-200",
+  medio: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-200",
+  basso: "bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-200"
+};
+
 export default function AlertCard({ alerts }) {
   return (
-    <Card 
-      className="border-0 shadow-lg overflow-hidden" 
-      style={{ 
-        borderRadius: '16px',
-        background: alerts && alerts.length === 0 ? 'linear-gradient(180deg, #FFF9F0 0%, #FFFFFF 100%)' : '#FFFFFF'
-      }}
-    >
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-bold" style={{ color: '#17171C' }}>
-          Allarmi e Notifiche
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Allarmi e Notifiche</CardTitle>
       </CardHeader>
       <CardContent>
         {alerts && alerts.length > 0 ? (
           <div className="space-y-3">
             {alerts.map((alert, idx) => {
               const Icon = alertIcons[alert.tipo] || AlertTriangle;
-              const CardIcon = alert.priorita === 'critico' ? AlertTriangle : Clock;
-              
               return (
                 <div 
                   key={idx} 
-                  className={`p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${
-                    alert.priorita === 'critico' 
-                      ? 'bg-red-50/50 border-red-200' 
-                      : 'bg-amber-50/50 border-amber-200'
-                  }`}
+                  className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-sm cursor-pointer ${alertCardClasses[alert.priorita] || alertCardClasses.medio}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`p-2.5 rounded-lg shrink-0 ${
-                      alert.priorita === 'critico' ? 'bg-red-100' : 'bg-amber-100'
-                    }`}>
-                      <CardIcon className={`w-5 h-5 ${
-                        alert.priorita === 'critico' ? 'text-red-600' : 'text-amber-600'
-                      }`} />
-                    </div>
+                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${alertDotClasses[alert.priorita] || alertDotClasses.medio}`}></div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 mb-1.5 line-clamp-2">
+                      <p className="font-semibold text-slate-900 text-sm leading-snug mb-1">
                         {alert.messaggio}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <Icon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate font-medium">{alert.cantiere}</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Icon className="w-3.5 h-3.5 text-slate-400" />
+                        <p className="text-xs text-slate-500 truncate">
+                          {alert.cantiere}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -60,23 +54,12 @@ export default function AlertCard({ alerts }) {
             })}
           </div>
         ) : (
-          <div 
-            className="text-center py-8 border-2 border-dashed rounded-2xl"
-            style={{ borderColor: '#FFE0B2', background: 'transparent' }}
-          >
-            <div 
-              className="inline-flex items-center justify-center rounded-full mb-4"
-              style={{ 
-                width: '64px', 
-                height: '64px',
-                background: 'linear-gradient(135deg, #2ECC71 0%, #27AE60 100%)',
-                boxShadow: '0 4px 12px rgba(46, 204, 113, 0.3)'
-              }}
-            >
-              <CheckCircle2 className="w-8 h-8 text-white" />
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-emerald-600" />
             </div>
-            <p className="text-lg font-semibold text-slate-900 mb-1">Nessun allarme attivo</p>
-            <p className="text-sm text-slate-600">Tutto procede regolarmente</p>
+            <p className="text-slate-600 font-medium">Nessun allarme attivo</p>
+            <p className="text-slate-500 text-sm mt-1">Tutto procede regolarmente</p>
           </div>
         )}
       </CardContent>

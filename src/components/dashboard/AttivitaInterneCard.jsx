@@ -1,23 +1,23 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ClipboardList, AlertCircle, Clock, CheckCircle2, Calendar, Building2 } from 'lucide-react';
+import { ClipboardList, AlertCircle, Clock, CheckCircle2, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
 const priorityColors = {
-  bassa: "bg-slate-100 text-slate-700",
-  media: "bg-blue-100 text-blue-700",
-  alta: "bg-amber-100 text-amber-700",
-  critica: "bg-red-100 text-red-700"
+  bassa: "bg-slate-100 text-slate-600 border-slate-200",
+  media: "bg-blue-100 text-blue-700 border-blue-200",
+  alta: "bg-amber-100 text-amber-700 border-amber-200",
+  critica: "bg-red-100 text-red-700 border-red-200"
 };
 
 const statusConfig = {
-  da_fare: { label: 'Da Fare', icon: Clock, color: '#6C757D' },
-  in_corso: { label: 'In Corso', icon: Clock, color: '#4ECDC4' },
-  completato: { label: 'Completato', icon: CheckCircle2, color: '#2ECC71' },
-  bloccato: { label: 'Bloccato', icon: AlertCircle, color: '#FF6B6B' },
-  in_revisione: { label: 'In Revisione', icon: Clock, color: '#FF8C42' }
+  da_fare: { label: 'Da Fare', icon: Clock, color: 'text-slate-600' },
+  in_corso: { label: 'In Corso', icon: Clock, color: 'text-blue-600' },
+  completato: { label: 'Completato', icon: CheckCircle2, color: 'text-green-600' },
+  bloccato: { label: 'Bloccato', icon: AlertCircle, color: 'text-red-600' },
+  in_revisione: { label: 'In Revisione', icon: Clock, color: 'text-amber-600' }
 };
 
 export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
@@ -36,9 +36,9 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
 
   if (isLoading) {
     return (
-      <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
+      <Card className="border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-bold flex items-center gap-2" style={{ color: '#17171C' }}>
+          <CardTitle className="flex items-center gap-2">
             <ClipboardList className="w-5 h-5" />
             Attività Interne
           </CardTitle>
@@ -47,7 +47,7 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
           <div className="space-y-3">
             {Array(3).fill(0).map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-20 bg-slate-200/60 rounded-xl"></div>
+                <div className="h-20 bg-slate-200 rounded-lg"></div>
               </div>
             ))}
           </div>
@@ -58,9 +58,9 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
 
   if (attivitaDaCompletare.length === 0) {
     return (
-      <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
+      <Card className="border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl font-bold flex items-center gap-2" style={{ color: '#17171C' }}>
+          <CardTitle className="flex items-center gap-2">
             <ClipboardList className="w-5 h-5" />
             Attività Interne
           </CardTitle>
@@ -68,7 +68,7 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
         <CardContent>
           <div className="text-center py-8">
             <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-green-500" />
-            <p className="text-slate-600 font-medium">Nessuna attività da completare</p>
+            <p className="text-slate-600">Nessuna attività da completare</p>
           </div>
         </CardContent>
       </Card>
@@ -79,11 +79,8 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
     <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-bold flex items-center gap-2" style={{ color: '#17171C' }}>
-            <ClipboardList className="w-5 h-5" />
-            Attività Interne
-          </CardTitle>
-          <Badge variant="secondary" className="text-xs px-2.5 py-1">
+          <CardTitle className="text-lg font-semibold" style={{ color: '#17171C' }}>Attività Interne</CardTitle>
+          <Badge variant="secondary" className="text-xs">
             {attivitaDaCompletare.length} da completare
           </Badge>
         </div>
@@ -97,52 +94,42 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
             return (
               <div 
                 key={task.id}
-                className="p-4 rounded-xl border border-slate-200 hover:shadow-md hover:scale-[1.01] transition-all duration-200"
-                style={overdue ? {borderLeft: '3px solid #FF6B6B'} : {}}
+                className="p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-slate-50/50 transition-all duration-200"
+                style={overdue ? {borderLeftWidth: '3px', borderLeftColor: '#EF4444'} : {}}
               >
-                <div className="flex items-start gap-3">
-                  <div 
-                    className="shrink-0 rounded-full flex items-center justify-center"
-                    style={{ 
-                      width: '40px', 
-                      height: '40px',
-                      backgroundColor: statusConfig[task.stato]?.color + '20' || '#F1F5F9'
-                    }}
-                  >
-                    <StatusIcon 
-                      className="w-5 h-5" 
-                      style={{ color: statusConfig[task.stato]?.color || '#64748b' }}
-                    />
-                  </div>
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-semibold text-slate-900 mb-2 line-clamp-2" style={{ fontWeight: 600 }}>
-                      {task.descrizione}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className={`px-2.5 py-1 rounded-full font-medium ${priorityColors[task.priorita]}`}>
-                        {task.priorita}
-                      </span>
-                      <span 
-                        className="px-2.5 py-1 rounded-full font-medium"
-                        style={{ 
-                          backgroundColor: statusConfig[task.stato]?.color + '20',
-                          color: statusConfig[task.stato]?.color
-                        }}
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-semibold text-slate-900 truncate text-sm">
+                        {task.descrizione}
+                      </h4>
+                      <Badge 
+                        variant="outline" 
+                        className={`${priorityColors[task.priorita]} text-xs px-2 py-0.5`}
                       >
-                        {statusConfig[task.stato]?.label}
-                      </span>
+                        {task.priorita}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                      <div className={`flex items-center gap-1 ${statusConfig[task.stato]?.color}`}>
+                        <StatusIcon className="w-3.5 h-3.5" />
+                        <span>{statusConfig[task.stato]?.label}</span>
+                      </div>
+                      
                       {task.data_scadenza && (
-                        <span className={`flex items-center gap-1 ${overdue ? 'text-red-600 font-semibold' : 'text-slate-500'}`}>
+                        <div className={`flex items-center gap-1 ${overdue ? 'text-red-600 font-semibold' : ''}`}>
                           <Calendar className="w-3.5 h-3.5" />
-                          {new Date(task.data_scadenza).toLocaleDateString('it-IT')}
-                        </span>
+                          <span>
+                            {new Date(task.data_scadenza).toLocaleDateString('it-IT')}
+                          </span>
+                          {overdue && <span className="ml-1 font-bold">SCADUTA</span>}
+                        </div>
                       )}
-                      {task.cantiere_id && (
-                        <span className="flex items-center gap-1 text-slate-500 truncate">
-                          <Building2 className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate text-xs">{getCantiereNome(task.cantiere_id)}</span>
-                        </span>
-                      )}
+                      
+                      <div className="text-slate-500">
+                        {getCantiereNome(task.cantiere_id)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -153,11 +140,8 @@ export default function AttivitaInterneCard({ attivita, cantieri, isLoading }) {
         
         <div className="mt-4 pt-4 border-t">
           <Link to={createPageUrl('AttivitaInterne')}>
-            <button 
-              className="w-full text-sm font-medium text-[#FF8C42] hover:text-[#FF6B6B] transition-colors flex items-center justify-center gap-2 group"
-            >
-              <span>Vedi tutte le attività</span>
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            <button className="w-full text-sm font-medium hover:underline" style={{color: '#F5A623'}}>
+              Vedi tutte le attività →
             </button>
           </Link>
         </div>

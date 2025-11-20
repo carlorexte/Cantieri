@@ -1,31 +1,15 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, startOfMonth, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div 
-        className="bg-white p-4 rounded-2xl border-0" 
-        style={{ 
-          boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-          backdropFilter: 'blur(10px)'
-        }}
-      >
-        <p className="font-bold text-base mb-3" style={{ color: '#2C3E50' }}>
-          {label}
-        </p>
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: 'linear-gradient(135deg, #FF6B6B, #EE5A5A)' }} />
-            <span className="text-sm font-medium text-slate-600">Costi</span>
-          </div>
-          <span className="text-sm font-bold" style={{ color: '#FF6B6B' }}>
-            €{payload[0].value}K
-          </span>
-        </div>
+      <div className="bg-white p-3 border-0 rounded-xl shadow-xl" style={{ borderRadius: '12px' }}>
+        <p className="font-semibold mb-2" style={{ color: '#17171C' }}>{label}</p>
+        <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>Costi: €{payload[0].value}K</p>
       </div>
     );
   }
@@ -67,62 +51,54 @@ export default function CostiMensiliChart({ costiData }) {
   }, [costiData]);
 
   return (
-    <Card className="border-0 shadow-lg bg-white overflow-hidden" style={{ borderRadius: '16px' }}>
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
-          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>
-            Andamento Costi
-          </CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#6C757D' }}>
-            Spese mensili degli ultimi 12 mesi
-          </p>
+          <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Andamento Costi</CardTitle>
+          <p className="text-sm font-medium" style={{ color: '#626671' }}>Spese mensili degli ultimi 12 mesi</p>
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data} margin={{ left: 10, right: 20, top: 10, bottom: 20 }}>
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={data}>
             <defs>
               <linearGradient id="colorCosti" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FF6B6B" stopOpacity={0.4}/>
-                <stop offset="100%" stopColor="#FF6B6B" stopOpacity={0.05}/>
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.3} vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
             <XAxis 
               dataKey="month" 
-              tick={{ fontSize: 11, fill: '#6C757D', fontWeight: 500 }}
+              tick={{ fontSize: 11, fill: '#626671' }}
               angle={-45}
               textAnchor="end"
               height={80}
-              axisLine={{ stroke: '#E5E7EB', strokeWidth: 1 }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
             />
             <YAxis 
-              tick={{ fontSize: 11, fill: '#6C757D', fontWeight: 500 }}
-              axisLine={{ stroke: '#E5E7EB', strokeWidth: 1 }}
+              tick={{ fontSize: 11, fill: '#626671' }}
+              axisLine={{ stroke: '#E5E7EB' }}
               tickLine={false}
-              label={{ 
-                value: 'Migliaia €', 
-                angle: -90, 
-                position: 'insideLeft', 
-                style: { fontSize: 11, fill: '#6C757D', fontWeight: 500 } 
-              }}
+              label={{ value: 'Migliaia €', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#626671' } }}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#FF6B6B', strokeWidth: 2, strokeDasharray: '5 5' }} />
-            <Area 
+            <Tooltip content={<CustomTooltip />} />
+            <Line 
               type="monotone" 
               dataKey="costi" 
-              stroke="#FF6B6B" 
+              stroke="#ef4444" 
               strokeWidth={3}
               name="Costi"
-              dot={{ r: 4, fill: '#FF6B6B', strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 7, fill: '#FF6B6B', strokeWidth: 3, stroke: '#fff', filter: 'drop-shadow(0 4px 6px rgba(255, 107, 107, 0.4))' }}
+              dot={false}
+              activeDot={{ r: 6, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }}
+              fillOpacity={1} 
               fill="url(#colorCosti)"
               animationBegin={0}
-              animationDuration={1200}
-              animationEasing="ease-out"
+              animationDuration={1000}
+              animationEasing="ease-in-out"
             />
-          </AreaChart>
+          </LineChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

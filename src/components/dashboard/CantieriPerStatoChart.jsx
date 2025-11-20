@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const COLORS = {
-  attivo: "#FF8C42",
+  attivo: "#FF902C",
   sospeso: "#FFC60D",
-  completato: "#2ECC71",
-  in_gara: "#4ECDC4"
+  completato: "#10b981",
+  in_gara: "#6366f1"
 };
 
 const STATUS_LABELS = {
@@ -36,15 +36,15 @@ export default function CantieriPerStatoChart({ cantieri }) {
   }, [data]);
 
   return (
-    <Card className="border-0 shadow-lg bg-white overflow-hidden" style={{ borderRadius: '16px' }}>
+    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
       <CardHeader className="pb-4">
         <div>
           <CardTitle className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Distribuzione Cantieri</CardTitle>
-          <p className="text-sm font-medium" style={{ color: '#6C757D' }}>Stato attuale di tutti i progetti</p>
+          <p className="text-sm font-medium" style={{ color: '#626671' }}>Stato attuale di tutti i progetti</p>
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie
               data={data}
@@ -55,10 +55,10 @@ export default function CantieriPerStatoChart({ cantieri }) {
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
-              strokeWidth={4}
+              strokeWidth={3}
               stroke="#fff"
               animationBegin={0}
-              animationDuration={1200}
+              animationDuration={800}
               animationEasing="ease-out"
             >
               {data.map((entry, index) => (
@@ -69,11 +69,9 @@ export default function CantieriPerStatoChart({ cantieri }) {
               contentStyle={{ 
                 backgroundColor: 'white', 
                 border: 'none',
-                borderRadius: '16px',
+                borderRadius: '12px',
                 fontSize: '13px',
-                padding: '12px 16px',
-                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-                backdropFilter: 'blur(10px)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
               }}
             />
             <Legend 
@@ -82,21 +80,21 @@ export default function CantieriPerStatoChart({ cantieri }) {
             />
             <text 
               x="50%" 
-              y="48%" 
+              y="50%" 
               textAnchor="middle" 
               dominantBaseline="middle"
-              style={{ fontSize: '36px', fontWeight: '700', fill: '#17171C' }}
+              style={{ fontSize: '32px', fontWeight: '700', fill: '#17171C' }}
             >
               {totalCantieri}
             </text>
             <text 
               x="50%" 
-              y="58%" 
+              y="57%" 
               textAnchor="middle" 
               dominantBaseline="middle"
-              style={{ fontSize: '12px', fill: '#6C757D', fontWeight: '500' }}
+              style={{ fontSize: '13px', fill: '#626671' }}
             >
-              Cantieri Attivi
+              Totale Cantieri
             </text>
           </PieChart>
         </ResponsiveContainer>

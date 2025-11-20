@@ -57,32 +57,31 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
       <Link 
         to={createPageUrl(item.href)} 
         className={cn(
-          "flex items-center gap-3 py-3 text-sm font-medium transition-all duration-200 relative",
-          collapsed ? "justify-center px-2 rounded-lg" : "px-6 rounded-r-[20px]",
+          "flex items-center gap-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+          collapsed ? "justify-center px-2" : "px-3",
           isActive 
-            ? "text-slate-900 shadow-sm" 
-            : "text-slate-600 hover:bg-[rgba(255,140,66,0.08)] hover:text-slate-900"
+            ? "text-white shadow-md" 
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
         )}
-        style={isActive ? {
-          background: 'linear-gradient(90deg, rgba(255,140,66,0.15), transparent)',
-          borderLeft: '4px solid #FF8C42'
-        } : {}}
+        style={isActive ? {backgroundColor: '#FF902C'} : {}}
         title={collapsed ? item.label : ''}
       >
-        <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-[#FF8C42]" : "text-slate-400")} />
+        <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-white" : "text-slate-400")} />
         {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
     )
   }
 
   return (
-    <div className="min-h-screen flex w-full bg-slate-50 relative z-10">
-      <Sidebar className="border-r border-slate-200 transition-all duration-300" collapsible="icon" style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%)' }}>
-        <SidebarHeader className="border-b border-slate-100 py-8 px-6 flex flex-row items-center justify-between">
+    <div className="min-h-screen flex w-full bg-slate-50">
+      <Sidebar className="border-r border-slate-200 bg-white transition-all duration-300" collapsible="icon">
+        <SidebarHeader className="border-b border-slate-100 p-5 flex flex-row items-center justify-between">
           <div className={cn("flex items-center gap-3 transition-opacity duration-200", !open && "opacity-0 w-0")}>
-            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#FF8C42] to-[#FF6B6B] bg-clip-text text-transparent">
-              RCS
-            </h1>
+            <img 
+              src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
+              alt="RCS Italia Logo" 
+              className="h-10 w-auto object-contain"
+            />
           </div>
           <Button
             variant="ghost"
@@ -99,19 +98,19 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
           <div className="space-y-1 mb-6">
             {open && (
               <div className="px-3 py-2">
-                <p className="text-[11px] font-semibold text-[#ADB5BD] uppercase tracking-widest">Generale</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Generale</p>
               </div>
             )}
             {visiblePrimaryNav.map(item => (
               <NavItem key={item.href} item={item} pathname={location.pathname} collapsed={!open} />
             ))}
           </div>
-
+          
           {visibleSettingsNav.length > 0 && (
-            <div className="space-y-1 pt-6 border-t border-slate-200">
+            <div className="space-y-1 pt-6 border-t border-slate-100">
               {open && (
                 <div className="px-3 py-2">
-                  <p className="text-[11px] font-semibold text-[#ADB5BD] uppercase tracking-widest">Impostazioni</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Impostazioni</p>
                 </div>
               )}
               {visibleSettingsNav.map(item => (
@@ -121,10 +120,10 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
           )}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-slate-200 p-4">
+        <SidebarFooter className="border-t border-slate-100 p-4">
           <div className={cn("flex items-center gap-3", !open && "flex-col")}>
-            <Avatar className="w-10 h-10 border-2 flex-shrink-0" style={{borderColor: '#FF8C42'}}>
-              <AvatarFallback className="text-white font-semibold text-sm" style={{backgroundColor: '#FF8C42'}}>
+            <Avatar className="w-10 h-10 border-2 flex-shrink-0" style={{borderColor: '#FF902C'}}>
+              <AvatarFallback className="text-white font-semibold text-sm" style={{backgroundColor: '#FF902C'}}>
                 {getUserInitials()}
               </AvatarFallback>
             </Avatar>
@@ -206,36 +205,17 @@ export default function Layout({ children }) {
       <SidebarProvider defaultOpen={true}>
         <style>
           {`
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
             :root {
               --header-height: 0px;
-              --rcs-orange: #FF8C42;
-              --rcs-blue: #2C3E50;
-              --rcs-teal: #4ECDC4;
-              --rcs-coral: #FF6B6B;
-              --rcs-success: #2ECC71;
-              --rcs-gray: #6C757D;
-            }
-
-            * {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              --rcs-orange: #FF902C;
+              --rcs-yellow: #FFC60D;
+              --rcs-dark-gray: #17171C;
+              --rcs-medium-gray: #2C2E33;
+              --rcs-light-gray: #626671;
             }
 
             body {
-              background: #F8F9FA;
-            }
-
-            body::before {
-              content: '';
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-              pointer-events: none;
-              z-index: 0;
+              background: #F8FAFC;
             }
 
             [data-sidebar] {

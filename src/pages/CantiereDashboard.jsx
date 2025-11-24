@@ -83,6 +83,7 @@ export default function CantiereDashboardPage() {
       setDocumenti(documentiData);
       setImprese(impreseData);
       setSalList(salData);
+      setAttivita(attivitaData);
 
       // Load PersoneEsterne in parallelo
       const personaPromises = [];

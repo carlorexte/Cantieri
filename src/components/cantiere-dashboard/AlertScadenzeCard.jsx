@@ -1,34 +1,47 @@
 import React from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Clock, FileWarning } from "lucide-react";
+import { AlertTriangle, Clock, FileWarning, CheckCircle2 } from "lucide-react";
 import { differenceInDays, isPast, parseISO, format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-export default function AlertScadenzeCard({ documenti }) {
-  const alerts = documenti
+export default function AlertScadenzeCard({ documenti, attivita }) {
+  const docAlerts = documenti
     .filter(doc => doc.data_scadenza)
-    .map(doc => {
-      const scadenza = parseISO(doc.data_scadenza);
+    .map(doc => ({ ...doc, type: 'documento', date_ref: doc.data_scadenza, name_ref: doc.nome_documento }));
+
+  const taskAlerts = (attivita || [])
+    .filter(task => task.data_fine && task.stato !== 'completata')
+    .map(task => ({ ...task, type: 'attivita', date_ref: task.data_fine, name_ref: task.descrizione }));
+
+  const allItems = [...docAlerts, ...taskAlerts];
+
+  const alerts = allItems
+    .map(item => {
+      const scadenza = parseISO(item.date_ref);
       const giorniRimanenti = differenceInDays(scadenza, new Date());
       const isExpired = isPast(scadenza);
       
       let priorita = 'basso';
       let messaggio = `Scade tra ${giorniRimanenti} giorni`;
-      let icon = Clock;
+      let icon = item.type === 'documento' ? Clock : CheckCircle2; // Use different default icons if needed
 
       if (isExpired) {
         priorita = 'critico';
         messaggio = `Scaduto da ${Math.abs(giorniRimanenti)} giorni`;
+        icon = AlertTriangle;
+      } else if (giorniRimanenti <= 7) {
+        priorita = 'critico'; // Urgent tasks/docs within week
+        messaggio = `In scadenza tra ${giorniRimanenti} giorni`;
         icon = AlertTriangle;
       } else if (giorniRimanenti <= 30) {
         priorita = 'medio';
         icon = FileWarning;
       }
 
-      return { ...doc, priorita, messaggio, icon, scadenza };
+      return { ...item, priorita, messaggio, icon, scadenza };
     })
-    .filter(doc => doc.priorita === 'critico' || doc.priorita === 'medio')
+    .filter(item => item.priorita === 'critico' || item.priorita === 'medio')
     .sort((a, b) => a.scadenza - b.scadenza);
 
   const alertColors = {
@@ -66,7 +79,10 @@ export default function AlertScadenzeCard({ documenti }) {
                 <Icon className="w-5 h-5 mt-0.5 text-orange-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900">{alert.nome_documento}</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-slate-900">{alert.name_ref}</p>
+                    {alert.type === 'attivita' && <Badge variant="outline" className="text-[10px] h-5 px-1.5">Task</Badge>}
+                </div>
                 <p className="text-sm text-slate-600">{alert.messaggio}</p>
                 <p className="text-xs text-slate-500 mt-1">
                   Data: {format(alert.scadenza, 'PPP', { locale: it })}

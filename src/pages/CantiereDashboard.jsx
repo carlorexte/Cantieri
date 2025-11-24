@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import DocumentoForm from '../components/documenti/DocumentoForm';
 import AlertScadenzeCard from '../components/cantiere-dashboard/AlertScadenzeCard';
 import CantiereForm from '../components/cantieri/CantiereForm';
+import AttivitaManager from '../components/cantieri/AttivitaManager';
 
 const DetailField = React.memo(({ label, value }) => (
   <div>
@@ -45,6 +46,7 @@ export default function CantiereDashboardPage() {
   const [documenti, setDocumenti] = useState([]);
   const [imprese, setImprese] = useState([]);
   const [salList, setSalList] = useState([]);
+  const [attivita, setAttivita] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
@@ -71,18 +73,20 @@ export default function CantiereDashboardPage() {
   const loadData = useCallback(async (cantiereId) => {
     setIsLoading(true);
     try {
-      const [cantiereData, subappaltiData, documentiData, impreseData, salData] = await Promise.all([
+      const [cantiereData, subappaltiData, documentiData, impreseData, salData, attivitaData] = await Promise.all([
         Cantiere.get(cantiereId),
         Subappalto.filter({ cantiere_id: cantiereId }),
         Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
         Impresa.list("-created_date", 100),
-        base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal")
+        base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal"),
+        base44.entities.Attivita.filter({ cantiere_id: cantiereId }, "-data_fine")
       ]);
       setCantiere(cantiereData);
       setSubappalti(subappaltiData);
       setDocumenti(documentiData);
       setImprese(impreseData);
       setSalList(salData);
+      setAttivita(attivitaData);
       setAttivita(attivitaData);
 
       // Load PersoneEsterne in parallelo
@@ -491,6 +495,14 @@ export default function CantiereDashboardPage() {
                   {calcolaAvanzamentoSAL}%
                 </span>
               </div>
+            </div>
+
+            <div className="mb-6">
+              <AttivitaManager 
+                cantiereId={cantiere.id} 
+                attivitaList={attivita} 
+                onUpdate={() => loadData(cantiere.id)} 
+              />
             </div>
 
             {/* Accordion con tutte le sezioni collassabili */}
@@ -1121,7 +1133,7 @@ export default function CantiereDashboardPage() {
           </div>
 
           <div className="space-y-6">
-            <AlertScadenzeCard documenti={documenti} />
+            <AlertScadenzeCard documenti={documenti} attivita={attivita} />
             
             <Card className="shadow-lg border-0">
               <CardHeader>

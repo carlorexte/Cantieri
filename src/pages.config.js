@@ -18,6 +18,7 @@ import RiepilogoCantieri from './pages/RiepilogoCantieri';
 import SALDashboard from './pages/SALDashboard';
 import GestionePermessi from './pages/GestionePermessi';
 import GestionePermessiCantieri from './pages/GestionePermessiCantieri';
+import AIAssistant from './pages/AIAssistant';
 import __Layout from './Layout.jsx';
 
 
@@ -42,6 +43,7 @@ export const PAGES = {
     "SALDashboard": SALDashboard,
     "GestionePermessi": GestionePermessi,
     "GestionePermessiCantieri": GestionePermessiCantieri,
+    "AIAssistant": AIAssistant,
 }
 
 export const pagesConfig = {

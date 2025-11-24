@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft, ChevronRight, Menu, Sparkles } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 const primaryNavConfig = [
   { href: "Dashboard", icon: LayoutDashboard, label: "Dashboard", perm: "all" },
+  { href: "AIAssistant", icon: Sparkles, label: "AI Assistant", perm: "all" },
   { href: "Cantieri", icon: Building2, label: "Cantieri", perm: "all" },
   { href: "Imprese", icon: Briefcase, label: "Imprese", perm: "perm_view_soci" },
   { href: "PersoneEsterne", icon: Users, label: "Professionisti", perm: "perm_view_soci" },

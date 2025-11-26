@@ -21,7 +21,7 @@ import PerformanceMatrixChart from "../components/dashboard/PerformanceMatrixCha
 import TimelineOverview from "../components/dashboard/TimelineOverview";
 
 export default function Dashboard() {
-  const { cantieri: allCantieri, currentUser } = useData();
+  const { cantieri: allCantieri, currentUser, isLoading: contextLoading } = useData();
   const [cantieri, setCantieri] = useState([]);
   const [taskPersonali, setTaskPersonali] = useState([]);
   const [attivitaInterne, setAttivitaInterne] = useState([]);
@@ -44,8 +44,10 @@ export default function Dashboard() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const loadAdminDashboard = useCallback(async () => {
-    const [cantieriAttivi, salDataResult, documentiData, attivitaData, costiDataResult] = await Promise.all([
-      base44.entities.Cantiere.filter({ stato: 'attivo' }, "-created_date", 30),
+    // OPTIMIZATION: Use cached cantieri from context instead of fetching again
+    const cantieriAttivi = allCantieri.filter(c => c.stato === 'attivo').slice(0, 30);
+
+    const [salDataResult, documentiData, attivitaData, costiDataResult] = await Promise.all([
       base44.entities.SAL.list("-data_sal", 200),
       base44.entities.Documento.filter({}, "-data_scadenza", 50),
       base44.entities.AttivitaInterna.filter({}, "-data_scadenza", 100),
@@ -109,18 +111,18 @@ export default function Dashboard() {
   }, [allCantieri]);
 
   const loadUserDashboard = useCallback(async (user) => {
-    const [taskData, cantieriData] = await Promise.all([
+    // OPTIMIZATION: Parallelize requests and use cached cantieri
+    const [taskData, documentiData] = await Promise.all([
       base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "-data_scadenza", 30),
-      base44.entities.Cantiere.list("-created_date", 20)
+      base44.entities.Documento.filter({}, "-data_scadenza", 30)
     ]);
 
     setTaskPersonali(taskData);
-    
-    const documentiData = await base44.entities.Documento.filter({}, "-data_scadenza", 30);
     setDocumenti(documentiData);
     
     const cantieriIds = new Set(taskData.map(t => t.cantiere_id).filter(Boolean));
-    const cantieriConTask = cantieriData.filter(cantiere => cantieriIds.has(cantiere.id));
+    // Use cached cantieri
+    const cantieriConTask = allCantieri.filter(cantiere => cantieriIds.has(cantiere.id));
     setCantieri(cantieriConTask);
 
     let taskCompletati = 0, taskInCorso = 0, taskInRitardo = 0;
@@ -141,7 +143,7 @@ export default function Dashboard() {
       taskInCorso,
       taskInRitardo
     });
-  }, []);
+  }, [allCantieri]);
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -159,10 +161,11 @@ export default function Dashboard() {
   }, [currentUser, loadAdminDashboard, loadUserDashboard]);
 
   useEffect(() => {
-    if (currentUser) {
+    // Wait for context to load before fetching dashboard specific data
+    if (currentUser && !contextLoading) {
       loadDashboardData();
     }
-  }, [currentUser, loadDashboardData]);
+  }, [currentUser, contextLoading, loadDashboardData]);
 
   const getAlertsForUser = useMemo(() => {
     if (!currentUser) return [];

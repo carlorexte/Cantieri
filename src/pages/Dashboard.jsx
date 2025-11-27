@@ -14,14 +14,30 @@ import CantieriPerStatoChart from "../components/dashboard/CantieriPerStatoChart
 import ValorePerCommittenteChart from "../components/dashboard/ValorePerCommittenteChart";
 import AvanzamentoCantieriChart from "../components/dashboard/AvanzamentoCantieriChart";
 import DashboardFilters from "../components/dashboard/DashboardFilters";
+import DashboardWidgetManager from "../components/dashboard/DashboardWidgetManager";
 // Nuovi Grafici
 import CashFlowChart from "../components/dashboard/CashFlowChart";
 import CostBreakdownChart from "../components/dashboard/CostBreakdownChart";
 import PerformanceMatrixChart from "../components/dashboard/PerformanceMatrixChart";
 import TimelineOverview from "../components/dashboard/TimelineOverview";
 
+// Widget Definitions
+const ADMIN_WIDGETS = [
+  { id: 'kpis', label: 'KPI Generali', width: 'full' },
+  { id: 'cashflow', label: 'Flusso di Cassa', width: 'two-thirds' },
+  { id: 'cost_breakdown', label: 'Ripartizione Costi', width: 'one-third' },
+  { id: 'performance', label: 'Matrice Performance', width: 'half' },
+  { id: 'status_chart', label: 'Stato Cantieri', width: 'half' },
+  { id: 'timeline', label: 'Timeline Progetti', width: 'full' },
+  { id: 'client_value', label: 'Valore per Committente', width: 'half' },
+  { id: 'progress_chart', label: 'Avanzamento Cantieri', width: 'half' },
+  { id: 'active_sites', label: 'Cantieri Attivi', width: 'two-thirds' },
+  { id: 'alerts', label: 'Allarmi e Attività', width: 'one-third' },
+];
+
 export default function Dashboard() {
   const { cantieri: allCantieri, currentUser, isLoading: contextLoading } = useData();
+  const [userConfig, setUserConfig] = useState([]);
   const [cantieri, setCantieri] = useState([]);
   const [taskPersonali, setTaskPersonali] = useState([]);
   const [attivitaInterne, setAttivitaInterne] = useState([]);
@@ -108,7 +124,19 @@ export default function Dashboard() {
       avanzamentoMedio,
       documentiInScadenza
     });
-  }, [allCantieri]);
+
+    // Init config from user
+    if (currentUser?.dashboard_config) {
+      setUserConfig(currentUser.dashboard_config);
+    } else {
+      // Default config
+      setUserConfig(ADMIN_WIDGETS.map((w, i) => ({
+        id: w.id,
+        visible: true,
+        order: i
+      })));
+    }
+  }, [allCantieri, currentUser]);
 
   const loadUserDashboard = useCallback(async (user) => {
     // OPTIMIZATION: Parallelize requests and use cached cantieri
@@ -294,11 +322,86 @@ export default function Dashboard() {
     });
   }, []);
 
+  const handleSaveConfig = async (newConfig) => {
+    try {
+      await base44.auth.updateMe({
+        dashboard_config: newConfig
+      });
+      setUserConfig(newConfig);
+      toast.success("Layout salvato");
+    } catch (error) {
+      console.error("Failed to save dashboard config", error);
+      toast.error("Errore salvataggio layout");
+    }
+  };
+
+  const renderWidget = (widgetId) => {
+    switch (widgetId) {
+      case 'kpis':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 h-full">
+            <KPICard title="Cantieri Attivi" value={kpis.cantieriAttivi} subtitle="In corso di esecuzione" icon={Building2} colorScheme="orange" />
+            <KPICard title="Valore Portafoglio" value={`€ ${(kpis.valorePortafoglio / 1000000).toFixed(1)}M`} subtitle="Totale contratti" icon={Euro} colorScheme="emerald" />
+            <KPICard title="Avanzamento Medio" value={`${kpis.avanzamentoMedio}%`} subtitle="Media ponderata" icon={TrendingUp} colorScheme="cyan" />
+            <KPICard title="Documenti in Scadenza" value={kpis.documentiInScadenza} subtitle="Prossimi 30 giorni" icon={AlertTriangle} colorScheme="amber" />
+          </div>
+        );
+      case 'cashflow': return <CashFlowChart salData={salData} costiData={costiData} />;
+      case 'cost_breakdown': return <CostBreakdownChart costiData={costiData} />;
+      case 'performance': return <PerformanceMatrixChart cantieri={filteredCantieri} />;
+      case 'status_chart': return <CantieriPerStatoChart cantieri={filteredCantieri} />;
+      case 'timeline': return <TimelineOverview cantieri={filteredCantieri} />;
+      case 'client_value': return <ValorePerCommittenteChart cantieri={filteredCantieri} />;
+      case 'progress_chart': return <AvanzamentoCantieriChart cantieri={filteredCantieri} />;
+      case 'active_sites': return <CantieriAttivi cantieri={cantieri} isLoading={isLoading} />;
+      case 'alerts': return (
+        <div className="space-y-6 h-full">
+          <AlertCard alerts={getAlertsForUser} />
+          <AttivitaInterneCard attivita={attivitaInterne} cantieri={allCantieri} isLoading={isLoading} />
+        </div>
+      );
+      default: return null;
+    }
+  };
+
+  const renderDynamicLayout = () => {
+    const sortedWidgets = [...userConfig]
+      .sort((a, b) => a.order - b.order)
+      .filter(w => w.visible);
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+        {sortedWidgets.map(config => {
+          const widgetDef = ADMIN_WIDGETS.find(w => w.id === config.id);
+          if (!widgetDef) return null;
+
+          let gridClass = "lg:col-span-6"; // Default full
+          if (widgetDef.width === 'two-thirds') gridClass = "lg:col-span-4";
+          else if (widgetDef.width === 'half') gridClass = "lg:col-span-3";
+          else if (widgetDef.width === 'one-third') gridClass = "lg:col-span-2";
+
+          return (
+            <div key={config.id} className={gridClass}>
+              {renderWidget(config.id)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderAdminDashboard = useCallback(() => (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2" style={{ color: '#17171C' }}>Dashboard</h1>
-        <p className="text-base" style={{ color: '#626671' }}>Panoramica generale dell'attività aziendale</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-bold mb-1" style={{ color: '#17171C' }}>Dashboard</h1>
+          <p className="text-base" style={{ color: '#626671' }}>Panoramica generale dell'attività aziendale</p>
+        </div>
+        <DashboardWidgetManager 
+          currentConfig={userConfig}
+          availableWidgets={ADMIN_WIDGETS}
+          onSave={handleSaveConfig}
+        />
       </div>
 
       <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mb-8">
@@ -323,82 +426,9 @@ export default function Dashboard() {
         </CollapsibleContent>
       </Collapsible>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <KPICard
-          title="Cantieri Attivi"
-          value={kpis.cantieriAttivi}
-          subtitle="In corso di esecuzione"
-          icon={Building2}
-          colorScheme="orange"
-        />
-        <KPICard
-          title="Valore Portafoglio"
-          value={`€ ${(kpis.valorePortafoglio / 1000000).toFixed(1)}M`}
-          subtitle="Totale contratti"
-          icon={Euro}
-          colorScheme="emerald"
-        />
-        <KPICard
-          title="Avanzamento Medio"
-          value={`${kpis.avanzamentoMedio}%`}
-          subtitle="Media ponderata"
-          icon={TrendingUp}
-          colorScheme="cyan"
-        />
-        <KPICard
-          title="Documenti in Scadenza"
-          value={kpis.documentiInScadenza}
-          subtitle="Prossimi 30 giorni"
-          icon={AlertTriangle}
-          colorScheme="amber"
-        />
-      </div>
-
-      {/* Nuova Sezione Finanziaria Avanzata */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
-          <CashFlowChart salData={salData} costiData={costiData} />
-        </div>
-        <div>
-          <CostBreakdownChart costiData={costiData} />
-        </div>
-      </div>
-
-      {/* Nuova Sezione Performance Operativa */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <PerformanceMatrixChart cantieri={filteredCantieri} />
-        <CantieriPerStatoChart cantieri={filteredCantieri} />
-      </div>
-
-      {/* Timeline e Avanzamento */}
-      <div className="mb-8">
-        <TimelineOverview cantieri={filteredCantieri} />
-      </div>
-
-      {/* Analisi Secondaria */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <ValorePerCommittenteChart cantieri={filteredCantieri} />
-        <AvanzamentoCantieriChart cantieri={filteredCantieri} />
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <CantieriAttivi 
-            cantieri={cantieri}
-            isLoading={isLoading}
-          />
-        </div>
-        <div className="space-y-6">
-          <AlertCard alerts={getAlertsForUser} />
-          <AttivitaInterneCard 
-            attivita={attivitaInterne}
-            cantieri={allCantieri}
-            isLoading={isLoading}
-          />
-        </div>
-      </div>
+      {renderDynamicLayout()}
     </>
-  ), [kpis, cantieri, filteredCantieri, salData, costiData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters, attivitaInterne, allCantieri, isFiltersOpen]);
+  ), [kpis, cantieri, filteredCantieri, salData, costiData, isLoading, getAlertsForUser, filters, committentiList, handleResetFilters, attivitaInterne, allCantieri, isFiltersOpen, userConfig]);
 
   const renderUserDashboard = useCallback(() => (
     <>

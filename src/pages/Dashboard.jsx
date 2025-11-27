@@ -369,22 +369,69 @@ export default function Dashboard() {
       .sort((a, b) => a.order - b.order)
       .filter(w => w.visible);
 
+    const widthMap = {
+      'full': 6,
+      'two-thirds': 4,
+      'half': 3,
+      'one-third': 2
+    };
+
+    // Calculate rows and dynamic widths
+    const rows = [];
+    let currentRow = [];
+    let currentWidth = 0;
+
+    sortedWidgets.forEach((config, index) => {
+      const widgetDef = ADMIN_WIDGETS.find(w => w.id === config.id);
+      if (!widgetDef) return;
+
+      const itemWidth = widthMap[widgetDef.width] || 6;
+
+      if (currentWidth + itemWidth > 6) {
+        // Row is full, push current row and start new
+        rows.push({ items: currentRow, totalWidth: currentWidth });
+        currentRow = [];
+        currentWidth = 0;
+      }
+
+      currentRow.push({ ...config, originalWidth: itemWidth });
+      currentWidth += itemWidth;
+    });
+
+    // Push last row
+    if (currentRow.length > 0) {
+      rows.push({ items: currentRow, totalWidth: currentWidth });
+    }
+
     return (
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
-        {sortedWidgets.map(config => {
-          const widgetDef = ADMIN_WIDGETS.find(w => w.id === config.id);
-          if (!widgetDef) return null;
+        {rows.map((row, rowIndex) => {
+          // Calculate expansion for this row to fill gaps
+          const gap = 6 - row.totalWidth;
+          const itemsInRow = row.items.length;
+          
+          return row.items.map((item, itemIndex) => {
+            let finalWidth = item.originalWidth;
+            
+            // Distribute gap evenly among items
+            if (gap > 0) {
+               const extra = Math.floor(gap / itemsInRow);
+               const remainder = gap % itemsInRow;
+               
+               finalWidth += extra;
+               if (itemIndex < remainder) {
+                 finalWidth += 1;
+               }
+            }
 
-          let gridClass = "lg:col-span-6"; // Default full
-          if (widgetDef.width === 'two-thirds') gridClass = "lg:col-span-4";
-          else if (widgetDef.width === 'half') gridClass = "lg:col-span-3";
-          else if (widgetDef.width === 'one-third') gridClass = "lg:col-span-2";
+            const gridClass = `lg:col-span-${finalWidth}`;
 
-          return (
-            <div key={config.id} className={gridClass}>
-              {renderWidget(config.id)}
-            </div>
-          );
+            return (
+              <div key={item.id} className={gridClass}>
+                {renderWidget(item.id)}
+              </div>
+            );
+          });
         })}
       </div>
     );

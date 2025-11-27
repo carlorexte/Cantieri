@@ -1,76 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
-  useSensors,
-  DragOverlay
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { GripVertical, Settings2, Eye, EyeOff } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { GripVertical, Settings2, Eye, EyeOff, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
-
-// Sortable Item Component
-function SortableItem({ item, onToggleVisibility }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 999 : 'auto',
-  };
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style}
-      className={`flex items-center justify-between p-3 bg-white border rounded-lg mb-2 ${isDragging ? 'shadow-lg border-indigo-200' : 'border-slate-200'}`}
-    >
-      <div className="flex items-center gap-3">
-        <button 
-          {...attributes} 
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded"
-        >
-          <GripVertical className="w-5 h-5 text-slate-400" />
-        </button>
-        <span className="font-medium text-slate-700">{item.label}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        {item.visible ? (
-          <Eye className="w-4 h-4 text-emerald-500" />
-        ) : (
-          <EyeOff className="w-4 h-4 text-slate-400" />
-        )}
-        <Switch 
-          checked={item.visible}
-          onCheckedChange={(checked) => onToggleVisibility(item.id, checked)}
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardWidgetManager({ currentConfig, availableWidgets, onSave }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -79,8 +13,6 @@ export default function DashboardWidgetManager({ currentConfig, availableWidgets
 
   useEffect(() => {
     if (isOpen) {
-      // Merge available widgets with current config
-      // This ensures new widgets are available even if not in user config yet
       const configMap = new Map(currentConfig.map(item => [item.id, item]));
       
       const mergedItems = availableWidgets.map((widget, index) => {
@@ -88,34 +20,24 @@ export default function DashboardWidgetManager({ currentConfig, availableWidgets
         return {
           id: widget.id,
           label: widget.label,
-          visible: config ? config.visible : true, // Default visible
+          visible: config ? config.visible : true,
           order: config ? config.order : index
         };
       });
 
-      // Sort by order
       mergedItems.sort((a, b) => a.order - b.order);
       setItems(mergedItems);
     }
   }, [isOpen, currentConfig, availableWidgets]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
+    const newItems = Array.from(items);
+    const [reorderedItem] = newItems.splice(result.source.index, 1);
+    newItems.splice(result.destination.index, 0, reorderedItem);
 
-    if (active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
+    setItems(newItems);
   };
 
   const handleToggleVisibility = (id, checked) => {
@@ -124,10 +46,19 @@ export default function DashboardWidgetManager({ currentConfig, availableWidgets
     ));
   };
 
+  const moveItem = (index, direction) => {
+    const newItems = [...items];
+    const targetIndex = index + direction;
+    
+    if (targetIndex >= 0 && targetIndex < newItems.length) {
+      [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
+      setItems(newItems);
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Create clean config object to save
       const newConfig = items.map((item, index) => ({
         id: item.id,
         visible: item.visible,
@@ -163,26 +94,75 @@ export default function DashboardWidgetManager({ currentConfig, availableWidgets
             Trascina per riordinare i widget o usa l'interruttore per nasconderli.
           </p>
           
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={items.map(i => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="max-h-[60vh] overflow-y-auto px-1">
-                {items.map((item) => (
-                  <SortableItem 
-                    key={item.id} 
-                    item={item} 
-                    onToggleVisibility={handleToggleVisibility}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <div className="max-h-[60vh] overflow-y-auto px-1">
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="widgets">
+                {(provided) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="space-y-2"
+                  >
+                    {items.map((item, index) => (
+                      <Draggable key={item.id} draggableId={item.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`flex items-center justify-between p-3 bg-white border rounded-lg ${
+                              snapshot.isDragging ? 'shadow-lg border-indigo-200 z-50' : 'border-slate-200'
+                            }`}
+                            style={provided.draggableProps.style}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                {...provided.dragHandleProps}
+                                className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded text-slate-400"
+                              >
+                                <GripVertical className="w-5 h-5" />
+                              </div>
+                              <span className="font-medium text-slate-700">{item.label}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {/* Fallback buttons for accessibility or if DnD has issues */}
+                              <div className="flex flex-col mr-2">
+                                <button 
+                                  onClick={() => moveItem(index, -1)} 
+                                  disabled={index === 0}
+                                  className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button 
+                                  onClick={() => moveItem(index, 1)} 
+                                  disabled={index === items.length - 1}
+                                  className="text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                              </div>
+
+                              {item.visible ? (
+                                <Eye className="w-4 h-4 text-emerald-500" />
+                              ) : (
+                                <EyeOff className="w-4 h-4 text-slate-400" />
+                              )}
+                              <Switch 
+                                checked={item.visible}
+                                onCheckedChange={(checked) => handleToggleVisibility(item.id, checked)}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">

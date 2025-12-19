@@ -1187,6 +1187,10 @@ export default function CantiereDashboardPage() {
               onSubmit={handleDocumentoSubmit}
               onCancel={() => setShowDocumentoForm(false)}
               initialEntity={{ id: cantiere.id, type: 'cantiere' }}
+              cantieri={[cantiere]}
+              subappalti={subappalti}
+              imprese={imprese}
+              sals={salList}
             />
           </DialogContent>
         </Dialog>

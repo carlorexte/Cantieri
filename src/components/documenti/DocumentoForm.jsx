@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { UploadPrivateFile } from "@/integrations/Core";
 import { Button } from "@/components/ui/button";
@@ -362,10 +361,10 @@ export default function DocumentoForm({ documento, cantieri, soci, subappalti, s
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="entita_collegata_tipo">Collega a</Label>
-              <Select disabled={!!initialEntity?.type} value={formData.entita_collegata_tipo} onValueChange={(value) => {
+              <Select disabled={false} value={formData.entita_collegata_tipo} onValueChange={(value) => {
                 handleChange("entita_collegata_tipo", value);
                 handleChange("entita_collegata_id", "");
-                generaPercorsoNAS(categoriaSelezionata, sottocartella, "", formData.nome_documento); // Regenerate path with new entity type
+                generaPercorsoNAS(categoriaSelezionata, sottocartella, "", formData.nome_documento); 
               }}>
                 <SelectTrigger>
                   <SelectValue />

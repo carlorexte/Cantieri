@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +45,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     data_inizio_sospensione: cantiere?.data_inizio_sospensione || "",
     data_fine_sospensione: cantiere?.data_fine_sospensione || "",
     verbale_inizio_lavori_url: cantiere?.verbale_inizio_lavori_url || "",
+    verbali_consegna: Array.isArray(cantiere?.verbali_consegna) ? cantiere.verbali_consegna : (cantiere?.verbale_inizio_lavori_url ? [cantiere.verbale_inizio_lavori_url] : []),
+    date_consegna: Array.isArray(cantiere?.date_consegna) ? cantiere.date_consegna : [],
+    contatti_committente: Array.isArray(cantiere?.contatti_committente) ? cantiere.contatti_committente : [],
     tipologia_appalto: cantiere?.tipologia_appalto || "a_corpo",
     importo_lavori_netto_ribasso: cantiere?.importo_lavori_netto_ribasso || "",
     importo_progettazione: cantiere?.importo_progettazione || "",
@@ -373,6 +375,10 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     
     const dataToSubmit = {
       ...form,
+      // Ensure arrays are preserved
+      verbali_consegna: form.verbali_consegna,
+      date_consegna: form.date_consegna,
+      contatti_committente: form.contatti_committente,
       importo_lavori_netto_ribasso: parseFloat(form.importo_lavori_netto_ribasso) || null,
       importo_progettazione: parseFloat(form.importo_progettazione) || null,
       oneri_sicurezza_importo: parseFloat(form.oneri_sicurezza_importo) || null,
@@ -485,13 +491,35 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                 </div>
 
                 <div>
-                  <Label>Verbale Inizio Lavori</Label>
-                  <DocumentUploader
-                    label="Verbale Inizio Lavori"
-                    value={form.verbale_inizio_lavori_url}
-                    onChange={(value) => updateField("verbale_inizio_lavori_url", value)}
-                    compact={true}
-                  />
+                  <Label>Verbali di Consegna Lavori</Label>
+                  <div className="space-y-2">
+                    {form.verbali_consegna && form.verbali_consegna.map((url, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input value={url} readOnly className="bg-slate-50" />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newVerbali = form.verbali_consegna.filter((_, i) => i !== idx);
+                            updateField("verbali_consegna", newVerbali);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                    <DocumentUploader
+                      label="Aggiungi Verbale"
+                      value=""
+                      onChange={(value) => {
+                        if (value) {
+                          updateField("verbali_consegna", [...(form.verbali_consegna || []), value]);
+                        }
+                      }}
+                      compact={true}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -511,9 +539,79 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
               <CardContent className="pt-6 space-y-6">
                 <div>
                   <h4 className="text-sm font-semibold text-slate-700 mb-3">Date Principali</h4>
+                  <div className="mb-4 space-y-3">
+                    <Label className="text-base font-semibold">Date di Consegna (Preliminare, Definitiva, ecc.)</Label>
+                    {form.date_consegna && form.date_consegna.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <Label className="text-xs">Tipo</Label>
+                          <Select 
+                            value={item.tipo} 
+                            onValueChange={(val) => {
+                              const newDates = [...form.date_consegna];
+                              newDates[idx].tipo = val;
+                              updateField("date_consegna", newDates);
+                            }}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="preliminare">Preliminare</SelectItem>
+                              <SelectItem value="definitiva">Definitiva</SelectItem>
+                              <SelectItem value="parziale">Parziale</SelectItem>
+                              <SelectItem value="altro">Altro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs">Data</Label>
+                          <Input 
+                            type="date" 
+                            value={item.data} 
+                            onChange={(e) => {
+                              const newDates = [...form.date_consegna];
+                              newDates[idx].data = e.target.value;
+                              updateField("date_consegna", newDates);
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs">Note</Label>
+                          <Input 
+                            value={item.note || ''} 
+                            onChange={(e) => {
+                              const newDates = [...form.date_consegna];
+                              newDates[idx].note = e.target.value;
+                              updateField("date_consegna", newDates);
+                            }}
+                            placeholder="Note..."
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newDates = form.date_consegna.filter((_, i) => i !== idx);
+                            updateField("date_consegna", newDates);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateField("date_consegna", [...(form.date_consegna || []), { tipo: 'parziale', data: '', note: '' }])}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Aggiungi Data Consegna
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                      <Label>Consegna Area</Label>
+                      <Label>Consegna Area (Principale)</Label>
                       <Input
                         type="date"
                         value={form.data_consegna_area}
@@ -865,6 +963,72 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                         placeholder="email@comune.it"
                       />
                     </div>
+                  </div>
+                  
+                  {/* Contatti Aggiuntivi */}
+                  <div className="mt-4 border-t pt-4">
+                    <Label className="mb-2 block">Altri Contatti Committente</Label>
+                    {form.contatti_committente && form.contatti_committente.map((contatto, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2 items-end">
+                        <Input 
+                          placeholder="Nome" 
+                          value={contatto.nome || ''} 
+                          onChange={(e) => {
+                            const newC = [...form.contatti_committente];
+                            newC[idx].nome = e.target.value;
+                            updateField("contatti_committente", newC);
+                          }}
+                        />
+                        <Input 
+                          placeholder="Email" 
+                          value={contatto.email || ''} 
+                          onChange={(e) => {
+                            const newC = [...form.contatti_committente];
+                            newC[idx].email = e.target.value;
+                            updateField("contatti_committente", newC);
+                          }}
+                        />
+                        <Input 
+                          placeholder="Telefono" 
+                          value={contatto.telefono || ''} 
+                          onChange={(e) => {
+                            const newC = [...form.contatti_committente];
+                            newC[idx].telefono = e.target.value;
+                            updateField("contatti_committente", newC);
+                          }}
+                        />
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="Ruolo" 
+                            value={contatto.ruolo || ''} 
+                            onChange={(e) => {
+                              const newC = [...form.contatti_committente];
+                              newC[idx].ruolo = e.target.value;
+                              updateField("contatti_committente", newC);
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const newC = form.contatti_committente.filter((_, i) => i !== idx);
+                              updateField("contatti_committente", newC);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateField("contatti_committente", [...(form.contatti_committente || []), { nome: '', email: '', telefono: '', ruolo: '' }])}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Aggiungi Contatto
+                    </Button>
                     <div>
                       <Label>Codice Fiscale</Label>
                       <Input
@@ -1171,6 +1335,30 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                       </div>
 
                       <div className="space-y-3">
+                        <div className="space-y-3">
+                          <ImpresaSelectorForCantiere
+                            label="Seleziona Impresa Partner"
+                            currentValues={partner}
+                            onImpresaSelect={(impresa) => {
+                              if (impresa) {
+                                const newPartners = [...form.partner_consorziati];
+                                newPartners[index] = {
+                                  ...newPartners[index],
+                                  impresa_id: impresa.id,
+                                  ragione_sociale: impresa.ragione_sociale,
+                                  indirizzo: impresa.indirizzo_legale,
+                                  cap: impresa.cap_legale,
+                                  citta: impresa.citta_legale,
+                                  telefono: impresa.telefono,
+                                  email: impresa.email,
+                                  cf: impresa.codice_fiscale,
+                                  piva: impresa.partita_iva
+                                };
+                                updateField("partner_consorziati", newPartners);
+                              }
+                            }}
+                          />
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <Label className="text-sm">Ragione Sociale</Label>

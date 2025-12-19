@@ -736,11 +736,13 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                         onChange={(e) => updateField("contratto_data_firma", e.target.value)} />
                     </div>
                     <div>
-                      <Label>Link File Contratto</Label>
-                      <Input
+                      <Label>File Contratto</Label>
+                      <DocumentUploader
+                        label="Carica Contratto"
                         value={form.contratto_file_url}
-                        onChange={(e) => updateField("contratto_file_url", e.target.value)}
-                        placeholder="https://..." />
+                        onChange={(value) => updateField("contratto_file_url", value)}
+                        compact={true}
+                      />
                     </div>
                   </div>
                 </div>

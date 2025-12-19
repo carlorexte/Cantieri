@@ -87,7 +87,7 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
             </div>
           ) : (
             <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/90c096eb4_Logotypercs.png" 
+              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/08b139eaf_Logotypercs.png" 
               alt="RCS Logo" 
               className="h-8 w-8 object-contain"
             />
@@ -189,7 +189,7 @@ export default function Layout({ children }) {
     const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
     link.type = 'image/png';
     link.rel = 'shortcut icon';
-    link.href = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/90c096eb4_Logotypercs.png';
+    link.href = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/08b139eaf_Logotypercs.png';
     document.getElementsByTagName('head')[0].appendChild(link);
   }, []);
 

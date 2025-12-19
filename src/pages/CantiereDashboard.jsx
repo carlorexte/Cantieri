@@ -76,7 +76,13 @@ export default function CantiereDashboardPage() {
       const [cantiereData, subappaltiData, documentiData, impreseData, salData, attivitaData] = await Promise.all([
         Cantiere.get(cantiereId),
         Subappalto.filter({ cantiere_id: cantiereId }),
-        Documento.filter({ entita_collegata_id: cantiereId, entita_collegata_tipo: 'cantiere' }, "-created_date", 50),
+        // Punto 17: Cerca documenti collegati a questo cantiere (supporta sia vecchio campo che nuovo array)
+        Documento.filter({
+          "$or": [
+            { "entita_collegata_id": cantiereId },
+            { "entita_collegate.entita_id": cantiereId }
+          ]
+        }, "-created_date", 50),
         Impresa.list("-created_date", 100),
         base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal"),
         base44.entities.Attivita.filter({ cantiere_id: cantiereId }, "-data_fine")
@@ -463,19 +469,23 @@ export default function CantiereDashboardPage() {
           <CardContent>
             {/* Avanzamento Temporale */}
             <div className="mb-6 pb-6 border-b">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-slate-900">Avanzamento Temporale</h3>
-                <div className={`flex items-center gap-2 ${statoAvanzamento.color}`}>
-                  <StatoIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{statoAvanzamento.text}</span>
-                </div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-900">Avanzamento Temporale</h3>
+              <div className={`flex items-center gap-2 ${statoAvanzamento.color}`}>
+                <StatoIcon className="w-4 h-4" />
+                <span className="text-sm font-medium">{statoAvanzamento.text}</span>
               </div>
-              <div className="flex items-center gap-4">
-                <Progress value={calcolaPercentualeCompletamento} className="h-3 flex-1" />
-                <span className="text-lg font-bold text-slate-700 min-w-[60px] text-right">
-                  {calcolaPercentualeCompletamento}%
-                </span>
-              </div>
+            </div>
+            <div className="flex items-center gap-4 mb-2">
+              <Progress value={calcolaPercentualeCompletamento} className="h-3 flex-1" />
+              <span className="text-lg font-bold text-slate-700 min-w-[60px] text-right">
+                {calcolaPercentualeCompletamento}%
+              </span>
+            </div>
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>Inizio: {renderDate(cantiere.data_inizio)}</span>
+              <span>Fine: {renderDate(cantiere.data_fine_prevista)}</span>
+            </div>
             </div>
 
             {/* Avanzamento SAL - NEW BLOCK */}

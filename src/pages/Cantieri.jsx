@@ -66,13 +66,17 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
             </div>
             <div className="flex items-center gap-2">
               <Euro className="w-4 h-4 text-slate-400" />
-              <span className="font-medium">Importo:</span>
-              <span>€ {cantiere.importo_contratto?.toLocaleString('it-IT') || 'N/D'}</span>
+              <span className="font-medium">Imp. Contr.:</span>
+              <span>
+                {cantiere.importo_contrattuale_oltre_iva 
+                  ? `€ ${Number(cantiere.importo_contrattuale_oltre_iva).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                  : 'N/D'}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-slate-400" />
-              <span className="font-medium">Inizio:</span>
-              <span>{cantiere.data_inizio ? new Date(cantiere.data_inizio).toLocaleDateString('it-IT') : 'N/D'}</span>
+              <span className="font-medium">Fine:</span>
+              <span>{cantiere.data_fine_prevista ? new Date(cantiere.data_fine_prevista).toLocaleDateString('it-IT') : 'N/D'}</span>
             </div>
           </div>
 
@@ -178,9 +182,10 @@ export default function Cantieri() {
         });
       }
       setShowForm(false);
-      setEditingCantiere(null);
+      // Punto 4: Quando aggiorno il cantiere non si deve chiudere
       setFormIsDirty(false);
       await refreshCantieri();
+      // Non chiudiamo il form
     } catch (error) {
       console.error("Errore salvataggio cantiere:", error);
     }
@@ -390,16 +395,22 @@ export default function Cantieri() {
             open={showForm} 
             onOpenChange={(open) => {
               if (!open) {
-                handleCloseForm();
+                // Previene chiusura accidentale se dirty, ma qui gestiamo con onInteractOutside
+                if (formIsDirty) {
+                   if (window.confirm("Hai modifiche non salvate. Chiudere?")) {
+                     handleCloseForm();
+                   }
+                } else {
+                   handleCloseForm();
+                }
               }
             }}
           >
             <DialogContent 
               className="max-w-4xl max-h-[90vh] overflow-y-auto"
-              onPointerDownOutside={(e) => {
-                if (formIsDirty) {
-                  e.preventDefault();
-                }
+              onInteractOutside={(e) => {
+                // Punto 3: Se si clicca fuori, il riquadro NON si chiude
+                e.preventDefault();
               }}
               onEscapeKeyDown={(e) => {
                 if (formIsDirty) {

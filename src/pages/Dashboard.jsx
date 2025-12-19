@@ -424,7 +424,16 @@ export default function Dashboard() {
                }
             }
 
-            const gridClass = `lg:col-span-${finalWidth}`;
+            // Use explicit class names for Tailwind JIT to detect them
+            const colSpanClasses = {
+              1: 'lg:col-span-1',
+              2: 'lg:col-span-2',
+              3: 'lg:col-span-3',
+              4: 'lg:col-span-4',
+              5: 'lg:col-span-5',
+              6: 'lg:col-span-6'
+            };
+            const gridClass = colSpanClasses[finalWidth] || 'lg:col-span-6';
 
             return (
               <div key={item.id} className={gridClass}>

@@ -80,11 +80,10 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
           {open ? (
             <div className="flex items-center gap-3 transition-opacity duration-200">
               <img 
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/90c096eb4_Logotypercs.png" 
+                src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
                 alt="RCS Italia Logo" 
-                className="h-10 w-10 object-contain"
+                className="h-10 w-auto object-contain"
               />
-              <span className="font-bold text-2xl tracking-tight text-[#FF902C]">RCS</span>
             </div>
           ) : (
             <img 

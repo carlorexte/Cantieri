@@ -80,15 +80,18 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
           {open ? (
             <div className="flex items-center gap-3 transition-opacity duration-200">
               <img 
-                src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
+                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/90c096eb4_Logotypercs.png" 
                 alt="RCS Italia Logo" 
-                className="h-10 w-auto object-contain"
+                className="h-10 w-10 object-contain"
               />
+              <span className="font-bold text-2xl tracking-tight text-[#FF902C]">RCS</span>
             </div>
           ) : (
-            <div className="h-8 w-8 bg-[#FF902C] rounded-md flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0">
-              C
-            </div>
+            <img 
+              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/90c096eb4_Logotypercs.png" 
+              alt="RCS Logo" 
+              className="h-8 w-8 object-contain"
+            />
           )}
           <Button
             variant="ghost"
@@ -181,7 +184,16 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
 
 export default function Layout({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  
+
+  useEffect(() => {
+    // Update favicon
+    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    link.type = 'image/png';
+    link.rel = 'shortcut icon';
+    link.href = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/90c096eb4_Logotypercs.png';
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }, []);
+
   useEffect(() => {
     const fetchUser = async () => {
       try {

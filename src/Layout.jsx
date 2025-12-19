@@ -76,22 +76,28 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
   return (
     <div className="min-h-screen flex w-full bg-slate-50">
       <Sidebar className="border-r border-slate-200 bg-white transition-all duration-300" collapsible="icon">
-        <SidebarHeader className="border-b border-slate-100 p-5 flex flex-row items-center justify-between">
-          <div className={cn("flex items-center gap-3 transition-opacity duration-200", !open && "opacity-0 w-0")}>
-            <img 
-              src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
-              alt="RCS Italia Logo" 
-              className="h-10 w-auto object-contain"
-            />
-          </div>
+        <SidebarHeader className={cn("border-b border-slate-100 flex items-center transition-all duration-200", open ? "p-5 flex-row justify-between" : "p-2 flex-col justify-center gap-4 py-4")}>
+          {open ? (
+            <div className="flex items-center gap-3 transition-opacity duration-200">
+              <img 
+                src="https://rcsitalia.com/wp-content/uploads/elementor/thumbs/cropped-logo_rcs-r0hjla6je715znwrnrt5yfyth9qivcj565yl564idc.png" 
+                alt="RCS Italia Logo" 
+                className="h-10 w-auto object-contain"
+              />
+            </div>
+          ) : (
+            <div className="h-8 w-8 bg-[#FF902C] rounded-md flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0">
+              C
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setOpen(!open)}
-            className="ml-auto hover:bg-slate-100 transition-colors"
+            className={cn("hover:bg-slate-100 transition-colors", open ? "ml-auto" : "h-6 w-6")}
             style={{ color: '#FF902C' }}
           >
-            {open ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            {open ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
         </SidebarHeader>
             

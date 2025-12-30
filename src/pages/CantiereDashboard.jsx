@@ -232,13 +232,24 @@ export default function CantiereDashboardPage() {
     });
   }, []);
 
-  const handleOpenFile = useCallback((uri, nomeDoc = "Documento") => {
+  const handleOpenFile = useCallback((uri, nomeDoc) => {
     if (!uri) return;
     
+    let finalName = nomeDoc;
+    if (!finalName) {
+      // Try to extract filename from URI
+      try {
+        const basename = uri.split('/').pop().split('?')[0];
+        finalName = basename || "Documento";
+      } catch (e) {
+        finalName = "Documento";
+      }
+    }
+
     // Create a document object compatible with DocumentViewer
     const docObj = {
       file_uri: uri,
-      nome_documento: nomeDoc,
+      nome_documento: finalName,
       // If it's already a full http url (cloud_file_url style), use it, otherwise assume it's a file_uri
       ...(uri.startsWith('http') ? { cloud_file_url: uri, file_uri: null } : { file_uri: uri })
     };
@@ -247,10 +258,10 @@ export default function CantiereDashboardPage() {
     setViewerOpen(true);
   }, []);
 
-  const handleViewDocument = useCallback(async (documento) => {
+  const handleViewDocument = useCallback((documento) => {
     const uri = documento.file_uri || documento.cloud_file_url;
     if (uri) {
-      await handleOpenFile(uri);
+      handleOpenFile(uri, documento.nome_documento);
     } else {
       toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas}`);
     }
@@ -614,7 +625,7 @@ export default function CantiereDashboardPage() {
                             <div>
                               <p className="text-sm text-slate-500">File Contratto</p>
                               <button 
-                                onClick={() => handleOpenFile(cantiere.contratto_file_url)} 
+                                onClick={() => handleOpenFile(cantiere.contratto_file_url, "Contratto")} 
                                 className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
                               >
                                 Visualizza contratto
@@ -653,7 +664,7 @@ export default function CantiereDashboardPage() {
                             <div>
                               <p className="text-sm text-slate-500">Documento</p>
                               <button 
-                                onClick={() => handleOpenFile(cantiere.polizza_definitiva_url)} 
+                                onClick={() => handleOpenFile(cantiere.polizza_definitiva_url, "Polizza Definitiva")} 
                                 className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
                               >
                                 Visualizza polizza
@@ -677,7 +688,7 @@ export default function CantiereDashboardPage() {
                             <div>
                               <p className="text-sm text-slate-500">Documento</p>
                               <button 
-                                onClick={() => handleOpenFile(cantiere.polizza_car_url)} 
+                                onClick={() => handleOpenFile(cantiere.polizza_car_url, "Polizza CAR")} 
                                 className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
                               >
                                 Visualizza polizza
@@ -701,7 +712,7 @@ export default function CantiereDashboardPage() {
                             <div>
                               <p className="text-sm text-slate-500">Documento</p>
                               <button 
-                                onClick={() => handleOpenFile(cantiere.polizza_anticipazione_url)} 
+                                onClick={() => handleOpenFile(cantiere.polizza_anticipazione_url, "Polizza Anticipazione")} 
                                 className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
                               >
                                 Visualizza polizza

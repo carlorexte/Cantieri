@@ -284,7 +284,7 @@ export default function PolizzaUploader({
                 <>
                   {getFileType(value) === 'pdf' && (
                     <iframe
-                      src={`https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`}
+                      src={signedUrl}
                       className="w-full h-full border-0"
                       title={label}
                       allowFullScreen

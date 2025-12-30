@@ -229,41 +229,19 @@ export default function CantiereDashboardPage() {
     });
   }, []);
 
-  const handleOpenFile = useCallback(async (uri) => {
+  const handleOpenFile = useCallback((uri, nomeDoc = "Documento") => {
     if (!uri) return;
-    try {
-      if (uri.startsWith('http')) {
-        window.open(uri, '_blank');
-        return;
-      }
+    
+    // Create a document object compatible with DocumentViewer
+    const docObj = {
+      file_uri: uri,
+      nome_documento: nomeDoc,
+      // If it's already a full http url (cloud_file_url style), use it, otherwise assume it's a file_uri
+      ...(uri.startsWith('http') ? { cloud_file_url: uri, file_uri: null } : { file_uri: uri })
+    };
 
-      toast.info("Caricamento documento...");
-      
-      const result = await base44.integrations.Core.CreateFileSignedUrl({
-         file_uri: uri,
-         expires_in: 3600
-      });
-      
-      if (!result.signed_url) throw new Error("Url non generato");
-      
-      const response = await fetch(result.signed_url);
-      if (!response.ok) throw new Error("Download fallito");
-      
-      const blob = await response.blob();
-      
-      // Force content-type for PDFs and images to ensure browser display
-      const ext = uri.split('.').pop().toLowerCase();
-      let type = blob.type;
-      if (ext === 'pdf') type = 'application/pdf';
-      else if (['jpg','jpeg','png'].includes(ext)) type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-      
-      const url = window.URL.createObjectURL(new Blob([blob], { type }));
-      window.open(url, '_blank');
-      
-    } catch (error) {
-      console.error("Errore apertura file:", error);
-      toast.error("Errore durante l'apertura del file");
-    }
+    setSelectedDocument(docObj);
+    setViewerOpen(true);
   }, []);
 
   const handleViewDocument = useCallback(async (documento) => {

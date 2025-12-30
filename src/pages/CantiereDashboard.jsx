@@ -245,7 +245,17 @@ export default function CantiereDashboardPage() {
       }
       
       if (urlToOpen) {
-        window.open(urlToOpen, '_blank');
+        const cleanName = uri.split('?')[0].split('#')[0];
+        const extension = cleanName.split('.').pop().toLowerCase();
+        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
+        
+        if (isImage) {
+           window.open(urlToOpen, '_blank');
+        } else {
+           // Use Google Docs Viewer for PDF and Office files to avoid forced download
+           const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(urlToOpen)}&embedded=false`; // embedded=false opens full viewer
+           window.open(viewerUrl, '_blank');
+        }
       } else {
         toast.error("Impossibile recuperare l'URL del file");
       }

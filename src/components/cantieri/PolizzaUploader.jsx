@@ -30,10 +30,7 @@ export default function PolizzaUploader({
   const [fileToUpload, setFileToUpload] = useState(null);
   const [fileName, setFileName] = useState("");
   
-  // Viewer states
-  const [showViewer, setShowViewer] = useState(false);
-  const [signedUrl, setSignedUrl] = useState(null);
-  const [isLoadingViewer, setIsLoadingViewer] = useState(false);
+  // Viewer states removed in favor of new tab opening
 
   const handleUpload = async () => {
     if (!fileToUpload) {
@@ -62,22 +59,21 @@ export default function PolizzaUploader({
   const handleView = async () => {
     if (!value) return;
     
-    setIsLoadingViewer(true);
-    setShowViewer(true);
-    setSignedUrl(null);
-    
     try {
+      toast.info("Apertura documento in corso...");
       const result = await base44.integrations.Core.CreateFileSignedUrl({ 
         file_uri: value,
         expires_in: 3600
       });
-      setSignedUrl(result.signed_url);
+      
+      if (result.signed_url) {
+        window.open(result.signed_url, '_blank');
+      } else {
+        toast.error("Impossibile recuperare l'URL del documento");
+      }
     } catch (error) {
-      console.error("Errore generazione signed URL:", error);
-      toast.error("Impossibile caricare il documento");
-      setShowViewer(false);
-    } finally {
-      setIsLoadingViewer(false);
+      console.error("Errore apertura documento:", error);
+      toast.error("Errore durante l'apertura del documento");
     }
   };
 
@@ -253,62 +249,7 @@ export default function PolizzaUploader({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Viewer */}
-      {showViewer && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => setShowViewer(false)} />
-          
-          <div className="fixed inset-4 z-[70] bg-white rounded-lg shadow-xl flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-              <h2 className="text-lg font-semibold">{label}</h2>
-              <button
-                onClick={() => {
-                  setShowViewer(false);
-                  setSignedUrl(null);
-                }}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="flex-1 w-full h-full min-h-0">
-              {isLoadingViewer ? (
-                <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">Caricamento documento...</p>
-                  </div>
-                </div>
-              ) : signedUrl ? (
-                <>
-                  {getFileType(value) === 'pdf' && (
-                    <iframe
-                      src={signedUrl}
-                      className="w-full h-full border-0"
-                      title={label}
-                      allowFullScreen
-                    />
-                  )}
-                  {getFileType(value) === 'image' && (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-50 p-4 overflow-auto">
-                      <img
-                        src={signedUrl}
-                        alt={label}
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                  <p className="text-slate-500">Errore nel caricamento del documento</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+
     </>
   );
 }

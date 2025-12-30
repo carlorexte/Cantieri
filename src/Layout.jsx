@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft, ChevronRight, Menu, Sparkles } from "lucide-react";
+import { Building2, LayoutDashboard, FileText, Users, BarChart3, DollarSign, Calendar, Settings, Handshake, ClipboardList, Database, Briefcase, UserCog, LogOut, ChevronLeft, ChevronRight, Menu, Sparkles, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +29,7 @@ const primaryNavConfig = [
   { href: "AttivitaInterne", icon: ClipboardList, label: "Attività Interne", perm: "perm_view_attivita" },
   { href: "Documenti", icon: FileText, label: "Documenti", perm: "all" },
   { href: "Cronoprogramma", icon: Calendar, label: "Cronoprogramma", perm: "all" },
+  { href: "Guida", icon: BookOpen, label: "Guida all'Uso", perm: "all" },
 ];
 
 const settingsNavConfig = [

@@ -52,27 +52,27 @@ export default function DocumentUploader({
     if (!value) return;
     
     try {
-      toast.info("Apertura documento in corso...");
+      toast.info("Caricamento anteprima...");
       const result = await base44.integrations.Core.CreateFileSignedUrl({ 
         file_uri: value,
         expires_in: 3600
       });
       
-      if (result.signed_url) {
-        const cleanName = value.split('?')[0].split('#')[0];
-        const extension = cleanName.split('.').pop().toLowerCase();
-        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
+      if (!result.signed_url) throw new Error("Url non generato");
 
-        if (isImage) {
-          window.open(result.signed_url, '_blank');
-        } else {
-          // Use Google Docs Viewer for PDF and Office files
-          const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(result.signed_url)}&embedded=false`;
-          window.open(viewerUrl, '_blank');
-        }
-      } else {
-        toast.error("Impossibile recuperare l'URL del documento");
-      }
+      const response = await fetch(result.signed_url);
+      if (!response.ok) throw new Error("Download fallito");
+      
+      const blob = await response.blob();
+      
+      const ext = value.split('.').pop().toLowerCase();
+      let type = blob.type;
+      if (ext === 'pdf') type = 'application/pdf';
+      else if (['jpg','jpeg','png'].includes(ext)) type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      
+      const url = window.URL.createObjectURL(new Blob([blob], { type }));
+      window.open(url, '_blank');
+
     } catch (error) {
       console.error("Errore apertura documento:", error);
       toast.error("Errore durante l'apertura del documento");

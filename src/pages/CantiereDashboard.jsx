@@ -232,33 +232,34 @@ export default function CantiereDashboardPage() {
   const handleOpenFile = useCallback(async (uri) => {
     if (!uri) return;
     try {
-      toast.info("Apertura file in corso...");
-      let urlToOpen = uri;
-      
-      // If it's a file_uri (not http/https), get signed url
-      if (uri && !uri.startsWith('http')) {
-         const result = await base44.integrations.Core.CreateFileSignedUrl({
-            file_uri: uri,
-            expires_in: 3600
-         });
-         urlToOpen = result.signed_url;
+      if (uri.startsWith('http')) {
+        window.open(uri, '_blank');
+        return;
       }
+
+      toast.info("Caricamento documento...");
       
-      if (urlToOpen) {
-        const cleanName = uri.split('?')[0].split('#')[0];
-        const extension = cleanName.split('.').pop().toLowerCase();
-        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension);
-        
-        if (isImage) {
-           window.open(urlToOpen, '_blank');
-        } else {
-           // Use Google Docs Viewer for PDF and Office files to avoid forced download
-           const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(urlToOpen)}&embedded=false`; // embedded=false opens full viewer
-           window.open(viewerUrl, '_blank');
-        }
-      } else {
-        toast.error("Impossibile recuperare l'URL del file");
-      }
+      const result = await base44.integrations.Core.CreateFileSignedUrl({
+         file_uri: uri,
+         expires_in: 3600
+      });
+      
+      if (!result.signed_url) throw new Error("Url non generato");
+      
+      const response = await fetch(result.signed_url);
+      if (!response.ok) throw new Error("Download fallito");
+      
+      const blob = await response.blob();
+      
+      // Force content-type for PDFs and images to ensure browser display
+      const ext = uri.split('.').pop().toLowerCase();
+      let type = blob.type;
+      if (ext === 'pdf') type = 'application/pdf';
+      else if (['jpg','jpeg','png'].includes(ext)) type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      
+      const url = window.URL.createObjectURL(new Blob([blob], { type }));
+      window.open(url, '_blank');
+      
     } catch (error) {
       console.error("Errore apertura file:", error);
       toast.error("Errore durante l'apertura del file");

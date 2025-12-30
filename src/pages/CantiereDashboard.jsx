@@ -52,10 +52,7 @@ export default function CantiereDashboardPage() {
   const [showCantiereForm, setShowCantiereForm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  const [viewingDocument, setViewingDocument] = useState(null);
-  const [showViewer, setShowViewer] = useState(false);
-  const [signedUrl, setSignedUrl] = useState(null);
-  const [isLoadingViewer, setIsLoadingViewer] = useState(false);
+  // Viewer states removed in favor of window.open
 
   const [responsabileSicurezza, setResponsabileSicurezza] = useState(null);
   const [direttoreLavori, setDirettoreLavori] = useState(null);
@@ -232,47 +229,40 @@ export default function CantiereDashboardPage() {
     });
   }, []);
 
-  const getFileType = useCallback((fileName) => {
-    if (!fileName) return 'unknown';
-    const cleanName = fileName.split('?')[0].split('#')[0];
-    const extension = cleanName.split('.').pop().toLowerCase();
-    if (['pdf'].includes(extension)) return 'pdf';
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension)) return 'image';
-    if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) return 'office';
-    return 'other';
+  const handleOpenFile = useCallback(async (uri) => {
+    if (!uri) return;
+    try {
+      toast.info("Apertura file in corso...");
+      let urlToOpen = uri;
+      
+      // If it's a file_uri (not http/https), get signed url
+      if (uri && !uri.startsWith('http')) {
+         const result = await base44.integrations.Core.CreateFileSignedUrl({
+            file_uri: uri,
+            expires_in: 3600
+         });
+         urlToOpen = result.signed_url;
+      }
+      
+      if (urlToOpen) {
+        window.open(urlToOpen, '_blank');
+      } else {
+        toast.error("Impossibile recuperare l'URL del file");
+      }
+    } catch (error) {
+      console.error("Errore apertura file:", error);
+      toast.error("Errore durante l'apertura del file");
+    }
   }, []);
 
   const handleViewDocument = useCallback(async (documento) => {
-    if (documento.file_uri || documento.cloud_file_url) {
-      setIsLoadingViewer(true);
-      setViewingDocument(documento);
-      setShowViewer(true);
-      setSignedUrl(null);
-
-      try {
-        let urlToLoad = documento.cloud_file_url;
-        if (documento.file_uri) {
-          const result = await base44.integrations.Core.CreateFileSignedUrl({
-            file_uri: documento.file_uri,
-            expires_in: 3600
-          });
-          urlToLoad = result.signed_url;
-        }
-        setSignedUrl(urlToLoad);
-      } catch (error) {
-        console.error("Errore generazione signed URL:", error);
-        toast.error("Impossibile caricare il documento per la visualizzazione.");
-        setShowViewer(false);
-        setViewingDocument(null);
-      } finally {
-        setIsLoadingViewer(false);
-      }
+    const uri = documento.file_uri || documento.cloud_file_url;
+    if (uri) {
+      await handleOpenFile(uri);
     } else {
-      toast.info(`Documento disponibile solo sul NAS al percorso: ${documento.percorso_nas}`, {
-        duration: 5000
-      });
+      toast.info(`Documento disponibile solo sul NAS: ${documento.percorso_nas}`);
     }
-  }, [setIsLoadingViewer, setViewingDocument, setShowViewer, setSignedUrl]);
+  }, [handleOpenFile]);
 
   const handleDownloadDocument = useCallback(async (documento) => {
     if (documento.file_uri || documento.cloud_file_url) {
@@ -631,9 +621,12 @@ export default function CantiereDashboardPage() {
                           {cantiere.contratto_file_url && (
                             <div>
                               <p className="text-sm text-slate-500">File Contratto</p>
-                              <a href={cantiere.contratto_file_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                              <button 
+                                onClick={() => handleOpenFile(cantiere.contratto_file_url)} 
+                                className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
+                              >
                                 Visualizza contratto
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>
@@ -667,9 +660,12 @@ export default function CantiereDashboardPage() {
                           {cantiere.polizza_definitiva_url && (
                             <div>
                               <p className="text-sm text-slate-500">Documento</p>
-                              <a href={cantiere.polizza_definitiva_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                              <button 
+                                onClick={() => handleOpenFile(cantiere.polizza_definitiva_url)} 
+                                className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
+                              >
                                 Visualizza polizza
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>
@@ -688,9 +684,12 @@ export default function CantiereDashboardPage() {
                           {cantiere.polizza_car_url && (
                             <div>
                               <p className="text-sm text-slate-500">Documento</p>
-                              <a href={cantiere.polizza_car_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                              <button 
+                                onClick={() => handleOpenFile(cantiere.polizza_car_url)} 
+                                className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
+                              >
                                 Visualizza polizza
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>
@@ -709,9 +708,12 @@ export default function CantiereDashboardPage() {
                           {cantiere.polizza_anticipazione_url && (
                             <div>
                               <p className="text-sm text-slate-500">Documento</p>
-                              <a href={cantiere.polizza_anticipazione_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline text-sm">
+                              <button 
+                                onClick={() => handleOpenFile(cantiere.polizza_anticipazione_url)} 
+                                className="text-indigo-600 hover:underline text-sm bg-transparent border-0 p-0 h-auto cursor-pointer"
+                              >
                                 Visualizza polizza
-                              </a>
+                              </button>
                             </div>
                           )}
                         </div>
@@ -1209,83 +1211,7 @@ export default function CantiereDashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog Visualizzatore Documenti */}
-        {showViewer && viewingDocument && (
-          <>
-            <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => {
-              setShowViewer(false);
-              setViewingDocument(null);
-              setSignedUrl(null);
-            }} />
-            
-            <div className="fixed inset-4 z-[70] bg-white rounded-lg shadow-xl flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-                <h2 className="text-lg font-semibold truncate pr-4">
-                  {viewingDocument.nome_documento}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowViewer(false);
-                    setViewingDocument(null);
-                    setSignedUrl(null);
-                  }}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="flex-1 w-full h-full min-h-0">
-                {isLoadingViewer ? (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">Caricamento documento...</p>
-                  </div>
-                ) : signedUrl ? (
-                  <>
-                    {getFileType(viewingDocument.nome_documento) === 'pdf' && (
-                      <iframe
-                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`}
-                        className="w-full h-full border-0"
-                        title={viewingDocument.nome_documento}
-                        allowFullScreen
-                      />
-                    )}
-                    {getFileType(viewingDocument.nome_documento) === 'image' && (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-50 p-4 overflow-auto">
-                        <img
-                          src={signedUrl}
-                          alt={viewingDocument.nome_documento}
-                          className="max-w-full max-h-full object-contain"
-                        />
-                      </div>
-                    )}
-                    {getFileType(viewingDocument.nome_documento) === 'office' && (
-                      <iframe
-                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedUrl)}`}
-                        className="w-full h-full border-0"
-                        title={viewingDocument.nome_documento}
-                        allowFullScreen
-                      />
-                    )}
-                    {!['pdf', 'image', 'office'].includes(getFileType(viewingDocument.nome_documento)) && (
-                      <iframe
-                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`}
-                        className="w-full h-full border-0"
-                        title={viewingDocument.nome_documento}
-                        allowFullScreen
-                      />
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                    <p className="text-slate-500">Errore nel caricamento del documento.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+
       </div>
     </div>
   );

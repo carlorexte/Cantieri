@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Documenti from './pages/Documenti';
 import GestionePermessi from './pages/GestionePermessi';
 import GestionePermessiCantieri from './pages/GestionePermessiCantieri';
+import Guida from './pages/Guida';
 import Home from './pages/Home';
 import ImpresaDashboard from './pages/ImpresaDashboard';
 import Imprese from './pages/Imprese';
@@ -20,7 +21,6 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
-import Guida from './pages/Guida';
 import __Layout from './Layout.jsx';
 
 
@@ -35,6 +35,7 @@ export const PAGES = {
     "Documenti": Documenti,
     "GestionePermessi": GestionePermessi,
     "GestionePermessiCantieri": GestionePermessiCantieri,
+    "Guida": Guida,
     "Home": Home,
     "ImpresaDashboard": ImpresaDashboard,
     "Imprese": Imprese,
@@ -47,7 +48,6 @@ export const PAGES = {
     "Subappalti": Subappalti,
     "TestData": TestData,
     "UserManagement": UserManagement,
-    "Guida": Guida,
 }
 
 export const pagesConfig = {

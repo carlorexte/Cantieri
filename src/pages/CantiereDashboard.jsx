@@ -27,6 +27,7 @@ import { it } from 'date-fns/locale';
 import { toast } from "sonner";
 import { Badge } from '@/components/ui/badge';
 
+import DocumentViewer from '@/components/documenti/DocumentViewer';
 import DocumentoForm from '../components/documenti/DocumentoForm';
 import AlertScadenzeCard from '../components/cantiere-dashboard/AlertScadenzeCard';
 import CantiereForm from '../components/cantieri/CantiereForm';
@@ -52,7 +53,9 @@ export default function CantiereDashboardPage() {
   const [showCantiereForm, setShowCantiereForm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  // Viewer states removed in favor of window.open
+  // Document Viewer State
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
 
   const [responsabileSicurezza, setResponsabileSicurezza] = useState(null);
   const [direttoreLavori, setDirettoreLavori] = useState(null);
@@ -1167,6 +1170,16 @@ export default function CantiereDashboardPage() {
             </Card>
           </div>
         </div>
+
+        {/* Document Viewer */}
+        <DocumentViewer
+          isOpen={viewerOpen}
+          onClose={() => {
+            setViewerOpen(false);
+            setSelectedDocument(null);
+          }}
+          documento={selectedDocument}
+        />
 
         {/* Dialog Form Documento */}
         <Dialog open={showDocumentoForm} onOpenChange={setShowDocumentoForm}>

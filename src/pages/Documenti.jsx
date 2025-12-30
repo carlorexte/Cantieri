@@ -115,8 +115,54 @@ export default function DocumentiPage() {
     setShowViewer(true);
   };
 
+  // Unifica documenti standard e documenti "impliciti" dai cantieri
+  const allDocuments = useMemo(() => {
+    // 1. Documenti standard
+    const standardDocs = documenti.map(d => ({ ...d, source: 'documento', readonly: false }));
+
+    // 2. Documenti estratti dai cantieri
+    const cantiereDocs = [];
+    cantieri.forEach(c => {
+      const add = (url, tipo, categoria, label, data, extraInfo = "") => {
+        if (!url) return;
+        // Genera un ID stabile basato su cantiere e tipo
+        const safeUrlId = url.split('/').pop() || 'unknown';
+        
+        cantiereDocs.push({
+          id: `virtual-${c.id}-${safeUrlId}`, 
+          nome_documento: `${label} - ${c.denominazione}`,
+          descrizione: `Documento estratto automaticamente dal cantiere: ${c.denominazione}. ${extraInfo}`,
+          file_uri: url.startsWith('http') ? null : url,
+          cloud_file_url: url.startsWith('http') ? url : null,
+          categoria_principale: categoria,
+          tipo_documento: tipo,
+          data_emissione: data,
+          entita_collegata_tipo: 'cantiere',
+          entita_collegata_id: c.id,
+          source: 'cantiere_field', // Flag per UI
+          readonly: true, // Non modificabile/eliminabile da questa vista
+          percorso_nas: "Allegato Cantiere"
+        });
+      };
+
+      add(c.contratto_file_url, 'contratto_appalto', 'contratti', 'Contratto Appalto', c.contratto_data_firma);
+      add(c.polizza_definitiva_url, 'polizze_decennale', 'polizze', 'Polizza Definitiva', null, `Scad: ${c.polizza_definitiva_scadenza || 'N/D'}`);
+      add(c.polizza_car_url, 'polizze_car', 'polizze', 'Polizza CAR', null, `Scad: ${c.polizza_car_scadenza || 'N/D'}`);
+      add(c.polizza_anticipazione_url, 'polizze_rct', 'polizze', 'Polizza Anticipazione', null, `Scad: ${c.polizza_anticipazione_scadenza || 'N/D'}`);
+      add(c.verbale_inizio_lavori_url, 'cantiere_verbale_consegna', 'tecnici', 'Verbale Inizio Lavori', c.data_inizio);
+      
+      if (Array.isArray(c.verbali_consegna)) {
+        c.verbali_consegna.forEach((url, idx) => {
+             add(url, 'cantiere_verbale_consegna', 'tecnici', `Verbale Consegna ${idx+1}`, null);
+        });
+      }
+    });
+
+    return [...standardDocs, ...cantiereDocs];
+  }, [documenti, cantieri]);
+
   const filteredDocumenti = useMemo(() => {
-    let filtered = documenti;
+    let filtered = allDocuments;
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -133,21 +179,21 @@ export default function DocumentiPage() {
     }
 
     return filtered;
-  }, [documenti, searchTerm, categoriaFilter]);
+  }, [allDocuments, searchTerm, categoriaFilter]);
 
   const stats = useMemo(() => {
     const byCategoria = {};
-    documenti.forEach(doc => {
+    allDocuments.forEach(doc => {
       const cat = doc.categoria_principale || 'altro';
       byCategoria[cat] = (byCategoria[cat] || 0) + 1;
     });
     
     return {
-      totale: documenti.length,
-      conOCR: documenti.filter(d => d.ocr_completato).length,
+      totale: allDocuments.length,
+      conOCR: allDocuments.filter(d => d.ocr_completato).length,
       byCategoria
     };
-  }, [documenti]);
+  }, [allDocuments]);
 
   const getCantiereNomi = useCallback((documento) => {
     const nomi = [];
@@ -280,16 +326,22 @@ export default function DocumentiPage() {
                                 <h3 className="font-semibold text-slate-900 truncate">{doc.nome_documento}</h3>
                                 {doc.categoria_principale && (
                                   <Badge variant="secondary" className={categorieDocumenti[doc.categoria_principale]?.color}>
-                                    {categorieDocumenti[doc.categoria_principale]?.label}
+                                  {categorieDocumenti[doc.categoria_principale]?.label}
                                   </Badge>
-                                )}
-                                {doc.ocr_completato && (
+                                  )}
+                                  {doc.readonly && (
+                                  <Badge variant="outline" className="text-slate-500 border-slate-300">
+                                  <Building2 className="w-3 h-3 mr-1" />
+                                  Cantiere
+                                  </Badge>
+                                  )}
+                                  {doc.ocr_completato && (
                                   <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                    <Sparkles className="w-3 h-3 mr-1" />
-                                    OCR
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                  OCR
                                   </Badge>
-                                )}
-                              </div>
+                                  )}
+                                  </div>
                               
                               {doc.descrizione && (
                                 <p className="text-sm text-slate-600 mb-2 line-clamp-2">{doc.descrizione}</p>
@@ -356,7 +408,7 @@ export default function DocumentiPage() {
                                   </Button>
                                 </>
                               )}
-                              {(currentUser?.role === 'admin' || currentUser?.perm_edit_documenti) && (
+                              {(currentUser?.role === 'admin' || currentUser?.perm_edit_documenti) && !doc.readonly && (
                                 <>
                                   <Button
                                     variant="ghost"

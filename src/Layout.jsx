@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -16,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DataProvider } from "@/components/shared/DataContext";
+import GlobalErrorBoundary from "@/components/shared/GlobalErrorBoundary";
 import { cn } from "@/lib/utils";
 
 const primaryNavConfig = [
@@ -248,7 +248,9 @@ export default function Layout({ children }) {
           handleLogout={handleLogout}
           getUserInitials={getUserInitials}
         >
-          {children}
+          <GlobalErrorBoundary>
+            {children}
+          </GlobalErrorBoundary>
         </LayoutContent>
       </SidebarProvider>
     </DataProvider>

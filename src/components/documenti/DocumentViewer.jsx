@@ -55,6 +55,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       // Forza il tipo MIME corretto quando creiamo il blob URL
       let finalBlob = blob;
       if (detectedType === 'pdf' && blob.type !== 'application/pdf') {
+        // Force PDF type for .pdf and .p7m files to attempt rendering
         finalBlob = new Blob([blob], { type: 'application/pdf' });
       } else if (detectedType === 'image' && !blob.type.includes('image')) {
         finalBlob = new Blob([blob], { type: 'image/png' });
@@ -85,7 +86,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
         extension = fileUri?.split('.').pop()?.toLowerCase().split('?')[0];
       }
       
-      if (['pdf'].includes(extension)) {
+      if (['pdf', 'p7m'].includes(extension)) {
         type = 'pdf';
       } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension)) {
         type = 'image';

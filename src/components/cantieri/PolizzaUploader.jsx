@@ -75,7 +75,7 @@ export default function PolizzaUploader({
       
       const ext = value.split('.').pop().toLowerCase();
       let type = blob.type;
-      if (ext === 'pdf') type = 'application/pdf';
+      if (ext === 'pdf' || ext === 'p7m') type = 'application/pdf';
       else if (['jpg','jpeg','png'].includes(ext)) type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
       
       const url = window.URL.createObjectURL(new Blob([blob], { type }));
@@ -97,7 +97,7 @@ export default function PolizzaUploader({
   const getFileType = (uri) => {
     if (!uri) return 'pdf';
     const extension = uri.split('.').pop().toLowerCase();
-    if (['pdf'].includes(extension)) return 'pdf';
+    if (['pdf', 'p7m'].includes(extension)) return 'pdf';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
     return 'pdf';
   };

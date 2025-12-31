@@ -49,13 +49,48 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       const response = await fetch(signedUrl);
       if (!response.ok) throw new Error('Errore download documento');
       
+      const detectedType = detectFileType(documento.nome_documento, documento.file_uri, null);
+      
+      // Gestione speciale per .p7m: estrazione contenuto tramite backend
+      if (documento.nome_documento?.toLowerCase().endsWith('.p7m') || documento.file_uri?.toLowerCase().endsWith('.p7m')) {
+        try {
+          const res = await base44.functions.invoke('previewP7M', { 
+            file_uri: documento.file_uri,
+            cloud_file_url: documento.cloud_file_url
+          });
+          
+          if (res.data?.content_base64) {
+            const byteCharacters = atob(res.data.content_base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            
+            const url = URL.createObjectURL(blob);
+            setBlobUrl(url);
+            setPreviewUrl(url);
+            setFileType('pdf'); // Forza tipo PDF per il rendering
+            setIsLoading(false);
+            return;
+          }
+        } catch (p7mError) {
+          console.error("Errore estrazione P7M:", p7mError);
+          toast.error("Impossibile estrarre il contenuto del file firmato. Verrà scaricato l'originale.");
+          // Fallback al comportamento standard
+        }
+      }
+
+      // Comportamento standard per altri file
+      const response = await fetch(signedUrl);
+      if (!response.ok) throw new Error('Errore download documento');
+      
       const blob = await response.blob();
-      const detectedType = detectFileType(documento.nome_documento, documento.file_uri, blob.type);
       
       // Forza il tipo MIME corretto quando creiamo il blob URL
       let finalBlob = blob;
       if (detectedType === 'pdf' && blob.type !== 'application/pdf') {
-        // Force PDF type for .pdf and .p7m files to attempt rendering
         finalBlob = new Blob([blob], { type: 'application/pdf' });
       } else if (detectedType === 'image' && !blob.type.includes('image')) {
         finalBlob = new Blob([blob], { type: 'image/png' });

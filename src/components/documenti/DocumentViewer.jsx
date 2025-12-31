@@ -45,10 +45,6 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
         return;
       }
 
-      // Recupera il file come blob per preview e download
-      const response = await fetch(signedUrl);
-      if (!response.ok) throw new Error('Errore download documento');
-      
       const detectedType = detectFileType(documento.nome_documento, documento.file_uri, null);
       
       // Gestione speciale per .p7m: estrazione contenuto tramite backend

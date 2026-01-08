@@ -166,7 +166,7 @@ function CategorieSOASelector({ value, onChange }) {
                   onValueChange={(classifica) => handleClassificaChange(item.categoria, classifica)}
                 >
                   <SelectTrigger className="w-32 h-8 text-xs">
-                    <SelectValue placeholder="Classifica..." />
+                    <SelectValue>{item.classifica || "Classifica..."}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {classificheSOA.map(cl => (

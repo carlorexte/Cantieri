@@ -547,11 +547,30 @@ export default function CantiereDashboardPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-4 pt-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <DetailField label="Consegna Area" value={renderDate(cantiere.data_consegna_area)} />
-                      <DetailField label="Inizio Lavori" value={renderDate(cantiere.data_inizio)} />
-                      <DetailField label="Giorni Previsti" value={cantiere.giorni_previsti} />
-                      <DetailField label="Fine Prevista" value={renderDate(cantiere.data_fine_prevista)} />
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-3">Date di Consegna Area</h4>
+                      {cantiere.date_consegna && cantiere.date_consegna.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {cantiere.date_consegna.map((dc, idx) => (
+                            <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                              <p className="font-medium text-slate-800 capitalize">{dc.tipo?.replace('_', ' ') || 'Generica'}: {renderDate(dc.data)}</p>
+                              {dc.note && <p className="text-sm text-slate-500 italic">{dc.note}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-500">Nessuna data di consegna specifica</p>
+                      )}
+                    </div>
+
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-3">Tempistiche Lavori Principali</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <DetailField label="Inizio Lavori" value={renderDate(cantiere.data_inizio)} />
+                        <DetailField label="Giorni Previsti" value={cantiere.giorni_previsti} />
+                        <DetailField label="Fine Prevista" value={renderDate(cantiere.data_fine_prevista)} />
+                        {cantiere.data_consegna_area && <DetailField label="Data Consegna Area (Precedente)" value={renderDate(cantiere.data_consegna_area)} />}
+                      </div>
                     </div>
                     
                     {(cantiere.data_inizio_proroga_1 || cantiere.data_fine_proroga_1 || cantiere.data_inizio_proroga_2 || cantiere.data_fine_proroga_2) && (
@@ -1211,8 +1230,12 @@ export default function CantiereDashboardPage() {
         </Dialog>
 
         {/* Dialog Form Cantiere */}
-        <Dialog open={showCantiereForm} onOpenChange={setShowCantiereForm}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <Dialog open={showCantiereForm}>
+          <DialogContent 
+            className="max-w-4xl max-h-[90vh] overflow-y-auto"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>Modifica Cantiere</DialogTitle>
             </DialogHeader>

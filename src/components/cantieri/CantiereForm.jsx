@@ -539,108 +539,114 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
               <CardContent className="pt-6 space-y-6">
                 <div>
                   <h4 className="text-sm font-semibold text-slate-700 mb-3">Date Principali</h4>
-                  <div className="mb-4 space-y-3">
-                    <Label className="text-base font-semibold">Date di Consegna (Preliminare, Definitiva, ecc.)</Label>
-                    {form.date_consegna && form.date_consegna.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-end">
-                        <div className="flex-1">
-                          <Label className="text-xs">Tipo</Label>
-                          <Select 
-                            value={item.tipo} 
-                            onValueChange={(val) => {
-                              const newDates = [...form.date_consegna];
-                              newDates[idx].tipo = val;
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700 mb-3">Date di Consegna Area</h4>
+                    <div className="space-y-3">
+                      {form.date_consegna && form.date_consegna.map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row gap-2 items-end p-2 border rounded-md bg-slate-50">
+                          <div className="flex-1 w-full">
+                            <Label className="text-xs">Tipo</Label>
+                            <Select 
+                              value={item.tipo} 
+                              onValueChange={(val) => {
+                                const newDates = [...form.date_consegna];
+                                newDates[idx].tipo = val;
+                                updateField("date_consegna", newDates);
+                              }}
+                            >
+                              <SelectTrigger><SelectValue placeholder="Seleziona tipo..." /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="preliminare">Preliminare</SelectItem>
+                                <SelectItem value="definitiva">Definitiva</SelectItem>
+                                <SelectItem value="parziale">Parziale</SelectItem>
+                                <SelectItem value="altro">Altro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex-1 w-full">
+                            <Label className="text-xs">Data</Label>
+                            <Input 
+                              type="date" 
+                              value={item.data} 
+                              onChange={(e) => {
+                                const newDates = [...form.date_consegna];
+                                newDates[idx].data = e.target.value;
+                                updateField("date_consegna", newDates);
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 w-full">
+                            <Label className="text-xs">Note</Label>
+                            <Input 
+                              value={item.note || ''} 
+                              onChange={(e) => {
+                                const newDates = [...form.date_consegna];
+                                newDates[idx].note = e.target.value;
+                                updateField("date_consegna", newDates);
+                              }}
+                              placeholder="Note..."
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const newDates = form.date_consegna.filter((_, i) => i !== idx);
                               updateField("date_consegna", newDates);
                             }}
                           >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="preliminare">Preliminare</SelectItem>
-                              <SelectItem value="definitiva">Definitiva</SelectItem>
-                              <SelectItem value="parziale">Parziale</SelectItem>
-                              <SelectItem value="altro">Altro</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
                         </div>
-                        <div className="flex-1">
-                          <Label className="text-xs">Data</Label>
-                          <Input 
-                            type="date" 
-                            value={item.data} 
-                            onChange={(e) => {
-                              const newDates = [...form.date_consegna];
-                              newDates[idx].data = e.target.value;
-                              updateField("date_consegna", newDates);
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <Label className="text-xs">Note</Label>
-                          <Input 
-                            value={item.note || ''} 
-                            onChange={(e) => {
-                              const newDates = [...form.date_consegna];
-                              newDates[idx].note = e.target.value;
-                              updateField("date_consegna", newDates);
-                            }}
-                            placeholder="Note..."
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            const newDates = form.date_consegna.filter((_, i) => i !== idx);
-                            updateField("date_consegna", newDates);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => updateField("date_consegna", [...(form.date_consegna || []), { tipo: 'parziale', data: '', note: '' }])}
+                      className="mt-2"
                     >
                       <Plus className="w-4 h-4 mr-2" /> Aggiungi Data Consegna
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <Label>Consegna Area (Principale)</Label>
-                      <Input
-                        type="date"
-                        value={form.data_consegna_area}
-                        onChange={(e) => updateField("data_consegna_area", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>Inizio Lavori *</Label>
-                      <Input
-                        type="date"
-                        value={form.data_inizio}
-                        onChange={(e) => updateField("data_inizio", e.target.value)}
-                        required />
-                    </div>
-                    <div>
-                      <Label>Giorni Previsti</Label>
-                      <Input
-                        type="number"
-                        value={form.giorni_previsti}
-                        onChange={(e) => updateField("giorni_previsti", e.target.value)}
-                        placeholder="es. 90" />
-                    </div>
-                    <div>
-                      <Label>Fine Prevista (auto)</Label>
-                      <Input
-                        type="date"
-                        value={form.data_fine_prevista}
-                        onChange={(e) => updateField("data_fine_prevista", e.target.value)}
-                        className="bg-slate-100"
-                        readOnly />
+                  <div className="border-t pt-4 mt-6">
+                    <h4 className="text-sm font-semibold text-slate-700 mb-3">Tempistiche Lavori Principali</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <Label>Inizio Lavori *</Label>
+                        <Input
+                          type="date"
+                          value={form.data_inizio}
+                          onChange={(e) => updateField("data_inizio", e.target.value)}
+                          required />
+                      </div>
+                      <div>
+                        <Label>Giorni Previsti</Label>
+                        <Input
+                          type="number"
+                          value={form.giorni_previsti}
+                          onChange={(e) => updateField("giorni_previsti", e.target.value)}
+                          placeholder="es. 90" />
+                      </div>
+                      <div>
+                        <Label>Fine Prevista (auto)</Label>
+                        <Input
+                          type="date"
+                          value={form.data_fine_prevista}
+                          onChange={(e) => updateField("data_fine_prevista", e.target.value)}
+                          className="bg-slate-100"
+                          readOnly />
+                      </div>
+                      <div>
+                        <Label>Consegna Area (Precedente)</Label>
+                        <Input
+                          type="date"
+                          value={form.data_consegna_area}
+                          onChange={(e) => updateField("data_consegna_area", e.target.value)} />
+                      </div>
                     </div>
                   </div>
                 </div>

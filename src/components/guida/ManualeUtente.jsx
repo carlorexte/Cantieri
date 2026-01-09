@@ -104,14 +104,24 @@ export default function ManualeUtente() {
             <p>I dati sono organizzati in sezioni espandibili per non fare confusione:</p>
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Dati Generali:</strong> Nome, indirizzo, codici (CIG, CUP) e referenti.</li>
-              <li><strong>Date e Tempistiche:</strong> Qui inserisci quando iniziano i lavori, la consegna dell'area e le eventuali proroghe. Il sistema calcolerà automaticamente le scadenze.</li>
+              <li><strong>Date e Tempistiche:</strong> Qui inserisci quando iniziano i lavori, le <strong>consegne dell'area</strong> (puoi inserirne diverse: preliminare, parziale, definitiva) e le eventuali proroghe. Il sistema calcolerà automaticamente le scadenze.</li>
               <li><strong>Importi e Contratto:</strong> Inserisci il valore del contratto, gli oneri di sicurezza e i ribassi.</li>
               <li><strong>Polizze:</strong> Carica qui le assicurazioni (CAR, Definitiva, ecc.) e le loro scadenze per ricevere avvisi automatici.</li>
               <li><strong>Imprese e Partner:</strong> Seleziona chi sta lavorando al cantiere (Impresa principale, consorziati, ecc.).</li>
             </ul>
+
+            <h4 className="font-semibold text-slate-900 mt-4">La Dashboard del Cantiere</h4>
+            <p>
+              Una volta creato, cliccando sul cantiere accederai alla sua <strong>Dashboard dedicata</strong> dove troverai:
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Grafico Avanzamento:</strong> Un grafico intuitivo che confronta l'avanzamento temporale previsto (linea tratteggiata) con quello economico reale basato sui SAL (linea continua).</li>
+              <li><strong>Note Rapide Team:</strong> Uno spazio "post-it" giallo dove lasciare messaggi veloci, appunti o promemoria visibili a tutto il team che lavora sul cantiere.</li>
+              <li><strong>Scadenze Imminenti:</strong> Un riepilogo automatico delle prossime scadenze (documenti, polizze, task) per avere tutto sotto controllo.</li>
+            </ul>
             
-            <div className="bg-slate-50 p-3 rounded-md border text-sm mt-2">
-              <strong>Nota Importante:</strong> Ricordati sempre di cliccare su <span className="inline-flex items-center text-blue-600 font-semibold"><Save className="w-3 h-3 mx-1"/> Salva</span> in fondo alla pagina dopo aver fatto modifiche!
+            <div className="bg-slate-50 p-3 rounded-md border text-sm mt-4">
+              <strong>Nota Importante:</strong> Ricordati sempre di cliccare su <span className="inline-flex items-center text-blue-600 font-semibold"><Save className="w-3 h-3 mx-1"/> Salva</span> in fondo alla pagina dopo aver fatto modifiche! La finestra di modifica non si chiuderà per sbaglio se clicchi fuori.
             </div>
           </AccordionContent>
         </AccordionItem>

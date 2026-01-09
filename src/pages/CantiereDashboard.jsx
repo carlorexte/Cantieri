@@ -32,6 +32,8 @@ import DocumentoForm from '../components/documenti/DocumentoForm';
 import AlertScadenzeCard from '../components/cantiere-dashboard/AlertScadenzeCard';
 import CantiereForm from '../components/cantieri/CantiereForm';
 import AttivitaManager from '../components/cantieri/AttivitaManager';
+import ProgressChart from '../components/cantiere-dashboard/ProgressChart';
+import QuickNotes from '../components/cantiere-dashboard/QuickNotes';
 
 const DetailField = React.memo(({ label, value }) => (
   <div>
@@ -509,7 +511,7 @@ export default function CantiereDashboardPage() {
             </div>
 
             {/* Accordion con tutte le sezioni collassabili */}
-            <Accordion type="multiple" defaultValue={["dati-generali"]} className="w-full">
+            <Accordion type="multiple" defaultValue={["dati-generali"]} className="w-full mt-6">
               
               {/* Dati Generali */}
               <AccordionItem value="dati-generali">
@@ -1059,26 +1061,19 @@ export default function CantiereDashboardPage() {
                 </AccordionItem>
               )}
 
-              {/* Note Generali */}
-              {cantiere.note && (
-                <AccordionItem value="note">
-                  <AccordionTrigger className="text-lg font-semibold hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <StickyNote className="w-5 h-5 text-indigo-600" />
-                      Note Generali
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="pt-4 whitespace-pre-wrap text-slate-700">
-                      {cantiere.note}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              )}
-
             </Accordion>
           </CardContent>
         </Card>
+
+        {/* Widgets: Grafici e Note */}
+        <div className="grid lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-2 h-80">
+            <ProgressChart cantiere={cantiere} salList={salList} />
+          </div>
+          <div className="h-80">
+            <QuickNotes cantiere={cantiere} onUpdate={() => loadData(cantiere.id)} />
+          </div>
+        </div>
 
         {/* Cards laterali - Documenti e Azioni rapide */}
         <div className="grid lg:grid-cols-3 gap-6">

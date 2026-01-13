@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, StickyNote } from 'lucide-react';
+import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, StickyNote, Tag } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -1127,9 +1127,19 @@ export default function CantiereDashboardPage() {
                           <p className="text-sm text-slate-500">
                             {tipoDocumentoLabels[doc.tipo_documento] || doc.tipo_documento}
                             {doc.data_scadenza && ` • Scad: ${format(new Date(doc.data_scadenza), 'dd/MM/yyyy')}`}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 ml-2">
+                            </p>
+                            {doc.tags && doc.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {doc.tags.map((tag, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-xs bg-slate-100 text-slate-700 px-1.5 py-0 h-5">
+                                  <Tag className="w-3 h-3 mr-1" />
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                            )}
+                            </div>
+                            <div className="flex items-center gap-2 ml-2">
                           {(doc.file_uri || doc.cloud_file_url) && (
                             <>
                               <Button

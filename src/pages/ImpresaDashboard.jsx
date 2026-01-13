@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Impresa } from '@/entities/Impresa';
 import { PersonaEsterna } from '@/entities/PersonaEsterna';
@@ -11,7 +10,7 @@ import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Building2, Briefcase, FileText, Phone, Mail, MapPin, Building, PlusCircle, Eye, Download, X, User, AlertTriangle, Clock, CheckCircle, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Briefcase, FileText, Phone, Mail, MapPin, Building, PlusCircle, Eye, Download, X, User, AlertTriangle, Clock, CheckCircle, Edit, Trash2, Tag } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -528,9 +527,9 @@ export default function ImpresaDashboardPage() {
                             </Badge>
                           ))}
                         </div>
-                        {cantiere.importo_contratto && (
+                        {cantiere.importo_contrattuale_oltre_iva && (
                           <p className="text-sm text-slate-500 mt-2">
-                            Importo: € {cantiere.importo_contratto.toLocaleString('it-IT')}
+                            Importo (netto): € {Number(cantiere.importo_contrattuale_oltre_iva).toLocaleString('it-IT')}
                           </p>
                         )}
                       </Link>
@@ -628,6 +627,16 @@ export default function ImpresaDashboardPage() {
                                   <span className="text-xs text-slate-500">
                                     {format(new Date(doc.data_scadenza), 'dd/MM/yyyy', { locale: it })}
                                   </span>
+                                </div>
+                              )}
+                              {doc.tags && doc.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {doc.tags.map((tag, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-xs bg-slate-100 text-slate-700 px-1.5 py-0 h-5">
+                                      <Tag className="w-3 h-3 mr-1" />
+                                      {tag}
+                                    </Badge>
+                                  ))}
                                 </div>
                               )}
                             </div>

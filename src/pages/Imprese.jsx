@@ -129,7 +129,7 @@ export default function ImpresePage() {
               <h1 className="text-3xl font-bold text-slate-900">Anagrafica Imprese</h1>
               <p className="text-slate-600 mt-1">Gestione soci consorziati e imprese partner</p>
             </div>
-            {currentUser?.role === 'admin' && (
+            {(currentUser?.role === 'admin' || currentUser?.perm_edit_soci) && (
               <Button 
                 onClick={() => {
                   setEditingImpresa(null);
@@ -252,25 +252,29 @@ export default function ImpresePage() {
                       )}
                     </div>
 
-                    {currentUser?.role === 'admin' && (
+                    {(currentUser?.role === 'admin' || currentUser?.perm_edit_soci || currentUser?.perm_delete_soci) && (
                       <div className="flex gap-2 mt-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEdit(impresa)}
-                          className="flex-1 hover:bg-blue-50 hover:text-blue-600"
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Modifica
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          onClick={() => handleDelete(impresa.id)}
-                          className="hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {(currentUser?.role === 'admin' || currentUser?.perm_edit_soci) && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEdit(impresa)}
+                            className="flex-1 hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifica
+                          </Button>
+                        )}
+                        {(currentUser?.role === 'admin' || currentUser?.perm_delete_soci) && (
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => handleDelete(impresa.id)}
+                            className="hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </CardContent>

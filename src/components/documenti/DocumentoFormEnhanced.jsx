@@ -409,8 +409,8 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                 )}
 
                 <div className="flex flex-wrap items-center gap-2">
-                {!formData.ocr_completato && (
-                  <Button
+                  {!formData.ocr_completato && (
+                    <Button
                     type="button"
                     variant="outline"
                     size="sm"
@@ -452,6 +452,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                     )}
                   </Button>
                 )}
+                </div>
               </div>
             )}
           </div>

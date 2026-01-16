@@ -1,26 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
-import { addDays, format, parseISO, isBefore, startOfDay } from 'npm:date-fns@3.3.1';
+import { addDays, format, parseISO, startOfDay } from 'npm:date-fns@3.3.1';
 
 Deno.serve(async (req) => {
   try {
-    // Only allow admin or system to trigger this
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (user?.role !== 'admin') {
-       // In a real scheduled task, the user might be null or a service account. 
-       // For now, we assume it's triggered by a scheduler with service role privileges internally or by admin.
-       // However, Deno.serve automation context might not have a "user".
-       // Let's assume we proceed if called via automation.
+    
+    // Fetch all admins to notify
+    const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
+    const adminEmails = admins.map(u => u.email).filter(Boolean);
+
+    if (adminEmails.length === 0) {
+        console.log("No admins found to notify.");
+        return Response.json({ success: true, message: "No admins to notify" });
     }
 
     const today = startOfDay(new Date());
-    const sevenDays = addDays(today, 7);
-    const threeDays = addDays(today, 3);
-    const oneDay = addDays(today, 1);
 
     // Get all active documents with expiry dates
-    // Note: filtering by date range in DB is efficient, but if not supported by SDK completely, filter in memory.
-    // Assuming filter supports basic operators.
     const docs = await base44.asServiceRole.entities.Documento.filter({
       is_archived: false,
       data_scadenza: { $ne: null }
@@ -29,33 +25,47 @@ Deno.serve(async (req) => {
     const expiringDocs = docs.filter(doc => {
         if (!doc.data_scadenza) return false;
         const expiry = parseISO(doc.data_scadenza);
-        
-        // Check exact days matches to avoid spamming every day (e.g. notify on day 7, 3, and 1)
         const diffTime = expiry - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
         
-        return [7, 3, 1].includes(diffDays) || diffDays === 0;
+        // Notify on days: 30, 7, 3, 1, 0 (today), and -1 (expired yesterday)
+        return [30, 7, 3, 1, 0, -1].includes(diffDays);
     });
 
     const notifications = [];
 
     for (const doc of expiringDocs) {
-        // Send email to admin or responsible (mocking recipient)
-        // In a real app, you'd fetch the relevant users. Here we send to the app owner/admin.
         const expiryDate = format(parseISO(doc.data_scadenza), 'dd/MM/yyyy');
+        const diffTime = parseISO(doc.data_scadenza) - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        await base44.asServiceRole.integrations.Core.SendEmail({
-            to: "admin@example.com", // Replace with dynamic email if possible, or fetch all admins
-            subject: `Scadenza Documento: ${doc.nome_documento}`,
-            body: `Il documento "${doc.nome_documento}" scade il ${expiryDate}. Si prega di verificare e rinnovare se necessario.`
-        });
-        notifications.push({ doc: doc.nome_documento, date: expiryDate });
+        let subject = `Scadenza Documento: ${doc.nome_documento}`;
+        let body = `Il documento "${doc.nome_documento}" scade il ${expiryDate}.`;
+        
+        if (diffDays < 0) {
+            subject = `SCADUTO: Documento ${doc.nome_documento}`;
+            body = `ATTENZIONE: Il documento "${doc.nome_documento}" è SCADUTO il ${expiryDate}.`;
+        } else if (diffDays === 0) {
+            subject = `SCADE OGGI: Documento ${doc.nome_documento}`;
+            body = `URGENTE: Il documento "${doc.nome_documento}" scade OGGI (${expiryDate}).`;
+        }
+
+        // Send to all admins
+        for (const email of adminEmails) {
+            await base44.asServiceRole.integrations.Core.SendEmail({
+                to: email,
+                subject: subject,
+                body: `${body}\n\nSi prega di verificare e aggiornare il documento nel portale.`
+            });
+        }
+        
+        notifications.push({ doc: doc.nome_documento, date: expiryDate, days: diffDays });
     }
 
     return Response.json({
       success: true,
       processed: docs.length,
-      notifications_sent: notifications.length,
+      notifications_sent: notifications.length * adminEmails.length,
       notifications
     });
 

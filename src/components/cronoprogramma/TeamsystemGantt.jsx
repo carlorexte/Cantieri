@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,6 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
@@ -795,15 +800,47 @@ export default function TeamsystemGantt({ attivita = [], cantiere, onAddAttivita
                   <div
                     key={a.id}
                     data-row-type="activity"
-                    className={`flex items-center px-4 pl-10 border-b border-slate-50 transition-colors ${!isFullscreen ? 'hover:bg-slate-50 cursor-pointer group' : ''}`}
+                    className={`flex items-center px-4 pl-10 border-b border-slate-50 transition-colors ${!isFullscreen ? 'hover:bg-slate-50 group' : ''}`}
                     style={{ height: currentRowHeight }}
-                    onClick={() => handleActivityClick(a, idx)}
                   >
-                    <Icon className="w-3 h-3 mr-2 flex-shrink-0" style={{ color }} />
-                    <span className="truncate text-xs font-medium text-slate-600 group-hover:text-slate-900">{a.descrizione}</span>
+                    <div 
+                      className="flex-1 flex items-center min-w-0 cursor-pointer mr-2"
+                      onClick={() => handleActivityClick(a, idx)}
+                    >
+                      <span className="truncate text-xs font-medium text-slate-600 group-hover:text-slate-900">{a.descrizione}</span>
+                    </div>
+                    
+                    {canEdit && !isFullscreen ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <div className="cursor-pointer p-1 rounded hover:bg-slate-200">
+                            <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {Object.entries(statoIcons).map(([key, config]) => (
+                            <DropdownMenuItem 
+                              key={key}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateAttivita(a.id, { stato: key });
+                              }}
+                              className="flex items-center gap-2 text-xs"
+                            >
+                              <config.icon className="w-3 h-3" style={{ color: config.color }} />
+                              <span className="capitalize">{key.replace('_', ' ')}</span>
+                              {a.stato === key && <CheckCircle2 className="w-3 h-3 ml-auto text-green-600" />}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />
+                    )}
+
                     {a.tipo_attivita === 'milestone' && (
-                      <Badge variant="secondary" className="ml-auto text-[10px] bg-amber-50 text-amber-700 border border-amber-200">
-                        Milestone
+                      <Badge variant="secondary" className="ml-2 text-[10px] bg-amber-50 text-amber-700 border border-amber-200">
+                        M
                       </Badge>
                     )}
                   </div>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Filter, Eye, Download, Edit, Trash2, Tag, Building2, Calendar, Sparkles } from "lucide-react";
+import { Plus, Search, FileText, Filter, Eye, Download, Edit, Trash2, Tag, Building2, Calendar, Sparkles, Archive, History } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -102,6 +102,20 @@ export default function DocumentiPage() {
       } catch (error) {
         console.error("Errore eliminazione:", error);
         toast.error("Errore durante l'eliminazione");
+      }
+    }
+  };
+
+  const handleArchive = async (id) => {
+    if (window.confirm("Sei sicuro di voler archiviare questo documento?")) {
+      try {
+        const { archiveDocument } = await import("@/functions/archiveDocument");
+        await archiveDocument({ document_id: id });
+        toast.success("Documento archiviato");
+        loadData();
+      } catch (error) {
+        console.error("Errore archiviazione:", error);
+        toast.error("Errore durante l'archiviazione");
       }
     }
   };
@@ -341,6 +355,12 @@ export default function DocumentiPage() {
                                   OCR
                                   </Badge>
                                   )}
+                                  {doc.versioni?.length > 0 && (
+                                    <Badge variant="outline" className="text-slate-500 border-slate-300">
+                                      <History className="w-3 h-3 mr-1" />
+                                      v{doc.versioni.length + 1}
+                                    </Badge>
+                                  )}
                                   </div>
                               
                               {doc.descrizione && (
@@ -419,6 +439,15 @@ export default function DocumentiPage() {
                                     }}
                                   >
                                     <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleArchive(doc.id)}
+                                    className="hover:bg-amber-50 hover:text-amber-600"
+                                    title="Archivia"
+                                  >
+                                    <Archive className="w-4 h-4" />
                                   </Button>
                                   <Button
                                     variant="ghost"

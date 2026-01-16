@@ -31,20 +31,34 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
     categoria: "altro",
     predecessori: [],
     responsabile: "",
+    assegnatario_tipo: "",
+    assegnatario_id: "",
     note: "",
     stato: "pianificata"
   });
 
   const [attivitaDisponibili, setAttivitaDisponibili] = useState([]);
+  const [imprese, setImprese] = useState([]);
+  const [subappalti, setSubappalti] = useState([]);
+  const [persone, setPersone] = useState([]);
   const [attivitaParentId, setAttivitaParentId] = useState("");
 
   useEffect(() => {
-    const loadAttivita = async () => {
+    const loadData = async () => {
       if (cantiere_id) {
         try {
-          const attivitaList = await base44.entities.Attivita.filter({ cantiere_id }, "data_inizio");
+          const [attivitaList, impreseList, subappaltiList, personeList] = await Promise.all([
+            base44.entities.Attivita.filter({ cantiere_id }, "data_inizio"),
+            base44.entities.Impresa.list("ragione_sociale"),
+            base44.entities.Subappalto.filter({ cantiere_id }),
+            base44.entities.PersonaEsterna.list("cognome")
+          ]);
+          
           const disponibili = attivitaList.filter(a => !attivita || a.id !== attivita.id);
           setAttivitaDisponibili(disponibili);
+          setImprese(impreseList);
+          setSubappalti(subappaltiList);
+          setPersone(personeList);
           
           if (attivita?.gruppo_fase) {
             const parent = disponibili.find(a => a.descrizione === attivita.gruppo_fase);
@@ -53,11 +67,11 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
             }
           }
         } catch (error) {
-          console.error("Errore caricamento attività:", error);
+          console.error("Errore caricamento dati:", error);
         }
       }
     };
-    loadAttivita();
+    loadData();
   }, [cantiere_id, attivita]);
 
   // Quando cambia il tipo di attività, aggiorna la durata
@@ -436,7 +450,7 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                   />
                 </div>
                 <div>
-                  <Label htmlFor="responsabile">Responsabile</Label>
+                  <Label htmlFor="responsabile">Responsabile (Legacy)</Label>
                   <Input
                     id="responsabile"
                     value={formData.responsabile}
@@ -444,6 +458,44 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                     placeholder="Nome responsabile"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="assegnatario_tipo">Tipo Assegnatario</Label>
+                  <Select value={formData.assegnatario_tipo || "nessuno"} onValueChange={(value) => handleChange("assegnatario_tipo", value === "nessuno" ? "" : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona tipo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nessuno">Nessuno</SelectItem>
+                      <SelectItem value="impresa">Impresa</SelectItem>
+                      <SelectItem value="subappalto">Subappalto</SelectItem>
+                      <SelectItem value="interno">Persona Esterna / Interno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.assegnatario_tipo && (
+                  <div>
+                    <Label htmlFor="assegnatario_id">Assegnatario</Label>
+                    <Select value={formData.assegnatario_id} onValueChange={(value) => handleChange("assegnatario_id", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.assegnatario_tipo === 'impresa' && imprese.map(i => (
+                          <SelectItem key={i.id} value={i.id}>{i.ragione_sociale}</SelectItem>
+                        ))}
+                        {formData.assegnatario_tipo === 'subappalto' && subappalti.map(s => (
+                          <SelectItem key={s.id} value={s.id}>{s.ragione_sociale} ({s.categoria_lavori})</SelectItem>
+                        ))}
+                        {formData.assegnatario_tipo === 'interno' && persone.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.cognome} {p.nome} ({p.qualifica})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <div>

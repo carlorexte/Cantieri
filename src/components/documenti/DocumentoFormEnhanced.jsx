@@ -74,10 +74,12 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
   });
 
   const [fileToUpload, setFileToUpload] = useState(null);
+  const [newVersionFile, setNewVersionFile] = useState(null); // State for new version file
   const [isUploading, setIsUploading] = useState(false);
   const [isExtractingText, setIsExtractingText] = useState(false);
   const [isCategorizing, setIsCategorizing] = useState(false);
   const [newTag, setNewTag] = useState("");
+  const [showVersionUpload, setShowVersionUpload] = useState(false);
   const [cantieri, setCantieri] = useState([]);
   const [imprese, setImprese] = useState([]);
   const [selectedEntities, setSelectedEntities] = useState(new Set());
@@ -193,7 +195,8 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       const result = await categorizzaDocumento({
         file_uri: fileUri,
         nome_documento: formData.nome_documento,
-        descrizione: formData.descrizione
+        descrizione: formData.descrizione,
+        testo_estratto: formData.testo_estratto // Pass extracted text for better categorization
       });
 
       if (result.data.categoria_principale && result.data.tipo_documento) {
@@ -221,8 +224,37 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
     let finalDocumentData = { ...formData };
 
     try {
-      // Upload file se selezionato
-      if (fileToUpload) {
+      // Handling New Version Upload
+      if (newVersionFile) {
+        toast.info("Caricamento nuova versione...", { duration: 3000 });
+        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: newVersionFile });
+        
+        // Push old version to history
+        const oldVersion = {
+          numero: (formData.versioni?.length || 0) + 1,
+          file_uri: formData.file_uri,
+          data_caricamento: new Date().toISOString(),
+          nome_file: "Versione Precedente", // You might want to store original filenames if available
+          note: "Archiviato automaticamente al caricamento nuova versione",
+          // utente_id: currentUser?.id // Idealmente
+        };
+        
+        finalDocumentData.versioni = [...(formData.versioni || []), oldVersion];
+        finalDocumentData.file_uri = file_uri;
+        finalDocumentData.ocr_completato = false; // Reset OCR status for new file
+        
+        // Auto-extract text for new version
+        try {
+          const { extractTextFromDocument } = await import("@/functions/extractTextFromDocument");
+          const result = await extractTextFromDocument({ file_uri: file_uri });
+          if (result.data.success) {
+            finalDocumentData.testo_estratto = result.data.testo_estratto;
+            finalDocumentData.ocr_completato = true;
+          }
+        } catch (e) { console.error("OCR Error new version", e); }
+
+      } else if (fileToUpload) {
+        // Standard initial upload or replacement without versioning (if needed, but prefer versioning for updates)
         toast.info("Caricamento del file...", { duration: 3000 });
         const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: fileToUpload });
         finalDocumentData.file_uri = file_uri;
@@ -241,7 +273,6 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
           }
         } catch (ocrError) {
           console.error("Errore OCR:", ocrError);
-          // Non bloccare il salvataggio se l'OCR fallisce
         }
       }
 
@@ -345,11 +376,39 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                 className="border-0 flex-1 shadow-none p-0 h-auto" 
               />
             </div>
-            {formData.file_uri && !fileToUpload && (
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <Badge variant="secondary" className="bg-green-50 text-green-700">
-                  File già caricato
-                </Badge>
+            {formData.file_uri && !fileToUpload && !newVersionFile && (
+              <div className="flex flex-col gap-2 mt-2 w-full">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="bg-green-50 text-green-700">
+                    File corrente presente
+                  </Badge>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowVersionUpload(!showVersionUpload)}
+                    className="ml-auto"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Carica Nuova Versione
+                  </Button>
+                </div>
+                
+                {showVersionUpload && (
+                  <div className="p-3 border border-indigo-100 bg-indigo-50 rounded-md">
+                    <Label className="text-indigo-900 mb-1">Seleziona file per la nuova versione</Label>
+                    <Input 
+                      type="file" 
+                      onChange={(e) => setNewVersionFile(e.target.files[0])} 
+                      className="bg-white"
+                    />
+                    <p className="text-xs text-indigo-700 mt-1">
+                      Il file corrente verrà salvato nello storico versioni.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
                 {!formData.ocr_completato && (
                   <Button
                     type="button"
@@ -616,6 +675,31 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
               <p className="text-xs text-slate-500 mt-1">
                 Testo estratto automaticamente - modificabile per correzioni
               </p>
+            </div>
+          )}
+
+          {formData.versioni && formData.versioni.length > 0 && (
+            <div>
+              <Label className="mb-2 block">Storico Versioni</Label>
+              <div className="border rounded-md divide-y">
+                {formData.versioni.map((ver, idx) => (
+                  <div key={idx} className="p-3 bg-slate-50 flex justify-between items-center text-sm">
+                    <div>
+                      <span className="font-semibold text-slate-700">Versione {ver.numero}</span>
+                      <span className="text-slate-500 mx-2">•</span>
+                      <span className="text-slate-500">{new Date(ver.data_caricamento).toLocaleDateString()}</span>
+                    </div>
+                    {ver.file_uri && (
+                      <Badge variant="outline" className="cursor-pointer hover:bg-slate-200" onClick={async () => {
+                         const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: ver.file_uri, expires_in: 300 });
+                         window.open(signed_url, '_blank');
+                      }}>
+                        Vedi File
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>

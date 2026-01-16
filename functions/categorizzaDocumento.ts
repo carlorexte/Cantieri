@@ -9,29 +9,26 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { file_uri, nome_documento, descrizione } = await req.json();
+    const { file_uri, nome_documento, descrizione, testo_estratto } = await req.json();
 
-    if (!file_uri) {
-      return Response.json({ error: 'file_uri è richiesto' }, { status: 400 });
+    if (!file_uri && !testo_estratto) {
+      return Response.json({ error: 'file_uri o testo_estratto è richiesto' }, { status: 400 });
     }
 
-    // Genera URL firmato per accedere al file
-    const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
-      file_uri,
-      expires_in: 300
-    });
+    let fileUrlForLLM = null;
+    let textContent = testo_estratto || "";
 
-    // Scarica il file
-    const fileResponse = await fetch(signed_url);
-    if (!fileResponse.ok) {
-      throw new Error('Impossibile scaricare il file');
+    // Se non c'è testo estratto ma c'è il file, genera URL firmato per LLM Vision
+    if (!textContent && file_uri) {
+        const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
+            file_uri,
+            expires_in: 300
+        });
+        fileUrlForLLM = signed_url;
     }
 
-    const fileBuffer = await fileResponse.arrayBuffer();
-    const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
-
-    // Usa l'LLM per analizzare e categorizzare il documento
-    const prompt = `Analizza questo documento e fornisci:
+    // Costruisci il prompt
+    let prompt = `Analizza questo documento e fornisci:
 1. La categoria_principale più appropriata tra: permessi, contratti, polizze, certificazioni, fatture, sal, sicurezza, tecnici, foto, corrispondenza, legale, altro
 2. Il tipo_documento più specifico tra le seguenti opzioni in base al contenuto:
    - amministrativa_documentazione_gara
@@ -62,13 +59,16 @@ Deno.serve(async (req) => {
    - altro
 
 Nome documento: ${nome_documento || 'Non specificato'}
-Descrizione: ${descrizione || 'Non specificata'}
+Descrizione: ${descrizione || 'Non specificata'}`;
 
-Analizza il contenuto del documento e fornisci la categorizzazione più accurata.`;
+    if (textContent) {
+        prompt += `\n\nCONTENUTO ESTRATTO (OCR):\n${textContent.substring(0, 5000)}... (troncato)`;
+    }
 
-    const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    prompt += `\n\nAnalizza il contenuto e fornisci la categorizzazione più accurata.`;
+
+    const llmParams = {
       prompt,
-      file_urls: [signed_url],
       response_json_schema: {
         type: "object",
         properties: {
@@ -114,7 +114,13 @@ Analizza il contenuto del documento e fornisci la categorizzazione più accurata
         },
         required: ["categoria_principale", "tipo_documento"]
       }
-    });
+    };
+
+    if (fileUrlForLLM) {
+        llmParams.file_urls = [fileUrlForLLM];
+    }
+
+    const result = await base44.asServiceRole.integrations.Core.InvokeLLM(llmParams);
 
     return Response.json({
       categoria_principale: result.categoria_principale,

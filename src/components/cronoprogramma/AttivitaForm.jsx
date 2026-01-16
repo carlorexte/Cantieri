@@ -41,17 +41,19 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
   const [imprese, setImprese] = useState([]);
   const [subappalti, setSubappalti] = useState([]);
   const [persone, setPersone] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [attivitaParentId, setAttivitaParentId] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
       if (cantiere_id) {
         try {
-          const [attivitaList, impreseList, subappaltiList, personeList] = await Promise.all([
+          const [attivitaList, impreseList, subappaltiList, personeList, teamsList] = await Promise.all([
             base44.entities.Attivita.filter({ cantiere_id }, "data_inizio"),
             base44.entities.Impresa.list("ragione_sociale"),
             base44.entities.Subappalto.filter({ cantiere_id }),
-            base44.entities.PersonaEsterna.list("cognome")
+            base44.entities.PersonaEsterna.list("cognome"),
+            base44.entities.Team.list("nome")
           ]);
           
           const disponibili = attivitaList.filter(a => !attivita || a.id !== attivita.id);
@@ -59,6 +61,7 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
           setImprese(impreseList);
           setSubappalti(subappaltiList);
           setPersone(personeList);
+          setTeams(teamsList);
           
           if (attivita?.gruppo_fase) {
             const parent = disponibili.find(a => a.descrizione === attivita.gruppo_fase);
@@ -472,6 +475,7 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                       <SelectItem value="impresa">Impresa</SelectItem>
                       <SelectItem value="subappalto">Subappalto</SelectItem>
                       <SelectItem value="interno">Persona Esterna / Interno</SelectItem>
+                      <SelectItem value="team">Team / Squadra</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -491,6 +495,9 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                         ))}
                         {formData.assegnatario_tipo === 'interno' && persone.map(p => (
                           <SelectItem key={p.id} value={p.id}>{p.cognome} {p.nome} ({p.qualifica})</SelectItem>
+                        ))}
+                        {formData.assegnatario_tipo === 'team' && teams.map(t => (
+                          <SelectItem key={t.id} value={t.id}>Team: {t.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

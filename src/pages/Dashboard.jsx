@@ -244,7 +244,6 @@ export default function Dashboard() {
       const treGiorniMs = 3 * 24 * 60 * 60 * 1000;
       
       const alerts = [];
-      const treGiorniMs = 3 * 24 * 60 * 60 * 1000;
       
       // 1. Task Alerts
       const taskAlerts = taskPersonali

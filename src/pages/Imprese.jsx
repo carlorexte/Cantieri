@@ -33,13 +33,30 @@ export default function ImpresePage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [impreseData, user, subappaltiData, sociData, cantieriAttiviData] = await Promise.all([
+      // Load essential data first
+      const [impreseData, user] = await Promise.all([
         base44.entities.Impresa.list("-created_date", 100),
-        base44.auth.me(),
-        base44.entities.Subappalto.filter({ stato: 'attivo' }),
-        base44.entities.SocioConsorzio.filter({ stato: 'attivo' }),
-        base44.entities.Cantiere.filter({ stato: 'attivo' })
+        base44.auth.me()
       ]);
+
+      // Load related data with fail-safe to prevent page crash if user lacks permissions
+      let subappaltiData = [];
+      let sociData = [];
+      let cantieriAttiviData = [];
+
+      try {
+        const results = await Promise.allSettled([
+          base44.entities.Subappalto.filter({ stato: 'attivo' }),
+          base44.entities.SocioConsorzio.filter({ stato: 'attivo' }),
+          base44.entities.Cantiere.filter({ stato: 'attivo' })
+        ]);
+        
+        if (results[0].status === 'fulfilled') subappaltiData = results[0].value;
+        if (results[1].status === 'fulfilled') sociData = results[1].value;
+        if (results[2].status === 'fulfilled') cantieriAttiviData = results[2].value;
+      } catch (e) {
+        console.warn("Could not load some related data for counts", e);
+      }
       
       const impreseWithCounts = impreseData.map(impresa => {
         const subCount = subappaltiData.filter(s => s.impresa_id === impresa.id).length;

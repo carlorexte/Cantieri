@@ -243,19 +243,64 @@ export default function Dashboard() {
       const cantieriMap = new Map(cantieri.map(c => [c.id, c]));
       const treGiorniMs = 3 * 24 * 60 * 60 * 1000;
       
-      return taskPersonali
+      const alerts = [];
+      const treGiorniMs = 3 * 24 * 60 * 60 * 1000;
+      
+      // 1. Task Alerts
+      const taskAlerts = taskPersonali
         .filter(task => {
           if (!task.data_scadenza || task.stato === 'completato') return false;
           const diff = new Date(task.data_scadenza).getTime() - oggi;
           return diff >= 0 && diff <= treGiorniMs;
         })
-        .slice(0, 3)
         .map(task => ({
           tipo: "task_scadenza",
           messaggio: `Task in scadenza: ${task.descrizione}`,
           cantiere: cantieriMap.get(task.cantiere_id)?.denominazione || "Generale",
           priorita: task.priorita === 'critica' ? 'critico' : 'medio'
         }));
+        
+      alerts.push(...taskAlerts);
+
+      // 2. Document Alerts (Visible to all users who can see documents)
+      const setteGiorniMs = 7 * 24 * 60 * 60 * 1000;
+      documenti.forEach(doc => {
+        if (!doc.data_scadenza) return;
+        
+        const scadenzaMs = new Date(doc.data_scadenza).getTime();
+        const diff = scadenzaMs - oggi;
+        
+        let shouldAdd = false;
+        let priorita = "medio";
+        let messaggio = "";
+        
+        if (diff < 0) {
+          shouldAdd = true;
+          priorita = "critico";
+          messaggio = `${doc.nome_documento} - SCADUTO`;
+        } else if (diff <= setteGiorniMs) {
+          shouldAdd = true;
+          const diffGiorni = Math.ceil(diff / (24 * 60 * 60 * 1000));
+          priorita = diffGiorni <= 3 ? "critico" : "medio";
+          messaggio = `${doc.nome_documento} - Scade tra ${diffGiorni} giorni`;
+        }
+        
+        if (shouldAdd) {
+           const cantiere = cantieriMap.get(doc.entita_collegata_id);
+           alerts.push({
+            tipo: "scadenza",
+            messaggio,
+            cantiere: cantiere?.denominazione || doc.entita_collegata_tipo || "N/D",
+            priorita
+          });
+        }
+      });
+
+      return alerts.sort((a, b) => {
+        if (a.priorita === 'critico' && b.priorita !== 'critico') return -1;
+        if (a.priorita !== 'critico' && b.priorita === 'critico') return 1;
+        return 0;
+      }).slice(0, 5);
     }
   }, [currentUser, taskPersonali, documenti, cantieri]);
 

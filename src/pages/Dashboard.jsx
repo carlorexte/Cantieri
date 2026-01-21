@@ -65,7 +65,8 @@ export default function Dashboard() {
 
     const [salDataResult, documentiData, attivitaData, costiDataResult] = await Promise.all([
       base44.entities.SAL.list("-data_sal", 200),
-      base44.entities.Documento.filter({}, "-data_scadenza", 50),
+      // Sort by data_scadenza ASC to get oldest/expired first
+      base44.entities.Documento.filter({ data_scadenza: { $ne: null } }, "data_scadenza", 100),
       base44.entities.AttivitaInterna.filter({}, "-data_scadenza", 100),
       base44.entities.Costo.list("-data_sostenimento", 200)
     ]);
@@ -141,8 +142,8 @@ export default function Dashboard() {
   const loadUserDashboard = useCallback(async (user) => {
     // OPTIMIZATION: Parallelize requests and use cached cantieri
     const [taskData, documentiData] = await Promise.all([
-      base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "-data_scadenza", 30),
-      base44.entities.Documento.filter({}, "-data_scadenza", 30)
+      base44.entities.AttivitaInterna.filter({ assegnatario_id: user.id }, "data_scadenza", 30),
+      base44.entities.Documento.filter({ data_scadenza: { $ne: null } }, "data_scadenza", 30)
     ]);
 
     setTaskPersonali(taskData);

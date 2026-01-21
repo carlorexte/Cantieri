@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Impresa } from "@/entities/Impresa";
-import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,8 +34,8 @@ export default function ImpresePage() {
     setIsLoading(true);
     try {
       const [impreseData, user, subappaltiData, sociData, cantieriAttiviData] = await Promise.all([
-        Impresa.list("-created_date"),
-        User.me(),
+        base44.entities.Impresa.list("-created_date", 100),
+        base44.auth.me(),
         base44.entities.Subappalto.filter({ stato: 'attivo' }),
         base44.entities.SocioConsorzio.filter({ stato: 'attivo' }),
         base44.entities.Cantiere.filter({ stato: 'attivo' })
@@ -86,9 +84,9 @@ export default function ImpresePage() {
   const handleSubmit = async (impresaData) => {
     try {
       if (editingImpresa) {
-        await Impresa.update(editingImpresa.id, impresaData);
+        await base44.entities.Impresa.update(editingImpresa.id, impresaData);
       } else {
-        await Impresa.create(impresaData);
+        await base44.entities.Impresa.create(impresaData);
       }
       setShowForm(false);
       setEditingImpresa(null);
@@ -106,7 +104,7 @@ export default function ImpresePage() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questa impresa? L'azione è irreversibile.")) {
       try {
-        await Impresa.delete(id);
+        await base44.entities.Impresa.delete(id);
         loadData();
       } catch (error) {
         console.error("Errore eliminazione impresa:", error);

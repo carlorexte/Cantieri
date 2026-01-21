@@ -43,6 +43,7 @@ const categorieDocumenti = {
 export default function DocumentiPage() {
   const [documenti, setDocumenti] = useState([]);
   const [cantieri, setCantieri] = useState([]);
+  const [imprese, setImprese] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -55,13 +56,15 @@ export default function DocumentiPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [documentiData, cantieriData, user] = await Promise.all([
+      const [documentiData, cantieriData, impreseData, user] = await Promise.all([
         base44.entities.Documento.list("-created_date", 100),
         base44.entities.Cantiere.list("-created_date", 100),
+        base44.entities.Impresa.list("-created_date", 100),
         base44.auth.me()
       ]);
       setDocumenti(documentiData);
       setCantieri(cantieriData);
+      setImprese(impreseData);
       setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
@@ -209,25 +212,33 @@ export default function DocumentiPage() {
     };
   }, [allDocuments]);
 
-  const getCantiereNomi = useCallback((documento) => {
-    const nomi = [];
+  const getEntitaCollegate = useCallback((documento) => {
+    const entita = [];
     
+    // Helper function to add entity
+    const addEntita = (type, id) => {
+      if (type === 'cantiere') {
+        const c = cantieri.find(x => x.id === id);
+        if (c) entita.push({ label: c.denominazione, type: 'Cantiere', icon: Building2 });
+      } else if (type === 'azienda' || type === 'impresa' || type === 'subappalto') {
+        const i = imprese.find(x => x.id === id);
+        if (i) entita.push({ label: i.ragione_sociale, type: 'Impresa', icon: Building2 });
+      } else if (type === 'generale') {
+        entita.push({ label: 'Generale', type: 'Generale', icon: FileText });
+      }
+    };
+
     if (documento.entita_collegate?.length > 0) {
-      documento.entita_collegate.forEach(e => {
-        if (e.entita_tipo === 'cantiere') {
-          const cantiere = cantieri.find(c => c.id === e.entita_id);
-          if (cantiere) nomi.push(cantiere.denominazione);
-        }
-      });
+      documento.entita_collegate.forEach(e => addEntita(e.entita_tipo, e.entita_id));
     }
     
-    if (nomi.length === 0 && documento.entita_collegata_tipo === 'cantiere') {
-      const cantiere = cantieri.find(c => c.id === documento.entita_collegata_id);
-      if (cantiere) nomi.push(cantiere.denominazione);
+    // Legacy/Fallback check
+    if (entita.length === 0 && documento.entita_collegata_tipo && documento.entita_collegata_id) {
+      addEntita(documento.entita_collegata_tipo, documento.entita_collegata_id);
     }
     
-    return nomi;
-  }, [cantieri]);
+    return entita;
+  }, [cantieri, imprese]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -328,7 +339,7 @@ export default function DocumentiPage() {
                   ))
                 ) : (
                   filteredDocumenti.map(doc => {
-                    const cantiereNomi = getCantiereNomi(doc);
+                    const entitaCollegate = getEntitaCollegate(doc);
                     
                     return (
                       <Card key={doc.id} className="border-0 shadow-sm hover:shadow-md transition-all bg-white">
@@ -384,13 +395,14 @@ export default function DocumentiPage() {
                                 )}
                               </div>
 
-                              {cantiereNomi.length > 0 && (
+                              {entitaCollegate.length > 0 && (
                                 <div className="flex items-center gap-2 mb-2">
-                                  <Building2 className="w-3 h-3 text-slate-400" />
                                   <div className="flex flex-wrap gap-1">
-                                    {cantiereNomi.map((nome, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {nome}
+                                    {entitaCollegate.map((ent, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1 bg-slate-50/50">
+                                        <ent.icon className="w-3 h-3 text-slate-400" />
+                                        <span className="text-slate-500">{ent.type}:</span>
+                                        <span className="font-medium">{ent.label}</span>
                                       </Badge>
                                     ))}
                                   </div>

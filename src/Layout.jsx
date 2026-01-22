@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 const primaryNavConfig = [
   { href: "Dashboard", icon: LayoutDashboard, label: "Dashboard", perm: "all" },
-  { href: "AIAssistant", icon: Sparkles, label: "AI Assistant", perm: "all" },
+  { href: "AIAssistant", icon: Sparkles, label: "AI Assistant", perm: "admin" },
   { href: "Cantieri", icon: Building2, label: "Cantieri", perm: "all" },
   { href: "Imprese", icon: Briefcase, label: "Imprese", perm: "perm_view_soci" },
   { href: "PersoneEsterne", icon: Users, label: "Professionisti", perm: "perm_view_soci" },

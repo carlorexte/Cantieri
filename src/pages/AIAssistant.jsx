@@ -7,6 +7,13 @@ import { Card } from "@/components/ui/card";
 import ReactMarkdown from 'react-markdown';
 import { cn } from "@/lib/utils";
 import AIInsightsWidget from "@/components/dashboard/AIInsightsWidget";
+import { Mail, Settings, Play, CheckCircle2, AlertCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 function MessageBubble({ message }) {
     const isUser = message.role === 'user';
@@ -196,6 +203,150 @@ function EmailIntegrationPanel() {
     );
 }
 
+function EmailIntegrationPanel() {
+    const queryClient = useQueryClient();
+    const { data: users } = useQuery({
+        queryKey: ['users-list'],
+        queryFn: () => base44.entities.User.list(),
+        initialData: []
+    });
+
+    const { data: config, isLoading } = useQuery({
+        queryKey: ['email-config'],
+        queryFn: async () => {
+            const list = await base44.entities.EmailConfig.list(1);
+            return list[0] || null;
+        }
+    });
+
+    const updateConfig = useMutation({
+        mutationFn: async (data) => {
+            if (config) {
+                return base44.entities.EmailConfig.update(config.id, data);
+            } else {
+                return base44.entities.EmailConfig.create(data);
+            }
+        },
+        onSuccess: () => queryClient.invalidateQueries(['email-config'])
+    });
+
+    const runProcess = useMutation({
+        mutationFn: () => base44.functions.invoke('processEmails'),
+        onSuccess: (res) => {
+            if (res.error) {
+                toast.error("Errore: " + res.error);
+            } else {
+                toast.success(`Processate ${res.count || 0} email`);
+            }
+        },
+        onError: () => toast.error("Errore durante l'esecuzione")
+    });
+
+    if (isLoading) return <div className="p-4 text-center text-slate-500">Caricamento configurazione email...</div>;
+
+    const currentConfig = config || { is_active: false, default_assignee_id: '', watch_label: 'INBOX' };
+
+    return (
+        <Card className="mb-6 border-indigo-100 bg-indigo-50/30">
+            <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                        <Mail className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-lg">Integrazione Email & SLA</CardTitle>
+                        <CardDescription>
+                            L'AI analizza le email in arrivo e crea automaticamente task con priorità e assegnazione.
+                        </CardDescription>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-100">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Attiva Monitoraggio</Label>
+                                <p className="text-xs text-slate-500">
+                                    Scansiona periodicamente la posta in arrivo Gmail
+                                </p>
+                            </div>
+                            <Switch
+                                checked={currentConfig.is_active}
+                                onCheckedChange={(checked) => updateConfig.mutate({ is_active: checked })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Assegnatario Default</Label>
+                            <Select 
+                                value={currentConfig.default_assignee_id} 
+                                onValueChange={(val) => updateConfig.mutate({ default_assignee_id: val })}
+                            >
+                                <SelectTrigger className="bg-white">
+                                    <SelectValue placeholder="Seleziona utente..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {users?.map(u => (
+                                        <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-[10px] text-slate-500">
+                                Utente a cui assegnare i task se non diversamente specificato dall'AI.
+                            </p>
+                        </div>
+
+                        <Button 
+                            variant="outline" 
+                            className="w-full gap-2 bg-white hover:bg-indigo-50 border-indigo-200 text-indigo-700"
+                            onClick={() => runProcess.mutate()}
+                            disabled={runProcess.isPending}
+                        >
+                            {runProcess.isPending ? (
+                                <span className="animate-spin">⌛</span>
+                            ) : (
+                                <Play className="w-4 h-4" />
+                            )}
+                            Esegui Scansione Ora
+                        </Button>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2 text-sm text-slate-700">
+                            <Settings className="w-4 h-4 text-slate-500" />
+                            Regole SLA Attive (Auto-Gestite dall'AI)
+                        </h4>
+                        <ul className="space-y-3 text-xs">
+                            <li className="flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <span className="font-medium text-slate-900">Priorità Critica</span>
+                                    <p className="text-slate-500 leading-tight mt-0.5">Scadenza: 1 giorno. Email urgenti, reclami gravi, blocchi cantiere.</p>
+                                </div>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <span className="font-medium text-slate-900">Priorità Alta</span>
+                                    <p className="text-slate-500 leading-tight mt-0.5">Scadenza: 3 giorni. Richieste importanti, preventivi, varianti.</p>
+                                </div>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <span className="font-medium text-slate-900">Standard</span>
+                                    <p className="text-slate-500 leading-tight mt-0.5">Scadenza: 7-14 giorni. Comunicazioni generali, aggiornamenti.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function AIAssistantPage() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
@@ -278,6 +429,8 @@ export default function AIAssistantPage() {
 
             {/* AI Insights Section - Always visible at top */}
             <AIInsightsWidget />
+            
+            <EmailIntegrationPanel />
 
             {/* Chat Section */}
             <Card className="flex-1 flex flex-col border-0 shadow-lg bg-white/80 backdrop-blur-sm overflow-hidden">

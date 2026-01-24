@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Send, Bot, User as UserIcon, Sparkles } from "lucide-react";
+import { Send, Bot, User as UserIcon, Sparkles, Mail, Settings, Play, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import ReactMarkdown from 'react-markdown';
 import { cn } from "@/lib/utils";
 import AIInsightsWidget from "@/components/dashboard/AIInsightsWidget";
-import { Mail, Settings, Play, CheckCircle2, AlertCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 function MessageBubble({ message }) {
     const isUser = message.role === 'user';
@@ -47,159 +45,6 @@ function MessageBubble({ message }) {
                 </div>
             )}
         </div>
-    );
-}
-
-import { Mail, Settings, Play, CheckCircle2, AlertCircle } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-function EmailIntegrationPanel() {
-    const queryClient = useQueryClient();
-    const { data: users } = useQuery({
-        queryKey: ['users-list'],
-        queryFn: () => base44.entities.User.list(),
-        initialData: []
-    });
-
-    const { data: config, isLoading } = useQuery({
-        queryKey: ['email-config'],
-        queryFn: async () => {
-            const list = await base44.entities.EmailConfig.list(1);
-            return list[0] || null;
-        }
-    });
-
-    const updateConfig = useMutation({
-        mutationFn: async (data) => {
-            if (config) {
-                return base44.entities.EmailConfig.update(config.id, data);
-            } else {
-                return base44.entities.EmailConfig.create(data);
-            }
-        },
-        onSuccess: () => queryClient.invalidateQueries(['email-config'])
-    });
-
-    const runProcess = useMutation({
-        mutationFn: () => base44.functions.invoke('processEmails'),
-        onSuccess: (res) => {
-            if (res.error) {
-                toast.error("Errore: " + res.error);
-            } else {
-                toast.success(`Processate ${res.count || 0} email`);
-            }
-        },
-        onError: () => toast.error("Errore durante l'esecuzione")
-    });
-
-    if (isLoading) return <div>Caricamento configurazione...</div>;
-
-    const currentConfig = config || { is_active: false, default_assignee_id: '', watch_label: 'INBOX' };
-
-    return (
-        <Card className="mb-8 border-indigo-100 bg-indigo-50/30">
-            <CardHeader>
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                        <Mail className="w-6 h-6 text-indigo-600" />
-                    </div>
-                    <div>
-                        <CardTitle>Integrazione Email & SLA</CardTitle>
-                        <CardDescription>
-                            L'AI analizza le email in arrivo e crea automaticamente task con priorità e assegnazione.
-                        </CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label className="text-base">Attiva Monitoraggio</Label>
-                                <p className="text-sm text-slate-500">
-                                    Scansiona periodicamente la posta in arrivo
-                                </p>
-                            </div>
-                            <Switch
-                                checked={currentConfig.is_active}
-                                onCheckedChange={(checked) => updateConfig.mutate({ is_active: checked })}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Assegnatario Default</Label>
-                            <Select 
-                                value={currentConfig.default_assignee_id} 
-                                onValueChange={(val) => updateConfig.mutate({ default_assignee_id: val })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona utente..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {users?.map(u => (
-                                        <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-slate-500">
-                                Utente a cui assegnare i task se non diversamente specificato dall'AI.
-                            </p>
-                        </div>
-
-                        <div className="pt-2">
-                            <Button 
-                                variant="outline" 
-                                className="w-full gap-2"
-                                onClick={() => runProcess.mutate()}
-                                disabled={runProcess.isPending}
-                            >
-                                {runProcess.isPending ? (
-                                    <span className="animate-spin">⌛</span>
-                                ) : (
-                                    <Play className="w-4 h-4" />
-                                )}
-                                Esegui Scansione Ora
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg border border-slate-200">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                            <Settings className="w-4 h-4 text-slate-500" />
-                            Regole SLA Attive
-                        </h4>
-                        <ul className="space-y-3 text-sm">
-                            <li className="flex items-start gap-2">
-                                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
-                                <div>
-                                    <span className="font-medium">Priorità Critica</span>
-                                    <p className="text-slate-500">Scadenza: 1 giorno. Email urgenti, reclami gravi.</p>
-                                </div>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5" />
-                                <div>
-                                    <span className="font-medium">Priorità Alta</span>
-                                    <p className="text-slate-500">Scadenza: 3 giorni. Richieste importanti, preventivi.</p>
-                                </div>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-blue-500 mt-0.5" />
-                                <div>
-                                    <span className="font-medium">Standard</span>
-                                    <p className="text-slate-500">Scadenza: 7-14 giorni. Comunicazioni generali.</p>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
     );
 }
 
@@ -429,7 +274,7 @@ export default function AIAssistantPage() {
 
             {/* AI Insights Section - Always visible at top */}
             <AIInsightsWidget />
-            
+
             <EmailIntegrationPanel />
 
             {/* Chat Section */}

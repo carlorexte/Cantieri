@@ -89,7 +89,14 @@ function EmailIntegrationPanel() {
 
     if (isLoading) return <div className="p-4 text-center text-slate-500">Caricamento configurazione email...</div>;
 
-    const currentConfig = config || { is_active: false, default_assignee_id: '', watch_label: 'INBOX' };
+    const currentConfig = config || { 
+        is_active: false, 
+        default_assignee_id: '', 
+        watch_folder: 'INBOX',
+        imap_host: '',
+        imap_port: 993,
+        email_user: ''
+    };
 
     return (
         <Card className="mb-6 border-indigo-100 bg-indigo-50/30">
@@ -101,24 +108,56 @@ function EmailIntegrationPanel() {
                     <div>
                         <CardTitle className="text-lg">Integrazione Email & SLA</CardTitle>
                         <CardDescription>
-                            L'AI analizza le email in arrivo e crea automaticamente task con priorità e assegnazione.
+                            Configura il server IMAP per l'analisi automatica delle email.
                         </CardDescription>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <div className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-100">
                             <div className="space-y-0.5">
                                 <Label className="text-base">Attiva Monitoraggio</Label>
                                 <p className="text-xs text-slate-500">
-                                    Scansiona periodicamente la posta in arrivo Gmail
+                                    Scansiona periodicamente la posta in arrivo
                                 </p>
                             </div>
                             <Switch
                                 checked={currentConfig.is_active}
                                 onCheckedChange={(checked) => updateConfig.mutate({ is_active: checked })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>IMAP Host</Label>
+                                <Input 
+                                    className="bg-white" 
+                                    placeholder="imap.mail.com"
+                                    value={currentConfig.imap_host || ''}
+                                    onChange={(e) => updateConfig.mutate({ imap_host: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Porta</Label>
+                                <Input 
+                                    className="bg-white" 
+                                    type="number" 
+                                    placeholder="993"
+                                    value={currentConfig.imap_port || 993}
+                                    onChange={(e) => updateConfig.mutate({ imap_port: parseInt(e.target.value) })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Email Utente</Label>
+                            <Input 
+                                className="bg-white" 
+                                placeholder="info@azienda.it"
+                                value={currentConfig.email_user || ''}
+                                onChange={(e) => updateConfig.mutate({ email_user: e.target.value })}
                             />
                         </div>
 
@@ -137,14 +176,11 @@ function EmailIntegrationPanel() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <p className="text-[10px] text-slate-500">
-                                Utente a cui assegnare i task se non diversamente specificato dall'AI.
-                            </p>
                         </div>
 
                         <Button 
                             variant="outline" 
-                            className="w-full gap-2 bg-white hover:bg-indigo-50 border-indigo-200 text-indigo-700"
+                            className="w-full gap-2 bg-white hover:bg-indigo-50 border-indigo-200 text-indigo-700 mt-2"
                             onClick={() => runProcess.mutate()}
                             disabled={runProcess.isPending}
                         >
@@ -153,7 +189,7 @@ function EmailIntegrationPanel() {
                             ) : (
                                 <Play className="w-4 h-4" />
                             )}
-                            Esegui Scansione Ora
+                            Test Connessione & Scansione
                         </Button>
                     </div>
 

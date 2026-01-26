@@ -49,11 +49,19 @@ export const DataProvider = ({ children }) => {
         fetchPromises.push(
           base44.functions.invoke('getMyCantieri')
             .then(response => {
-              if (response.data && Array.isArray(response.data)) {
-                setCantieri(response.data);
+              // Support both {data: {items: []}} (axios style) and direct body
+              const payload = response.data || response;
+              console.log("getMyCantieri raw response:", response);
+              console.log("getMyCantieri payload:", payload);
+
+              if (payload && payload.items && Array.isArray(payload.items)) {
+                setCantieri(payload.items);
+                setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+              } else if (Array.isArray(payload)) {
+                setCantieri(payload);
                 setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
               } else {
-                console.warn("getMyCantieri returned invalid data:", response);
+                console.warn("getMyCantieri returned invalid data structure:", payload);
                 setCantieri([]);
               }
             })
@@ -99,8 +107,13 @@ export const DataProvider = ({ children }) => {
   const refreshCantieri = useCallback(async () => {
     try {
       const response = await base44.functions.invoke('getMyCantieri');
-      if (response.data && Array.isArray(response.data)) {
-        setCantieri(response.data);
+      const payload = response.data || response;
+      
+      if (payload && payload.items && Array.isArray(payload.items)) {
+        setCantieri(payload.items);
+        setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+      } else if (Array.isArray(payload)) {
+        setCantieri(payload);
         setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
       }
     } catch (error) {

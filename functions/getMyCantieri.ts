@@ -5,35 +5,36 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         const user = await base44.auth.me();
         
+        console.log("getMyCantieri called by:", user?.email);
+
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Admin: fetch all (limit 100 for performance, consistent with previous code)
         if (user.role === 'admin') {
             const cantieri = await base44.entities.Cantiere.list('-created_date', 100);
-            return Response.json(cantieri);
+            return Response.json({ items: cantieri, role: 'admin' });
         }
 
-        // Non-admin: fetch assigned
-        // Use service role to ensure we get the full user record with 'cantieri_assegnati'
         const fullUser = await base44.asServiceRole.entities.User.get(user.id);
-        
         const assignedIds = fullUser.cantieri_assegnati || [];
         
+        console.log("Assigned IDs:", assignedIds);
+
         if (assignedIds.length === 0) {
-            return Response.json([]);
+            return Response.json({ items: [], role: 'user', message: 'No assignments' });
         }
 
-        // Use service role to fetch the cantieri, bypassing any potential RLS issues
-        // We trust 'cantieri_assegnati' as the source of truth for visibility
         const cantieri = await base44.asServiceRole.entities.Cantiere.filter({
             id: { $in: assignedIds }
         }, '-created_date', 100);
 
-        return Response.json(cantieri);
+        console.log("Found cantieri:", cantieri.length);
+
+        return Response.json({ items: cantieri, role: 'user', debug_ids: assignedIds });
 
     } catch (error) {
+        console.error("Error in getMyCantieri:", error);
         return Response.json({ error: error.message }, { status: 500 });
     }
 });

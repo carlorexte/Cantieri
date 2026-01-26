@@ -57,29 +57,35 @@ export default function GestionePermessiCantieriPage() {
 
   const handleAssegnaUtenti = async (cantiereId, utentiIds) => {
     try {
-      // Fetch current users to get their current assignments
-      // We do this individually to be safe and ensure we append correctly
-      const promises = utentiIds.map(async (userId) => {
-        const userList = await base44.entities.User.filter({ id: userId });
-        if (userList && userList.length > 0) {
+      // Usiamo un ciclo for...of per sequenzializzare le richieste ed evitare problemi di concorrenza
+      for (const userId of utentiIds) {
+        try {
+          // 1. Recupera l'utente specifico
+          const userList = await base44.entities.User.filter({ id: userId });
+          if (!userList || userList.length === 0) continue;
+          
           const user = userList[0];
-          const currentAssignments = user.cantieri_assegnati || [];
+          const currentAssignments = Array.isArray(user.cantieri_assegnati) ? user.cantieri_assegnati : [];
+          
+          // 2. Verifica se è già assegnato
           if (!currentAssignments.includes(cantiereId)) {
+            // 3. Aggiorna con il nuovo array
+            const newAssignments = [...currentAssignments, cantiereId];
             await base44.entities.User.update(userId, {
-              cantieri_assegnati: [...currentAssignments, cantiereId]
+              cantieri_assegnati: newAssignments
             });
           }
+        } catch (innerError) {
+          console.error(`Errore aggiornamento utente ${userId}:`, innerError);
         }
-      });
-      
-      await Promise.all(promises);
+      }
       
       queryClient.invalidateQueries(['currentUser']);
-      toast.success("Utenti assegnati al cantiere");
+      toast.success("Utenti assegnati. Se gli utenti non vedono le modifiche, chiedi loro di effettuare logout e login.");
       loadData();
     } catch (error) {
       console.error("Errore assegnazione utenti:", error);
-      toast.error("Errore nell'assegnazione degli utenti");
+      toast.error("Errore generale nell'assegnazione");
     }
   };
 
@@ -202,24 +208,27 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
     if (!selectedUtente || !cantiere) return;
 
     try {
-      // Assegna cantiere all'utente - Recuperiamo l'utente fresco
+      // 1. Aggiornamento Utente (Core per RLS)
       const userList = await base44.entities.User.filter({ id: selectedUtente });
-      if (userList.length > 0) {
+      if (userList && userList.length > 0) {
         const currentUserData = userList[0];
-        const cantieriAssegnati = currentUserData.cantieri_assegnati || [];
+        const cantieriAssegnati = Array.isArray(currentUserData.cantieri_assegnati) ? currentUserData.cantieri_assegnati : [];
         
-        // Aggiorniamo solo se necessario
         if (!cantieriAssegnati.includes(cantiere.id)) {
+          const newAssignments = [...cantieriAssegnati, cantiere.id];
           await base44.entities.User.update(selectedUtente, {
-            cantieri_assegnati: [...cantieriAssegnati, cantiere.id]
+            cantieri_assegnati: newAssignments
           });
         }
       }
 
-      // Crea o aggiorna permessi specifici
-      const permessoEsistente = permessi.find(
-        p => p.utente_id === selectedUtente && p.cantiere_id === cantiere.id
-      );
+      // 2. Aggiornamento Permessi (Dettaglio)
+      // Ricarichiamo i permessi per sicurezza, anche se usiamo lo stato locale
+      const permessiList = await base44.entities.PermessoCantiereUtente.filter({
+        utente_id: selectedUtente,
+        cantiere_id: cantiere.id
+      });
+      const permessoEsistente = permessiList.length > 0 ? permessiList[0] : null;
 
       if (permessoEsistente) {
         await base44.entities.PermessoCantiereUtente.update(permessoEsistente.id, {
@@ -233,9 +242,10 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
         });
       }
 
-      toast.success("Utente assegnato con successo");
+      toast.success("Utente assegnato. Potrebbe essere necessario un logout/login per vedere le modifiche.");
       queryClient.invalidateQueries(['currentUser']);
       setSelectedUtente(null);
+      // Reset form
       setPermessiUtente({
         view: true,
         edit: false,
@@ -248,40 +258,47 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
       onSave();
     } catch (error) {
       console.error("Errore assegnazione utente:", error);
-      toast.error("Errore nell'assegnazione dell'utente");
+      toast.error("Errore nell'assegnazione: " + error.message);
     }
   };
 
   const handleRimuoviUtente = async (utenteId) => {
     if (!cantiere) return;
 
+    if (!confirm("Sei sicuro di voler rimuovere questo utente dal cantiere?")) return;
+
     try {
+      // 1. Rimuovi da User (RLS)
       const userList = await base44.entities.User.filter({ id: utenteId });
-      if (userList.length > 0) {
+      if (userList && userList.length > 0) {
         const currentUserData = userList[0];
-        const cantieriAssegnati = (currentUserData.cantieri_assegnati || []).filter(
-          id => id !== cantiere.id
-        );
+        const currentAssignments = Array.isArray(currentUserData.cantieri_assegnati) ? currentUserData.cantieri_assegnati : [];
+        const newAssignments = currentAssignments.filter(id => id !== cantiere.id);
         
-        await base44.entities.User.update(utenteId, {
-          cantieri_assegnati: cantieriAssegnati
-        });
+        // Aggiorna solo se diverso
+        if (newAssignments.length !== currentAssignments.length) {
+          await base44.entities.User.update(utenteId, {
+            cantieri_assegnati: newAssignments
+          });
+        }
       }
 
-      // Rimuovi anche i permessi specifici
-      const permesso = permessi.find(
-        p => p.utente_id === utenteId && p.cantiere_id === cantiere.id
-      );
-      if (permesso) {
-        await base44.entities.PermessoCantiereUtente.delete(permesso.id);
+      // 2. Rimuovi permessi specifici
+      const permessiList = await base44.entities.PermessoCantiereUtente.filter({
+        utente_id: utenteId,
+        cantiere_id: cantiere.id
+      });
+      
+      for (const p of permessiList) {
+        await base44.entities.PermessoCantiereUtente.delete(p.id);
       }
 
-      toast.success("Utente rimosso dal cantiere");
+      toast.success("Utente rimosso con successo");
       queryClient.invalidateQueries(['currentUser']);
       onSave();
     } catch (error) {
       console.error("Errore rimozione utente:", error);
-      toast.error("Errore nella rimozione dell'utente");
+      toast.error("Errore durante la rimozione: " + error.message);
     }
   };
 

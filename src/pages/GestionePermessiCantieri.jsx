@@ -191,32 +191,14 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
     if (!selectedUtente || !cantiere) return;
 
     try {
-      // 1. Aggiornamento Utente (Core per RLS) - Via Backend Function per bypassare limiti RLS client
+      // 1. Aggiornamento Utente (Core per RLS) e 2. Aggiornamento Permessi (Dettaglio)
+      // Tutto gestito via Backend Function per sicurezza e coerenza
       await base44.functions.invoke('manageCantiereAssignments', {
         action: 'assign_single',
         userId: selectedUtente,
-        cantiereId: cantiere.id
+        cantiereId: cantiere.id,
+        permessi: permessiUtente
       });
-
-      // 2. Aggiornamento Permessi (Dettaglio)
-      // Ricarichiamo i permessi per sicurezza, anche se usiamo lo stato locale
-      const permessiList = await base44.entities.PermessoCantiereUtente.filter({
-        utente_id: selectedUtente,
-        cantiere_id: cantiere.id
-      });
-      const permessoEsistente = permessiList.length > 0 ? permessiList[0] : null;
-
-      if (permessoEsistente) {
-        await base44.entities.PermessoCantiereUtente.update(permessoEsistente.id, {
-          permessi: permessiUtente
-        });
-      } else {
-        await base44.entities.PermessoCantiereUtente.create({
-          utente_id: selectedUtente,
-          cantiere_id: cantiere.id,
-          permessi: permessiUtente
-        });
-      }
 
       toast.success("Utente assegnato. Potrebbe essere necessario un logout/login per vedere le modifiche.");
       queryClient.invalidateQueries(['currentUser']);
@@ -244,22 +226,12 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
     if (!confirm("Sei sicuro di voler rimuovere questo utente dal cantiere?")) return;
 
     try {
-      // 1. Rimuovi da User (RLS) - Via Backend Function
+      // Rimozione completa (User RLS + Permessi specifici) via Backend Function
       await base44.functions.invoke('manageCantiereAssignments', {
         action: 'remove',
         userId: utenteId,
         cantiereId: cantiere.id
       });
-
-      // 2. Rimuovi permessi specifici
-      const permessiList = await base44.entities.PermessoCantiereUtente.filter({
-        utente_id: utenteId,
-        cantiere_id: cantiere.id
-      });
-      
-      for (const p of permessiList) {
-        await base44.entities.PermessoCantiereUtente.delete(p.id);
-      }
 
       toast.success("Utente rimosso con successo");
       queryClient.invalidateQueries(['currentUser']);

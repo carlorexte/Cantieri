@@ -10,9 +10,10 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
-        const { action, userId, cantiereId, userIds } = await req.json();
+        const { action, userId, cantiereId, userIds, permessi } = await req.json();
 
         if (action === 'assign_single') {
+            // 1. Update User (RLS/Visibility)
             const user = await base44.asServiceRole.entities.User.get(userId);
             const current = user.cantieri_assegnati || [];
             if (!current.includes(cantiereId)) {
@@ -20,6 +21,27 @@ Deno.serve(async (req) => {
                     cantieri_assegnati: [...current, cantiereId]
                 });
             }
+
+            // 2. Update PermessoCantiereUtente (Specific Permissions)
+            if (permessi) {
+                const permessiList = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({
+                    utente_id: userId,
+                    cantiere_id: cantiereId
+                });
+                
+                if (permessiList.length > 0) {
+                    await base44.asServiceRole.entities.PermessoCantiereUtente.update(permessiList[0].id, {
+                        permessi
+                    });
+                } else {
+                    await base44.asServiceRole.entities.PermessoCantiereUtente.create({
+                        utente_id: userId,
+                        cantiere_id: cantiereId,
+                        permessi
+                    });
+                }
+            }
+            
             return Response.json({ success: true });
         }
 
@@ -32,12 +54,15 @@ Deno.serve(async (req) => {
                         cantieri_assegnati: [...current, cantiereId]
                     });
                 }
+                // Bulk assignment usually doesn't set specific permissions immediately, 
+                // or sets defaults. For now, we only handle the User link as before.
             });
             await Promise.all(promises);
             return Response.json({ success: true });
         }
 
         if (action === 'remove') {
+            // 1. Remove from User (RLS)
             const user = await base44.asServiceRole.entities.User.get(userId);
             const current = user.cantieri_assegnati || [];
             const newAssignments = current.filter(id => id !== cantiereId);
@@ -46,6 +71,17 @@ Deno.serve(async (req) => {
                     cantieri_assegnati: newAssignments
                 });
             }
+
+            // 2. Remove PermessoCantiereUtente
+            const permessiList = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({
+                utente_id: userId,
+                cantiere_id: cantiereId
+            });
+            
+            for (const p of permessiList) {
+                await base44.asServiceRole.entities.PermessoCantiereUtente.delete(p.id);
+            }
+
             return Response.json({ success: true });
         }
 

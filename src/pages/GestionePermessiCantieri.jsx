@@ -57,10 +57,23 @@ export default function GestionePermessiCantieriPage() {
 
   const handleAssegnaUtenti = async (cantiereId, utentiIds) => {
     try {
-      await base44.entities.User.bulkUpdate(
-        { id: { $in: utentiIds } },
-        { $addToSet: { cantieri_assegnati: cantiereId } }
-      );
+      // Fetch current users to get their current assignments
+      // We do this individually to be safe and ensure we append correctly
+      const promises = utentiIds.map(async (userId) => {
+        const userList = await base44.entities.User.filter({ id: userId });
+        if (userList && userList.length > 0) {
+          const user = userList[0];
+          const currentAssignments = user.cantieri_assegnati || [];
+          if (!currentAssignments.includes(cantiereId)) {
+            await base44.entities.User.update(userId, {
+              cantieri_assegnati: [...currentAssignments, cantiereId]
+            });
+          }
+        }
+      });
+      
+      await Promise.all(promises);
+      
       queryClient.invalidateQueries(['currentUser']);
       toast.success("Utenti assegnati al cantiere");
       loadData();
@@ -189,10 +202,13 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
     if (!selectedUtente || !cantiere) return;
 
     try {
-      // Assegna cantiere all'utente
-      const utente = await base44.entities.User.filter({ id: selectedUtente });
-      if (utente.length > 0) {
-        const cantieriAssegnati = utente[0].cantieri_assegnati || [];
+      // Assegna cantiere all'utente - Recuperiamo l'utente fresco
+      const userList = await base44.entities.User.filter({ id: selectedUtente });
+      if (userList.length > 0) {
+        const currentUserData = userList[0];
+        const cantieriAssegnati = currentUserData.cantieri_assegnati || [];
+        
+        // Aggiorniamo solo se necessario
         if (!cantieriAssegnati.includes(cantiere.id)) {
           await base44.entities.User.update(selectedUtente, {
             cantieri_assegnati: [...cantieriAssegnati, cantiere.id]
@@ -240,11 +256,13 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
     if (!cantiere) return;
 
     try {
-      const utente = await base44.entities.User.filter({ id: utenteId });
-      if (utente.length > 0) {
-        const cantieriAssegnati = (utente[0].cantieri_assegnati || []).filter(
+      const userList = await base44.entities.User.filter({ id: utenteId });
+      if (userList.length > 0) {
+        const currentUserData = userList[0];
+        const cantieriAssegnati = (currentUserData.cantieri_assegnati || []).filter(
           id => id !== cantiere.id
         );
+        
         await base44.entities.User.update(utenteId, {
           cantieri_assegnati: cantieriAssegnati
         });

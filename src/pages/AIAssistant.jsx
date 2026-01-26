@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Send, Bot, User as UserIcon, Sparkles, Mail, Settings, Play, CheckCircle2, AlertCircle } from "lucide-react";
+import { Send, Bot, User as UserIcon, Sparkles, Mail, Settings, Play, CheckCircle2, AlertCircle, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -237,30 +237,53 @@ export default function AIAssistantPage() {
     const [conversationId, setConversationId] = useState(null);
     const scrollRef = useRef(null);
 
-    useEffect(() => {
-        // Initialize conversation
-        const initConversation = async () => {
-            try {
-                // Check for existing or create new
-                const existing = await base44.agents.listConversations({ agent_name: 'analyst' });
-                let convId;
-                if (existing && existing.length > 0) {
-                    convId = existing[0].id;
-                    setMessages(existing[0].messages || []);
-                } else {
-                    const newConv = await base44.agents.createConversation({
-                        agent_name: 'analyst',
-                        metadata: { name: "General Analysis" }
-                    });
-                    convId = newConv.id;
-                }
-                setConversationId(convId);
-            } catch (error) {
-                console.error("Error initializing chat", error);
+    const initConversation = async (forceNew = false) => {
+        try {
+            if (forceNew) {
+                const newConv = await base44.agents.createConversation({
+                    agent_name: 'analyst',
+                    metadata: { name: `Analysis ${new Date().toLocaleString()}` }
+                });
+                setConversationId(newConv.id);
+                setMessages([]);
+                toast.success("Nuova conversazione iniziata");
+                return;
             }
-        };
+
+            // Check for existing or create new
+            const existing = await base44.agents.listConversations({ agent_name: 'analyst' });
+            let convId;
+            // Get the most recent one if multiple exist
+            if (existing && existing.length > 0) {
+                // Sort by created date desc if possible, but existing[0] is usually oldest or newest depending on API.
+                // We'll just take the last one in the list assuming append behavior, or the first if desc.
+                // Let's stick to existing[0] but if we are resetting we create new.
+                convId = existing[0].id;
+                setMessages(existing[0].messages || []);
+            } else {
+                const newConv = await base44.agents.createConversation({
+                    agent_name: 'analyst',
+                    metadata: { name: "General Analysis" }
+                });
+                convId = newConv.id;
+            }
+            setConversationId(convId);
+        } catch (error) {
+            console.error("Error initializing chat", error);
+            toast.error("Errore inizializzazione chat");
+        }
+    };
+
+    useEffect(() => {
         initConversation();
     }, []);
+
+    const handleResetChat = async () => {
+        if (!confirm("Vuoi cancellare la cronologia e iniziare una nuova chat?")) return;
+        setIsLoading(true);
+        await initConversation(true);
+        setIsLoading(false);
+    };
 
     useEffect(() => {
         if (!conversationId) return;
@@ -295,6 +318,17 @@ export default function AIAssistantPage() {
         } catch (error) {
             console.error("Error sending message", error);
             setIsLoading(false);
+            if (error.message && (error.message.includes("thinking") || error.message.includes("litellm"))) {
+                toast.error("Errore di sincronizzazione. Si consiglia di resettare la chat.", {
+                    action: {
+                        label: "Resetta Chat",
+                        onClick: () => handleResetChat()
+                    },
+                    duration: 10000
+                });
+            } else {
+                toast.error("Errore nell'invio del messaggio");
+            }
         }
     };
 
@@ -307,6 +341,18 @@ export default function AIAssistantPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Assistente AI</h1>
                     <p className="text-slate-500">Analisi predittiva e supporto decisionale</p>
+                </div>
+                <div className="ml-auto">
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleResetChat}
+                        className="bg-white hover:bg-red-50 hover:text-red-600 border-slate-200"
+                        title="Inizia una nuova conversazione"
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Nuova Chat
+                    </Button>
                 </div>
             </div>
 

@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// Debug function to check users
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);

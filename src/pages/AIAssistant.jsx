@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import GlobalErrorBoundary from "@/components/shared/GlobalErrorBoundary";
 
 function MessageBubble({ message }) {
     const isUser = message.role === 'user';
@@ -59,6 +60,7 @@ function EmailIntegrationPanel() {
     const { data: config, isLoading } = useQuery({
         queryKey: ['email-config'],
         queryFn: async () => {
+            if (!base44.entities?.EmailConfig) return null;
             const list = await base44.entities.EmailConfig.list(1);
             return list[0] || null;
         }
@@ -309,9 +311,13 @@ export default function AIAssistantPage() {
             </div>
 
             {/* AI Insights Section - Always visible at top */}
-            <AIInsightsWidget />
+            <GlobalErrorBoundary>
+                <AIInsightsWidget />
+            </GlobalErrorBoundary>
 
-            <EmailIntegrationPanel />
+            <GlobalErrorBoundary>
+                <EmailIntegrationPanel />
+            </GlobalErrorBoundary>
 
             {/* Chat Section */}
             <Card className="flex-1 flex flex-col border-0 shadow-lg bg-white/80 backdrop-blur-sm overflow-hidden">

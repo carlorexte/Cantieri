@@ -9,14 +9,26 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function GestionePermessiCantieriPage() {
+  const queryClient = useQueryClient();
   const [cantieri, setCantieri] = useState([]);
   const [utenti, setUtenti] = useState([]);
   const [permessi, setPermessi] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedCantiere, setSelectedCantiere] = useState(null);
+  
+  // We don't fetch currentUser here manually anymore, relying on RLS or layout passed user if needed.
+  // But for the page access check "if (!currentUser || currentUser.role !== 'admin')", we need it.
+  // We can fetch it, or use useQuery to get it from cache if Layout fetched it.
+  // Since Layout fetches it with key 'currentUser', we can use queryClient.getQueryData(['currentUser']) 
+  // but it might be undefined if not fetched yet. 
+  // Better to just fetch it or use the same useQuery.
+  // For simplicity and consistency with previous code, I'll keep fetching it but separate it from the bulk load
+  // or just use cache invalidation side effect.
+  
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -49,6 +61,7 @@ export default function GestionePermessiCantieriPage() {
         { id: { $in: utentiIds } },
         { $addToSet: { cantieri_assegnati: cantiereId } }
       );
+      queryClient.invalidateQueries(['currentUser']);
       toast.success("Utenti assegnati al cantiere");
       loadData();
     } catch (error) {
@@ -160,6 +173,7 @@ export default function GestionePermessiCantieriPage() {
 }
 
 function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, permessi, onSave }) {
+  const queryClient = useQueryClient();
   const [selectedUtente, setSelectedUtente] = useState(null);
   const [permessiUtente, setPermessiUtente] = useState({
     view: true,
@@ -204,6 +218,7 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
       }
 
       toast.success("Utente assegnato con successo");
+      queryClient.invalidateQueries(['currentUser']);
       setSelectedUtente(null);
       setPermessiUtente({
         view: true,
@@ -244,6 +259,7 @@ function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, pe
       }
 
       toast.success("Utente rimosso dal cantiere");
+      queryClient.invalidateQueries(['currentUser']);
       onSave();
     } catch (error) {
       console.error("Errore rimozione utente:", error);

@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DataProvider } from "@/components/shared/DataContext";
 import GlobalErrorBoundary from "@/components/shared/GlobalErrorBoundary";
 import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const primaryNavConfig = [
   { href: "Dashboard", icon: LayoutDashboard, label: "Dashboard", perm: "all" },
@@ -184,7 +185,19 @@ function LayoutContent({ children, currentUser, handleLogout, getUserInitials })
 }
 
 export default function Layout({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      try {
+        return await base44.auth.me();
+      } catch (e) {
+        console.error("Not logged in", e);
+        return null;
+      }
+    },
+    staleTime: Infinity,
+  });
 
   useEffect(() => {
     // Update favicon
@@ -195,20 +208,9 @@ export default function Layout({ children }) {
     document.getElementsByTagName('head')[0].appendChild(link);
   }, []);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Not logged in");
-      }
-    };
-    fetchUser();
-  }, []);
-
   const handleLogout = async () => {
     await base44.auth.logout();
+    queryClient.invalidateQueries(['currentUser']);
   };
 
   const getUserInitials = () => {

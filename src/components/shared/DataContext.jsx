@@ -111,17 +111,6 @@ export const DataProvider = ({ children }) => {
 
   const refreshCantieri = useCallback(async () => {
     try {
-      // Logic for refresh also needs to respect permissions
-      // For simplicity reusing list here but ideally should mirror loadCommonData logic
-      // However, since we have the context closure, we can't easily access 'currentUser' inside useCallback if it's stale
-      // But we have currentUser in state.
-      // Let's use the same logic as loadCommonData for correctness.
-      
-      // Since I can't rewrite the whole logic inside this callback easily without dependencies issues (and user provided code kept .list()),
-      // I will keep the user provided code structure for refreshCantieri but if it fails for users it might be an issue.
-      // Wait, the USER PROVIDED CODE for refreshCantieri DOES use .list().
-      // I will implement what was asked.
-      
       const data = await base44.entities.Cantiere.list('-created_date', 100);
       setCantieri(data);
       setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));

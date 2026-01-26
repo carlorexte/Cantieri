@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 
-const DataContext = createContext();
+const DataContext = createContext(null);
 
 export const useData = () => {
   const context = useContext(DataContext);
@@ -34,11 +34,27 @@ export const DataProvider = ({ children }) => {
       if (force || shouldRefetch('user') || !user) {
         try {
           user = await base44.auth.me();
+          
+          // Se l'utente non è admin e mancano i campi custom, prova a recuperarli
+          if (user && user.role !== 'admin' && !user.cantieri_assegnati) {
+            try {
+              console.log("Fetching full user details for:", user.id);
+              const fullUser = await base44.entities.User.get(user.id);
+              if (fullUser) {
+                // Merge auth data with entity data
+                user = { ...user, ...fullUser };
+              }
+            } catch (err) {
+              console.warn("Could not fetch full user details:", err);
+            }
+          }
+
           setCurrentUser(user);
           setLastFetch(prev => ({ ...prev, user: Date.now() }));
         } catch (e) {
           console.error("Error fetching user", e);
           // Proceed as guest or handle error
+          user = null;
         }
       }
 
@@ -48,16 +64,20 @@ export const DataProvider = ({ children }) => {
       if (force || shouldRefetch('cantieri')) {
         let cantierePromise;
         
+        console.log("Loading cantieri for user role:", user?.role);
+        
         if (user?.role === 'admin') {
           // Admins see all cantieri
           cantierePromise = base44.entities.Cantiere.list('-created_date', 100);
         } else if (user?.cantieri_assegnati?.length > 0) {
           // Users see only assigned cantieri
+          console.log("Fetching assigned cantieri:", user.cantieri_assegnati);
           cantierePromise = base44.entities.Cantiere.filter({
             id: { $in: user.cantieri_assegnati }
           }, '-created_date', 100);
         } else if (user) {
           // Authenticated user with no assignments
+          console.log("User has no assigned cantieri");
           cantierePromise = Promise.resolve([]);
         } else {
           // Not authenticated

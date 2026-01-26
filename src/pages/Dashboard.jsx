@@ -587,6 +587,17 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
       <div className="p-8">
+      {currentUser && ['info@btcwheel.io', 'ufficiotecnico@rcsitalia.com', 'carlorexte@gmail.com'].includes(currentUser.email) && (
+        <div className="mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg text-xs font-mono overflow-auto">
+            <p><strong>DEBUG INFO (Visibile solo a te):</strong></p>
+            <p>ID: {currentUser.id}</p>
+            <p>Email: {currentUser.email}</p>
+            <p>Role: {currentUser.role}</p>
+            <p>Perm View Soci: {String(currentUser.perm_view_soci)}</p>
+            <p>Perm Edit Soci: {String(currentUser.perm_edit_soci)}</p>
+            <p>Cantieri Assegnati: {JSON.stringify(currentUser.cantieri_assegnati)}</p>
+        </div>
+      )}
         <div className="max-w-[1600px] mx-auto">
           {isLoading ? (
             <div className="animate-pulse space-y-8">

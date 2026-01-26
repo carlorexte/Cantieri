@@ -29,66 +29,33 @@ export const DataProvider = ({ children }) => {
   const loadCommonData = useCallback(async (force = false) => {
     setIsLoading(true);
     try {
-      // 1. Fetch User first to determine permissions
+      // 1. Fetch User
       let user = currentUser;
       if (force || shouldRefetch('user') || !user) {
         try {
           user = await base44.auth.me();
-          
-          // Se l'utente non è admin e mancano i campi custom, prova a recuperarli
-          if (user && user.role !== 'admin' && !user.cantieri_assegnati) {
-            try {
-              console.log("Fetching full user details for:", user.id);
-              const fullUser = await base44.entities.User.get(user.id);
-              if (fullUser) {
-                // Merge auth data with entity data
-                user = { ...user, ...fullUser };
-              }
-            } catch (err) {
-              console.warn("Could not fetch full user details:", err);
-            }
-          }
-
           setCurrentUser(user);
           setLastFetch(prev => ({ ...prev, user: Date.now() }));
         } catch (e) {
           console.error("Error fetching user", e);
-          // Proceed as guest or handle error
           user = null;
         }
       }
 
       const fetchPromises = [];
 
-      // 2. Fetch Cantieri based on User Role/Assignments
+      // 2. Fetch Cantieri using backend function to ensure consistent visibility/RLS handling
       if (force || shouldRefetch('cantieri')) {
-        let cantierePromise;
-        
-        console.log("Loading cantieri for user role:", user?.role);
-        
-        if (user?.role === 'admin') {
-          // Admins see all cantieri
-          cantierePromise = base44.entities.Cantiere.list('-created_date', 100);
-        } else if (user?.cantieri_assegnati?.length > 0) {
-          // Users see only assigned cantieri
-          console.log("Fetching assigned cantieri:", user.cantieri_assegnati);
-          cantierePromise = base44.entities.Cantiere.filter({
-            id: { $in: user.cantieri_assegnati }
-          }, '-created_date', 100);
-        } else if (user) {
-          // Authenticated user with no assignments
-          console.log("User has no assigned cantieri");
-          cantierePromise = Promise.resolve([]);
-        } else {
-          // Not authenticated
-          cantierePromise = Promise.resolve([]);
-        }
-
         fetchPromises.push(
-          cantierePromise
-            .then(data => {
-              setCantieri(data);
-              setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+          base44.functions.invoke('getMyCantieri')
+            .then(response => {
+              if (response.data && Array.isArray(response.data)) {
+                setCantieri(response.data);
+                setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+              } else {
+                console.warn("getMyCantieri returned invalid data:", response);
+                setCantieri([]);
+              }
             })
             .catch(err => {
               console.error("Error fetching cantieri:", err);
@@ -123,7 +90,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [shouldRefetch]); // Removed currentUser from dependencies to avoid loops
+  }, [shouldRefetch]);
 
   useEffect(() => {
     loadCommonData();
@@ -131,9 +98,11 @@ export const DataProvider = ({ children }) => {
 
   const refreshCantieri = useCallback(async () => {
     try {
-      const data = await base44.entities.Cantiere.list('-created_date', 100);
-      setCantieri(data);
-      setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+      const response = await base44.functions.invoke('getMyCantieri');
+      if (response.data && Array.isArray(response.data)) {
+        setCantieri(response.data);
+        setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+      }
     } catch (error) {
       console.error('Errore refresh cantieri:', error);
     }

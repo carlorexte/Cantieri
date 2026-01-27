@@ -252,9 +252,14 @@ export default function Layout({ children }) {
         >
           <GlobalErrorBoundary>
             {children}
-          </GlobalErrorBoundary>
-        </LayoutContent>
-      </SidebarProvider>
-    </DataProvider>
-  );
-}
+            </GlobalErrorBoundary>
+            </LayoutContent>
+            {currentUser && (
+            <div className="fixed bottom-0 right-0 p-2 bg-black/80 text-white text-xs z-[9999] pointer-events-none opacity-50 hover:opacity-100 transition-opacity">
+             {currentUser.email} | {currentUser.role} | ImpreseView: {currentUser.imprese_view ? 'YES' : 'NO'}
+            </div>
+            )}
+            </SidebarProvider>
+            </DataProvider>
+            );
+            }

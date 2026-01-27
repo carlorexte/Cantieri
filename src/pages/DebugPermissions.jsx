@@ -112,8 +112,13 @@ export default function DebugPermissions() {
                     <p className="text-sm text-slate-500">
                       {result.status === 'success' 
                         ? `Accesso OK - ${result.count} record recuperati (limite test: 5)` 
-                        : result.status === 'error' ? result.error : 'In attesa...'}
+                        : result.status === 'error' ? `ERRORE: ${result.error}` : 'In attesa...'}
                     </p>
+                    {result.status === 'success' && result.dataSample && (
+                        <div className="mt-2 text-xs text-slate-400 bg-slate-900 p-2 rounded">
+                            <p>Esempio ID: {result.dataSample[0]?.id}</p>
+                        </div>
+                    )}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => runDiagnostics()}>Riprova</Button>

@@ -37,6 +37,7 @@ import {
     ChevronUp
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { DataProvider } from '@/components/shared/DataContext';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -85,6 +86,7 @@ export default function Layout({ children }) {
 
     return (
         <SidebarProvider>
+            <DataProvider>
             <div className="flex min-h-screen w-full bg-slate-50">
                 <Sidebar>
                     <SidebarHeader className="border-b border-slate-200 bg-white px-6 py-4">
@@ -191,6 +193,7 @@ export default function Layout({ children }) {
                     {children}
                 </main>
             </div>
+            </DataProvider>
         </SidebarProvider>
     );
 }

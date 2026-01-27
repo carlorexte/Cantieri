@@ -91,13 +91,11 @@ export default function Layout({ children }) {
                 <Sidebar>
                     <SidebarHeader className="border-b border-slate-200 bg-white px-6 py-4">
                         <div className="flex items-center gap-2">
-                             {/* Logo RCS style */}
-                             <div className="flex items-center gap-1">
-                                <div className="flex flex-col">
-                                    <span className="text-3xl font-black text-orange-500 tracking-tighter leading-none" style={{ fontFamily: 'Arial, sans-serif' }}>RCS</span>
-                                </div>
-                                <div className="h-8 w-1 bg-orange-200 rounded-full mx-1"></div>
-                             </div>
+                             <img 
+                                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
+                                alt="RCS Logo" 
+                                className="h-10 w-auto object-contain"
+                             />
                         </div>
                     </SidebarHeader>
                     

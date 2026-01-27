@@ -1,54 +1,62 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+const PERMISSION_KEYS = [
+    "cantieri_view", "cantieri_create", "cantieri_edit", "cantieri_delete",
+    "imprese_view", "imprese_create", "imprese_edit", "imprese_delete",
+    "persone_view", "persone_create", "persone_edit", "persone_delete",
+    "subappalti_view", "subappalti_create", "subappalti_edit", "subappalti_delete",
+    "costi_view", "costi_create", "costi_edit", "costi_delete",
+    "sal_view", "sal_create", "sal_edit", "sal_delete",
+    "attivita_view", "attivita_create", "attivita_edit", "attivita_delete",
+    "documenti_view", "documenti_create", "documenti_edit", "documenti_delete",
+    "teams_view", "teams_create", "teams_edit", "teams_delete",
+    "cronoprogramma_view", "cronoprogramma_edit",
+    "dashboard_view", "profilo_azienda_view", "profilo_azienda_edit",
+    "utenti_view", "utenti_manage"
+];
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
-        // Simple admin check or open it up for this debug session? 
-        // Better to check admin, but I'll call it via tool so I can use service role in the function.
-        // I will trust the caller (me) via test_backend_function.
+        // 1. Get all roles to have a map
+        const roles = await base44.asServiceRole.entities.Ruolo.list(100);
+        const roleMap = {};
+        roles.forEach(r => roleMap[r.id] = r);
         
-        const targets = [
-            { email: 'ufficiotecnico@rcsitalia.com', perm_soci: true },
-            { email: 'info@btcwheel.io', perm_soci: true },
-            { email: 'carlorexte@gmail.com', perm_soci: true } // Abilito soci anche a carlorexte per test
-        ];
-        
+        // 2. Get all users
+        const users = await base44.asServiceRole.entities.User.list(1000);
         const results = [];
-
-        for (const t of targets) {
-            const users = await base44.asServiceRole.entities.User.filter({ email: t.email });
-            if (users.length > 0) {
-                const u = users[0];
+        
+        for (const user of users) {
+            if (user.ruolo_id && roleMap[user.ruolo_id]) {
+                const role = roleMap[user.ruolo_id];
+                const permissions = role.permessi || {};
                 const updates = {};
+                let hasUpdates = false;
                 
-                // Ensure arrays are initialized
-                if (!Array.isArray(u.team_ids)) updates.team_ids = [];
-                if (!Array.isArray(u.cantieri_assegnati)) updates.cantieri_assegnati = [];
+                PERMISSION_KEYS.forEach(key => {
+                    const expected = permissions[key] || false;
+                    const actual = user[key];
+                    
+                    if (actual !== expected) {
+                        updates[key] = expected;
+                        hasUpdates = true;
+                    }
+                });
                 
-                // Ensure permissions
-                updates.perm_view_soci = t.perm_soci;
-                
-                if (t.email === 'info@btcwheel.io' || t.email === 'ufficiotecnico@rcsitalia.com') {
-                    updates.perm_edit_soci = true;
-                    updates.perm_view_subappalti = true;
-                    updates.perm_view_costi = true;
-                    updates.perm_view_sal = true;
-                    updates.perm_view_attivita = true;
-                    updates.perm_view_teams = true;
+                if (hasUpdates) {
+                    updates.updated_date = new Date().toISOString();
+                    await base44.asServiceRole.entities.User.update(user.id, updates);
+                    results.push({ email: user.email, updatedKeys: Object.keys(updates) });
                 }
-                
-                // Force update to trigger any cache invalidation on platform side
-                updates.updated_date = new Date().toISOString();
-
-                await base44.asServiceRole.entities.User.update(u.id, updates);
-                results.push({ email: t.email, updated: updates, id: u.id });
-            } else {
-                results.push({ email: t.email, error: "Not found" });
+            } else if (user.email === 'ufficiotecnico@rcsitalia.com') {
+                // If user has no role, verify if they should have permissions enabled manually
+                 results.push({ email: user.email, status: "No role assigned" });
             }
         }
         
-        return Response.json({ results });
+        return Response.json({ synced_count: results.length, details: results });
     } catch (e) {
         return Response.json({ error: e.message, stack: e.stack }, { status: 500 });
     }

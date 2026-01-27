@@ -20,6 +20,7 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -50,4 +51,5 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "AIAssistant",
     Pages: PAGES,
+    Layout: __Layout,
 };

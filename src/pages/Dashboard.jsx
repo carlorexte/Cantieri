@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useData } from "@/components/shared/DataContext";
 import { base44 } from "@/api/base44Client";
 import {
   Building2,
@@ -20,6 +21,7 @@ import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import DashboardWidgetManager from "@/components/dashboard/DashboardWidgetManager";
 
 export default function Dashboard() {
+  const { currentUser } = useData();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState({
     cantieri: [],
@@ -194,15 +196,17 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
             <p className="text-slate-500 mt-1">Panoramica generale dell'attività aziendale</p>
           </div>
-          <DashboardWidgetManager 
-            currentConfig={widgets} 
-            availableWidgets={[
-              { id: 'kpi', label: 'KPI Cards' },
-              { id: 'charts_row_1', label: 'Flusso Cassa & Costi' },
-              { id: 'charts_row_2', label: 'Performance & Attività' }
-            ]}
-            onSave={setWidgets}
-          />
+          {currentUser?.role === 'admin' && (
+            <DashboardWidgetManager 
+              currentConfig={widgets} 
+              availableWidgets={[
+                { id: 'kpi', label: 'KPI Cards' },
+                { id: 'charts_row_1', label: 'Flusso Cassa & Costi' },
+                { id: 'charts_row_2', label: 'Performance & Attività' }
+              ]}
+              onSave={setWidgets}
+            />
+          )}
         </div>
 
         {/* Filters */}

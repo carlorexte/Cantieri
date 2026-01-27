@@ -37,13 +37,16 @@ export function usePermissions() {
   const hasPermission = (permesso) => {
     if (!user) return false;
     if (user.role === 'admin') return true;
+    if (permesso === 'all') return true;
 
-    // Controlla permesso da ruolo personalizzato
+    // Check direct permission (flattened on user object by managePermissions)
+    if (user[permesso]) return true;
+
+    // Backward compatibility for old keys (perm_*)
+    if (user[`perm_${permesso}`]) return true;
+
+    // Check custom role object if loaded
     if (ruolo?.permessi?.[permesso]) return true;
-
-    // Controlla permesso individuale
-    const permessoKey = `perm_${permesso}`;
-    if (user[permessoKey]) return true;
 
     return false;
   };

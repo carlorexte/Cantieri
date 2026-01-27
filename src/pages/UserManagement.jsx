@@ -122,12 +122,22 @@ export default function UserManagementPage() {
   // --- UTENTI ---
   const handleUpdateUser = async (userId, data) => {
     try {
-      await base44.entities.User.update(userId, data);
-      toast.success("Utente aggiornato con successo");
+      // If updating role or simple fields, use direct update or managePermissions
+      if (data.ruolo_id !== undefined) {
+        const res = await base44.functions.invoke('managePermissions', {
+          action: 'assign_role',
+          data: { userId, roleId: data.ruolo_id }
+        });
+        if (res.data?.error) throw new Error(res.data.error);
+        toast.success("Ruolo assegnato con successo");
+      } else {
+        await base44.entities.User.update(userId, data);
+        toast.success("Utente aggiornato con successo");
+      }
       loadData();
     } catch (error) {
       console.error("Errore aggiornamento utente:", error);
-      toast.error("Errore nell'aggiornamento dell'utente");
+      toast.error("Errore nell'aggiornamento dell'utente: " + error.message);
     }
   };
 

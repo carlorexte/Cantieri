@@ -55,10 +55,16 @@ export default function UserManagementPage() {
   const handleSaveRuolo = async (ruoloData) => {
     try {
       if (editingRuolo) {
-        await base44.entities.Ruolo.update(editingRuolo.id, ruoloData);
+        await base44.functions.invoke('managePermissions', {
+          action: 'update_role',
+          data: { roleId: editingRuolo.id, roleData: ruoloData }
+        });
         toast.success("Ruolo aggiornato con successo");
       } else {
-        await base44.entities.Ruolo.create(ruoloData);
+        await base44.functions.invoke('managePermissions', {
+          action: 'create_role',
+          data: { roleData: ruoloData }
+        });
         toast.success("Ruolo creato con successo");
       }
       setShowRuoloDialog(false);
@@ -77,7 +83,10 @@ export default function UserManagementPage() {
     }
     if (window.confirm("Sei sicuro di voler eliminare questo ruolo?")) {
       try {
-        await base44.entities.Ruolo.delete(ruoloId);
+        await base44.functions.invoke('managePermissions', {
+          action: 'delete_role',
+          data: { roleId: ruoloId }
+        });
         toast.success("Ruolo eliminato");
         loadData();
       } catch (error) {

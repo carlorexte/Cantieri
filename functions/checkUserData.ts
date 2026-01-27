@@ -44,7 +44,10 @@ Deno.serve(async (req) => {
             },
             cantieri_status: cantieriDetails,
             permissions_cantieri_ids: permIds,
-            missing_in_user_array: missingAssignments
+            missing_in_user_array: missingAssignments,
+            total_imprese: await base44.asServiceRole.entities.Impresa.count(),
+            total_persone: await base44.asServiceRole.entities.PersonaEsterna.count(),
+            total_sal: await base44.asServiceRole.entities.SAL.count()
         });
 
     } catch (error) {

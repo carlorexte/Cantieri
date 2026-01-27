@@ -587,7 +587,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
       <div className="p-8">
-
         <div className="max-w-[1600px] mx-auto">
           {isLoading ? (
             <div className="animate-pulse space-y-8">

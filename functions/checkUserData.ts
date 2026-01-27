@@ -5,8 +5,11 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         
         // Use service role to inspect data without restrictions
+        const payload = await req.json().catch(() => ({}));
+        const email = payload.email || "info@btcwheel.io";
+        
         const users = await base44.asServiceRole.entities.User.filter({
-            email: "info@btcwheel.io"
+            email: email
         });
 
         if (users.length === 0) {

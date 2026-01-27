@@ -4,7 +4,6 @@ import CantiereDashboard from './pages/CantiereDashboard';
 import Cantieri from './pages/Cantieri';
 import Costi from './pages/Costi';
 import Cronoprogramma from './pages/Cronoprogramma';
-import Dashboard from './pages/Dashboard';
 import Documenti from './pages/Documenti';
 import GestionePermessi from './pages/GestionePermessi';
 import GestionePermessiCantieri from './pages/GestionePermessiCantieri';
@@ -21,7 +20,6 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
-import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -31,7 +29,6 @@ export const PAGES = {
     "Cantieri": Cantieri,
     "Costi": Costi,
     "Cronoprogramma": Cronoprogramma,
-    "Dashboard": Dashboard,
     "Documenti": Documenti,
     "GestionePermessi": GestionePermessi,
     "GestionePermessiCantieri": GestionePermessiCantieri,
@@ -51,7 +48,6 @@ export const PAGES = {
 }
 
 export const pagesConfig = {
-    mainPage: "Dashboard",
+    mainPage: "AIAssistant",
     Pages: PAGES,
-    Layout: __Layout,
 };

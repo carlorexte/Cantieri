@@ -21,6 +21,7 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
+import DebugPermissions from './pages/DebugPermissions';
 import __Layout from './Layout.jsx';
 
 
@@ -48,6 +49,7 @@ export const PAGES = {
     "Subappalti": Subappalti,
     "TestData": TestData,
     "UserManagement": UserManagement,
+    "DebugPermissions": DebugPermissions,
 }
 
 export const pagesConfig = {

@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -17,7 +16,8 @@ export default function CostBreakdownChart({ costiData }) {
   const data = useMemo(() => {
     const aggregated = costiData.reduce((acc, curr) => {
       const category = curr.categoria || 'Altro';
-      acc[category] = (acc[category] || 0) + (curr.importo || 0);
+      const importo = typeof curr.importo === 'string' ? parseFloat(curr.importo) : (curr.importo || 0);
+      acc[category] = (acc[category] || 0) + importo;
       return acc;
     }, {});
 
@@ -49,8 +49,8 @@ export default function CostBreakdownChart({ costiData }) {
   };
 
   return (
-    <Card className="border-0 shadow-lg bg-white rounded-2xl h-full">
-      <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
+    <Card className="border-0 shadow-lg bg-white rounded-2xl h-full flex flex-col">
+      <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0 shrink-0">
         <div>
           <CardTitle className="text-lg font-bold text-slate-900">Ripartizione Costi</CardTitle>
           <p className="text-sm text-slate-500">Spese per categoria</p>
@@ -60,9 +60,9 @@ export default function CostBreakdownChart({ costiData }) {
           <p className="text-xs text-slate-500">Totale</p>
         </div>
       </CardHeader>
-      <CardContent className="flex items-center justify-center">
+      <CardContent className="flex-1 min-h-0 relative">
         {data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}

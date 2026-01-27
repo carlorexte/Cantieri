@@ -40,10 +40,7 @@ Deno.serve(async (req) => {
 
         return Response.json({
             user_summary: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                cantieri_assegnati: user.cantieri_assegnati,
+                ...user
             },
             cantieri_status: cantieriDetails,
             permissions_cantieri_ids: permIds,

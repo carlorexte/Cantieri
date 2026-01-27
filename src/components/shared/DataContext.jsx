@@ -51,8 +51,7 @@ export const DataProvider = ({ children }) => {
             .then(response => {
               // Support both {data: {items: []}} (axios style) and direct body
               const payload = response.data || response;
-              console.log("getMyCantieri raw response:", response);
-              console.log("getMyCantieri payload:", payload);
+
 
               if (payload && payload.items && Array.isArray(payload.items)) {
                 setCantieri(payload.items);

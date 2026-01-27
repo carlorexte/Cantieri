@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Filter, Eye, Download, Edit, Trash2, Tag, Building2, Calendar, Sparkles, Archive, History } from "lucide-react";
+import { Plus, Search, FileText, Eye, Download, Edit, Trash2, Tag, Building2, Calendar, Sparkles, Archive, History } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,

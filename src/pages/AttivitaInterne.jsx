@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { AttivitaInterna } from "@/entities/AttivitaInterna";
 import { User } from "@/entities/User";
@@ -7,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Filter, ClipboardList, User as UserIcon, Calendar, AlertCircle, Edit, Trash2, CheckCircle, Clock, PlayCircle } from "lucide-react";
+import { Plus, Filter, ClipboardList, Edit, Trash2, CheckCircle, Clock, PlayCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,

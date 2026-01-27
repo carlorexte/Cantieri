@@ -354,7 +354,7 @@ export default function Dashboard() {
       allCantieri
         .map(c => c.committente_ragione_sociale)
         .filter(Boolean)
-    );
+      );
     return Array.from(committenti).sort();
   }, [allCantieri]);
 

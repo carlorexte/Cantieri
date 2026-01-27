@@ -252,10 +252,9 @@ export default function Layout({ children }) {
         >
           <GlobalErrorBoundary>
             {children}
-            </GlobalErrorBoundary>
-            </LayoutContent>
-
-            </SidebarProvider>
-            </DataProvider>
-            );
-            }
+          </GlobalErrorBoundary>
+        </LayoutContent>
+      </SidebarProvider>
+    </DataProvider>
+  );
+}

@@ -123,6 +123,42 @@ export default function DebugPermissions() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader><CardTitle>3. Analisi Utente Specifico (Backend)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-4">
+            <input 
+              type="text" 
+              placeholder="Email utente da testare (es. carlorexte@gmail.com)"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              id="targetEmail"
+            />
+            <Button onClick={async () => {
+                const email = document.getElementById('targetEmail').value;
+                if(!email) return alert("Inserisci una email");
+                
+                // Show loading state
+                const preNode = document.getElementById('analysisResult');
+                if(preNode) preNode.innerText = "Analisi in corso... attendere...";
+                
+                try {
+                    const res = await base44.functions.invoke('checkUserData', { email });
+                    if(preNode) preNode.innerText = JSON.stringify(res.data, null, 2);
+                } catch(err) {
+                     if(preNode) preNode.innerText = "Errore: " + err.message;
+                }
+            }}>
+              Analizza Utente
+            </Button>
+          </div>
+          <div className="bg-slate-900 text-slate-50 p-4 rounded-md overflow-x-auto min-h-[200px]">
+            <pre id="analysisResult" className="text-xs font-mono">
+              In attesa di input...
+            </pre>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
          <Button onClick={() => window.location.href = '/Dashboard'}>Torna alla Dashboard</Button>
       </div>

@@ -356,7 +356,7 @@ export default function AIAssistantPage() {
                 </div>
             </div>
 
-            {/* AI Insights Section - Always visible at top */}
+            {/* AI Insights Section - Commented out to remove banner
             <GlobalErrorBoundary>
                 <AIInsightsWidget />
             </GlobalErrorBoundary>
@@ -364,6 +364,7 @@ export default function AIAssistantPage() {
             <GlobalErrorBoundary>
                 <EmailIntegrationPanel />
             </GlobalErrorBoundary>
+            */}
 
             {/* Chat Section */}
             <Card className="flex-1 flex flex-col border-0 shadow-lg bg-white/80 backdrop-blur-sm overflow-hidden">

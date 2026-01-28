@@ -101,8 +101,8 @@ export default function Layout({ children }) {
                                 <img 
                                     src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
                                     alt="RCS Icon" 
-                                    className="absolute h-full max-w-none left-1/2 -translate-x-1/2 object-cover"
-                                    style={{ width: '300%' }}
+                                    className="absolute h-full max-w-none left-1/2 object-cover"
+                                    style={{ width: '350%', transform: 'translateX(-64%)' }}
                                 />
                              </div>
                              <SidebarTrigger className="text-slate-500 hover:text-slate-700 ml-auto group-data-[collapsible=icon]:hidden" />

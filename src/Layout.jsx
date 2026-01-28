@@ -88,7 +88,7 @@ export default function Layout({ children }) {
         <SidebarProvider>
             <DataProvider>
             <div className="flex min-h-screen w-full bg-slate-50">
-                <Sidebar>
+                <Sidebar collapsible="icon">
                     <SidebarHeader className="border-b border-slate-200 bg-white px-6 py-4">
                         <div className="flex items-center gap-2">
                              <img 

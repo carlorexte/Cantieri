@@ -97,11 +97,13 @@ export default function Layout({ children }) {
                                 alt="RCS Logo" 
                                 className="h-10 w-auto object-contain group-data-[collapsible=icon]:hidden transition-all"
                              />
-                             <img 
-                                src="/favicon.ico" 
-                                alt="RCS Icon" 
-                                className="h-8 w-8 object-contain hidden group-data-[collapsible=icon]:block transition-all"
-                             />
+                             <div className="h-8 w-8 overflow-hidden relative hidden group-data-[collapsible=icon]:block transition-all rounded-md">
+                                <img 
+                                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
+                                    alt="RCS Icon" 
+                                    className="absolute h-full w-[280%] max-w-none left-1/2 -translate-x-1/2 object-contain"
+                                />
+                             </div>
                              <SidebarTrigger className="text-slate-500 hover:text-slate-700 ml-auto group-data-[collapsible=icon]:hidden" />
                         </div>
                     </SidebarHeader>
@@ -156,14 +158,14 @@ export default function Layout({ children }) {
                         </SidebarGroup>
                     </SidebarContent>
 
-                    <SidebarFooter className="border-t border-slate-200 bg-white p-4">
+                    <SidebarFooter className="border-t border-slate-200 bg-white p-4 group-data-[collapsible=icon]:p-2">
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <SidebarMenuButton
                                             size="lg"
-                                            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                                            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
                                         >
                                             <Avatar className="h-8 w-8 rounded-lg">
                                                 <AvatarImage src="" alt={user?.full_name} />
@@ -171,11 +173,11 @@ export default function Layout({ children }) {
                                                     {user?.full_name?.substring(0, 2).toUpperCase() || 'UT'}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <div className="grid flex-1 text-left text-sm leading-tight">
+                                            <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                                                 <span className="truncate font-semibold">{user?.full_name || 'Utente'}</span>
                                                 <span className="truncate text-xs text-slate-500 capitalize">{user?.role || 'Guest'}</span>
                                             </div>
-                                            <ChevronUp className="ml-auto" />
+                                            <ChevronUp className="ml-auto group-data-[collapsible=icon]:hidden" />
                                         </SidebarMenuButton>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent

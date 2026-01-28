@@ -97,11 +97,14 @@ export default function Layout({ children }) {
                                 alt="RCS Logo" 
                                 className="h-10 w-auto object-contain group-data-[collapsible=icon]:hidden transition-all"
                              />
-                             <img 
-                                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/58628b8fd_image.png" 
-                                alt="RCS Icon" 
-                                className="h-8 w-8 object-contain hidden group-data-[collapsible=icon]:block transition-all"
-                             />
+                             <div className="h-8 w-8 overflow-hidden relative hidden group-data-[collapsible=icon]:block transition-all">
+                                <img 
+                                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
+                                    alt="RCS Icon" 
+                                    className="absolute h-full max-w-none left-1/2 -translate-x-1/2 object-cover"
+                                    style={{ width: '300%' }}
+                                />
+                             </div>
                              <SidebarTrigger className="text-slate-500 hover:text-slate-700 ml-auto group-data-[collapsible=icon]:hidden" />
                         </div>
                     </SidebarHeader>

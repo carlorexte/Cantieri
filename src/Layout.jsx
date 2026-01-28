@@ -13,7 +13,8 @@ import {
     SidebarGroup, 
     SidebarGroupLabel, 
     SidebarGroupContent,
-    SidebarSeparator
+    SidebarSeparator,
+    SidebarTrigger
 } from '@/components/ui/sidebar';
 import { createPageUrl } from '@/utils';
 import { 
@@ -89,13 +90,14 @@ export default function Layout({ children }) {
             <DataProvider>
             <div className="flex min-h-screen w-full bg-slate-50">
                 <Sidebar collapsible="icon">
-                    <SidebarHeader className="border-b border-slate-200 bg-white px-6 py-4">
-                        <div className="flex items-center gap-2">
+                    <SidebarHeader className="border-b border-slate-200 bg-white px-6 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2 transition-all">
+                        <div className="flex items-center justify-between gap-2">
                              <img 
                                 src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
                                 alt="RCS Logo" 
-                                className="h-10 w-auto object-contain"
+                                className="h-10 w-auto object-contain group-data-[collapsible=icon]:hidden transition-all"
                              />
+                             <SidebarTrigger className="text-slate-500 hover:text-slate-700 ml-auto" />
                         </div>
                     </SidebarHeader>
                     

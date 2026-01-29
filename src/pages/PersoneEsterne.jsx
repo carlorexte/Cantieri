@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 import PersonaEsternaForm from "../components/persone-esterne/PersonaEsternaForm";
 
@@ -112,6 +113,7 @@ export default function PersoneEsterne() {
   };
 
   return (
+    <PermissionGuard permission="persone_view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -376,5 +378,6 @@ export default function PersoneEsterne() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

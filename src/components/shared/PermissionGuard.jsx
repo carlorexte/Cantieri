@@ -39,6 +39,36 @@ export function usePermissions() {
     if (user.role === 'admin') return true;
     if (permesso === 'all') return true;
 
+    // Default permissions for standard 'user' role based on revised policy
+    const DEFAULT_USER_PERMISSIONS = {
+      // Visibility permissions (Menu/Pages)
+      'dashboard_view': true,
+      'cantieri_view': true,
+      'imprese_view': true,
+      'persone_view': true,
+      'subappalti_view': true,
+      'costi_view': true,
+      'sal_view': true,
+      'attivita_view': true,
+      'documenti_view': true,
+      'cronoprogramma_view': true,
+      'profilo_azienda_view': false, // Usually admin
+      'utenti_view': false,          // Admin
+      'utenti_manage': false         // Admin
+    };
+
+    if (user.role === 'user') {
+       // If permission is explicitly granted/denied in user object or role, respect it.
+       // Otherwise, fallback to default policy.
+       if (user[permesso] !== undefined) return user[permesso];
+       if (ruolo?.permessi?.[permesso] !== undefined) return ruolo?.permessi?.[permesso];
+       
+       // Fallback to defaults
+       if (DEFAULT_USER_PERMISSIONS[permesso] !== undefined) {
+         return DEFAULT_USER_PERMISSIONS[permesso];
+       }
+    }
+
     // Check direct permission (flattened on user object by managePermissions)
     if (user[permesso]) return true;
 

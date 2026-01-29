@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 // Add ImpresaForm import
 import ImpresaForm from "../components/imprese/ImpresaForm";
@@ -135,6 +136,7 @@ export default function ImpresePage() {
   };
 
   return (
+    <PermissionGuard permission="imprese_view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -317,5 +319,6 @@ export default function ImpresePage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGuard>
   );
 }

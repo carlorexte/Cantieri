@@ -39,51 +39,51 @@ import {
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { DataProvider } from '@/components/shared/DataContext';
+import { usePermissions } from '@/components/shared/PermissionGuard';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Layout({ children }) {
     const location = useLocation();
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        const loadUser = async () => {
-            try {
-                const userData = await base44.auth.me();
-                setUser(userData);
-            } catch (error) {
-                console.error("Error loading user:", error);
-            }
-        };
-        loadUser();
-    }, []);
+    const { user, hasPermission, isAdmin } = usePermissions();
 
     const handleLogout = async () => {
         await base44.auth.logout();
     };
 
     const generaleItems = [
-        { title: "Dashboard", url: "Dashboard", icon: LayoutDashboard },
-        { title: "AI Assistant", url: "AIAssistant", icon: Sparkles },
-        { title: "Cantieri", url: "Cantieri", icon: Building2 },
-        { title: "Imprese", url: "Imprese", icon: Building },
-        { title: "Professionisti", url: "PersoneEsterne", icon: Users },
-        { title: "Subappalti", url: "Subappalti", icon: GitMerge },
-        { title: "Costi", url: "Costi", icon: Calculator }, // Using Calculator as placeholder for Costi if Euro not available or just reuse
-        { title: "SAL", url: "SAL", icon: FileText },
-        { title: "Attività Interne", url: "AttivitaInterne", icon: ClipboardList },
-        { title: "Documenti", url: "Documenti", icon: FileText },
-        { title: "Cronoprogramma", url: "Cronoprogramma", icon: Calendar },
-        { title: "Guida all'Uso", url: "Guida", icon: BookOpen },
+        { title: "Dashboard", url: "Dashboard", icon: LayoutDashboard, permission: "dashboard_view" },
+        { title: "AI Assistant", url: "AIAssistant", icon: Sparkles, permission: "dashboard_view" },
+        { title: "Cantieri", url: "Cantieri", icon: Building2, permission: "cantieri_view" },
+        { title: "Imprese", url: "Imprese", icon: Building, permission: "imprese_view" },
+        { title: "Professionisti", url: "PersoneEsterne", icon: Users, permission: "persone_view" },
+        { title: "Subappalti", url: "Subappalti", icon: GitMerge, permission: "subappalti_view" },
+        { title: "Costi", url: "Costi", icon: Calculator, permission: "costi_view" },
+        { title: "SAL", url: "SAL", icon: FileText, permission: "sal_view" },
+        { title: "Attività Interne", url: "AttivitaInterne", icon: ClipboardList, permission: "attivita_view" },
+        { title: "Documenti", url: "Documenti", icon: FileText, permission: "documenti_view" },
+        { title: "Cronoprogramma", url: "Cronoprogramma", icon: Calendar, permission: "cronoprogramma_view" },
+        { title: "Guida all'Uso", url: "Guida", icon: BookOpen, permission: "all" },
     ];
 
     const impostazioniItems = [
-        { title: "Profilo Azienda", url: "ProfiloAzienda", icon: Briefcase },
-        { title: "Gestione Utenti", url: "UserManagement", icon: UserCog },
-        { title: "Ruoli e Permessi", url: "GestionePermessi", icon: Shield },
-        { title: "Permessi Cantieri", url: "GestionePermessiCantieri", icon: Key },
-        { title: "Il Mio Profilo", url: "MyProfile", icon: User },
+        { title: "Profilo Azienda", url: "ProfiloAzienda", icon: Briefcase, permission: "profilo_azienda_view" },
+        { title: "Gestione Utenti", url: "UserManagement", icon: UserCog, permission: "utenti_view" },
+        { title: "Ruoli e Permessi", url: "GestionePermessi", icon: Shield, permission: "utenti_manage" },
+        { title: "Permessi Cantieri", url: "GestionePermessiCantieri", icon: Key, permission: "utenti_manage" },
+        { title: "Il Mio Profilo", url: "MyProfile", icon: User, permission: "all" },
     ];
+
+    const filterItems = (items) => {
+        return items.filter(item => {
+            if (isAdmin) return true;
+            if (item.permission === "all") return true;
+            return hasPermission(item.permission);
+        });
+    };
+
+    const visibleGeneraleItems = filterItems(generaleItems);
+    const visibleImpostazioniItems = filterItems(impostazioniItems);
 
     return (
         <SidebarProvider>
@@ -114,7 +114,7 @@ export default function Layout({ children }) {
                             <SidebarGroupLabel className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-4 mt-4">GENERALE</SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {generaleItems.map((item) => (
+                                    {visibleGeneraleItems.map((item) => (
                                         <SidebarMenuItem key={item.title}>
                                             <SidebarMenuButton 
                                                 asChild 
@@ -139,7 +139,7 @@ export default function Layout({ children }) {
                             <SidebarGroupLabel className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-4">IMPOSTAZIONI</SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {impostazioniItems.map((item) => (
+                                    {visibleImpostazioniItems.map((item) => (
                                         <SidebarMenuItem key={item.title}>
                                             <SidebarMenuButton 
                                                 asChild 

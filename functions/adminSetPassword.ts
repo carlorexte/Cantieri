@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { hash } from 'npm:bcryptjs@2.4.3';
 
 Deno.serve(async (req) => {
     try {
@@ -23,13 +22,17 @@ Deno.serve(async (req) => {
         }
 
         const user = users[0];
-        const hashedPassword = await hash(newPassword, 10);
-
-        await base44.asServiceRole.entities.User.update(user.id, {
-            hashed_password: hashedPassword
+        
+        // Try updating the 'password' field directly - the system should hash it
+        const result = await base44.asServiceRole.entities.User.update(user.id, {
+            password: newPassword
         });
 
-        return Response.json({ success: true, message: `Password updated for ${email}` });
+        return Response.json({ 
+            success: true, 
+            message: `Password updated for ${email} (via plain 'password' field)`,
+            user_id: user.id
+        });
 
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });

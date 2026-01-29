@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 import DocumentoFormEnhanced from "../components/documenti/DocumentoFormEnhanced";
 import RicercaAvanzataDocumenti from "../components/documenti/RicercaAvanzataDocumenti";
@@ -241,6 +242,7 @@ export default function DocumentiPage() {
   }, [cantieri, imprese]);
 
   return (
+    <PermissionGuard permission="documenti_view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -533,6 +535,7 @@ export default function DocumentiPage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 
   async function handleDownloadDocument(doc) {

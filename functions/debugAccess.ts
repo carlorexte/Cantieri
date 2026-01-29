@@ -35,10 +35,28 @@ Deno.serve(async (req) => {
             user: {
                 id: targetUser.id,
                 email: targetUser.email,
-                cantieri_assegnati: targetUser.cantieri_assegnati,
-                cantieri_assegnati_type: Array.isArray(targetUser.cantieri_assegnati) ? 'array' : typeof targetUser.cantieri_assegnati,
-                perm_view_soci: targetUser.perm_view_soci,
-                perm_view_soci_type: typeof targetUser.perm_view_soci
+                role: targetUser.role,
+                ruolo_id: targetUser.ruolo_id,
+                
+                // Imprese Permissions
+                imprese_view: targetUser.imprese_view,
+                imprese_create: targetUser.imprese_create,
+                imprese_edit: targetUser.imprese_edit,
+                imprese_delete: targetUser.imprese_delete,
+                
+                // Persone Permissions
+                persone_view: targetUser.persone_view,
+                persone_create: targetUser.persone_create,
+                persone_edit: targetUser.persone_edit,
+                persone_delete: targetUser.persone_delete,
+                
+                // Documenti Permissions
+                documenti_view: targetUser.documenti_view,
+                documenti_create: targetUser.documenti_create,
+                documenti_edit: targetUser.documenti_edit,
+                documenti_delete: targetUser.documenti_delete,
+                
+                cantieri_assegnati: targetUser.cantieri_assegnati
             },
             cantiere_exists: !!cantiere,
             cantiere_data: cantiere ? {

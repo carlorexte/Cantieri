@@ -39,7 +39,7 @@ export async function syncUserAccess(base44) {
         }
 
         if (needsUpdate) {
-            await base44.asServiceRole.auth.updateUser(user.id, updates);
+            await base44.asServiceRole.entities.User.update(user.id, updates);
             results.push({ 
                 email: user.email, 
                 updated: true, 

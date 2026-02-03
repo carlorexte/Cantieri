@@ -50,21 +50,30 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setIsLoading(true);
+    
+    // Helper to fetch safe
+    const fetchSafe = async (promise, fallback = []) => {
+      try {
+        return await promise;
+      } catch (e) {
+        console.warn("Failed to fetch entity:", e);
+        return fallback;
+      }
+    };
+
     try {
-      // Parallel fetch for efficiency
+      // Use Promise.all but wrap individual calls to prevent one failure from breaking all
       const [cantieri, sal, costi, documenti, attivitaInterne] = await Promise.all([
-        base44.entities.Cantiere.list(),
-        base44.entities.SAL.list(),
-        base44.entities.Costo.list(),
-        base44.entities.Documento.list(),
-        base44.entities.AttivitaInterna.list()
+        fetchSafe(base44.entities.Cantiere.list()),
+        fetchSafe(base44.entities.SAL.list()),
+        fetchSafe(base44.entities.Costo.list()),
+        fetchSafe(base44.entities.Documento.list()),
+        fetchSafe(base44.entities.AttivitaInterna.list())
       ]);
 
       // Enrich cantieri with advanced calculation if needed
-      // Here we assume basic entities, but we calculate 'avanzamento' from SALs for accuracy
       const enrichedCantieri = cantieri.map(c => {
         const cantiereSals = sal.filter(s => s.cantiere_id === c.id);
-        // Assuming SALs have 'percentuale_avanzamento' and are progressive, max is current
         const maxAvanzamento = cantiereSals.reduce((max, s) => 
           Math.max(max, s.percentuale_avanzamento || 0), 0);
         
@@ -82,7 +91,7 @@ export default function Dashboard() {
         attivitaInterne
       });
     } catch (error) {
-      console.error("Error loading dashboard data:", error);
+      console.error("Critical error in dashboard:", error);
     } finally {
       setIsLoading(false);
     }

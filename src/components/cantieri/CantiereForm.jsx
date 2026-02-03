@@ -395,6 +395,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
       verbali_consegna: form.verbali_consegna,
       date_consegna: form.date_consegna,
       contatti_committente: form.contatti_committente,
+      team_assegnati: form.team_assegnati,
       importo_lavori_netto_ribasso: parseFloat(form.importo_lavori_netto_ribasso) || null,
       importo_progettazione: parseFloat(form.importo_progettazione) || null,
       oneri_sicurezza_importo: parseFloat(form.oneri_sicurezza_importo) || null,

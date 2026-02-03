@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useData } from "@/components/shared/DataContext";
+import { usePermissions } from "@/components/shared/PermissionGuard";
 
 import CantiereForm from "../components/cantieri/CantiereForm";
 import CantiereDetail from "../components/cantieri/CantiereDetail";
@@ -31,7 +32,9 @@ const statusColors = {
   in_gara: "bg-purple-50 text-purple-700 border-purple-200"
 };
 
-const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) => (
+const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) => {
+  const { hasPermission } = usePermissions();
+  return (
   <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white group">
     <CardContent className="p-6">
       <div className="flex items-start justify-between">
@@ -117,13 +120,13 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+            {(currentUser?.role === 'admin' || hasPermission('cantieri_edit')) && (
               <DropdownMenuItem onClick={() => onEdit(cantiere)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Modifica
               </DropdownMenuItem>
             )}
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+            {(currentUser?.role === 'admin' || hasPermission('cantieri_delete')) && (
               <DropdownMenuItem 
                 onClick={() => onDelete(cantiere.id)}
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
@@ -137,11 +140,13 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
       </div>
     </CardContent>
   </Card>
-));
+  );
+});
 CantiereCard.displayName = 'CantiereCard';
 
 export default function Cantieri() {
   const { cantieri, currentUser, refreshCantieri } = useData();
+  const { hasPermission } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("tutti");
   const [isLoading, setIsLoading] = useState(false);
@@ -245,7 +250,7 @@ export default function Cantieri() {
                   Riepilogo Cantieri
                 </Button>
               </Link>
-              {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+              {(currentUser?.role === 'admin' || hasPermission('cantieri_create')) && (
                 <Button 
                   onClick={() => { 
                     setEditingCantiere(null); 

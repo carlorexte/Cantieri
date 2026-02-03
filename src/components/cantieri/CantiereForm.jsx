@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,10 +127,12 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     direttore_lavori_id: cantiere?.direttore_lavori_id || "", // Changed to ID
     responsabile_unico_procedimento_id: cantiere?.responsabile_unico_procedimento_id || "", // Changed to ID
     stato: cantiere?.stato || "attivo",
-    note: cantiere?.note || ""
+    note: cantiere?.note || "",
+    team_assegnati: cantiere?.team_assegnati || []
   });
 
   const [initialData, setInitialData] = useState("");
+  const [teams, setTeams] = useState([]);
 
   // State for Subappalti and Subaffidamenti
   const [subappalti, setSubappalti] = useState([]);
@@ -244,7 +248,8 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
       direttore_lavori_id: cantiere?.direttore_lavori_id || "", // Changed to ID
       responsabile_unico_procedimento_id: cantiere?.responsabile_unico_procedimento_id || "", // Changed to ID
       stato: cantiere?.stato || "attivo",
-      note: cantiere?.note || ""
+      note: cantiere?.note || "",
+      team_assegnati: cantiere?.team_assegnati || []
     };
     
     setForm(data);
@@ -268,6 +273,17 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     if (cantiere?.id) {
       loadSubappaltiSubaffidamenti(cantiere.id);
     }
+    
+    // Load Teams
+    const loadTeams = async () => {
+      try {
+        const teamsList = await base44.entities.Team.list("nome");
+        setTeams(teamsList);
+      } catch (error) {
+        console.error("Errore caricamento teams:", error);
+      }
+    };
+    loadTeams();
   }, [cantiere?.id, loadSubappaltiSubaffidamenti]);
 
 
@@ -421,6 +437,55 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                       value={form.referente_interno}
                       onChange={(e) => updateField("referente_interno", e.target.value)} />
                   </div>
+                </div>
+
+                <div>
+                   <Label>Team Assegnati</Label>
+                   <div className="flex flex-wrap gap-2 mb-2 mt-2">
+                      {form.team_assegnati?.map(teamId => {
+                        const team = teams.find(t => t.id === teamId);
+                        return (
+                          <Badge key={teamId} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                             {team?.nome || 'Team Sconosciuto'}
+                             <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 ml-1 hover:bg-transparent text-slate-500 hover:text-red-500 rounded-full"
+                                onClick={() => {
+                                   updateField("team_assegnati", form.team_assegnati.filter(id => id !== teamId));
+                                }}
+                             >
+                                <X className="h-3 w-3" />
+                             </Button>
+                          </Badge>
+                        );
+                      })}
+                      {(!form.team_assegnati || form.team_assegnati.length === 0) && (
+                        <span className="text-sm text-slate-500 italic py-1">Nessun team assegnato</span>
+                      )}
+                   </div>
+                   <Select
+                      onValueChange={(value) => {
+                         if (value && !form.team_assegnati?.includes(value)) {
+                            updateField("team_assegnati", [...(form.team_assegnati || []), value]);
+                         }
+                      }}
+                   >
+                      <SelectTrigger className="w-full md:w-1/2">
+                         <SelectValue placeholder="Aggiungi Team..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                         {teams.filter(t => !form.team_assegnati?.includes(t.id)).map(team => (
+                            <SelectItem key={team.id} value={team.id}>
+                               {team.nome}
+                            </SelectItem>
+                         ))}
+                         {teams.filter(t => !form.team_assegnati?.includes(t.id)).length === 0 && (
+                            <div className="p-2 text-sm text-slate-500 text-center">Tutti i team sono stati assegnati</div>
+                         )}
+                      </SelectContent>
+                   </Select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

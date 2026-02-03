@@ -70,6 +70,7 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
+import OrdiniMateriali from './pages/OrdiniMateriali';
 import __Layout from './Layout.jsx';
 
 
@@ -97,6 +98,7 @@ export const PAGES = {
     "Subappalti": Subappalti,
     "TestData": TestData,
     "UserManagement": UserManagement,
+    "OrdiniMateriali": OrdiniMateriali,
 }
 
 export const pagesConfig = {

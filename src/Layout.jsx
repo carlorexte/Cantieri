@@ -35,8 +35,9 @@ import {
     Key, 
     User,
     LogOut,
-    ChevronUp
-} from 'lucide-react';
+    ChevronUp,
+    ShoppingCart
+    } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { DataProvider } from '@/components/shared/DataContext';
 import { usePermissions } from '@/components/shared/PermissionGuard';
@@ -60,6 +61,7 @@ export default function Layout({ children }) {
         { title: "Subappalti", url: "Subappalti", icon: GitMerge, permission: "subappalti_view" },
         { title: "Costi", url: "Costi", icon: Calculator, permission: "costi_view" },
         { title: "SAL", url: "SAL", icon: FileText, permission: "sal_view" },
+        { title: "Ordini Materiali", url: "OrdiniMateriali", icon: ShoppingCart, permission: "ordini_view" },
         { title: "Attività Interne", url: "AttivitaInterne", icon: ClipboardList, permission: "attivita_view" },
         { title: "Documenti", url: "Documenti", icon: FileText, permission: "documenti_view" },
         { title: "Cronoprogramma", url: "Cronoprogramma", icon: Calendar, permission: "cronoprogramma_view" },

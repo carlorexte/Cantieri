@@ -52,10 +52,11 @@ export function usePermissions() {
       'attivita_view': true,
       'documenti_view': true,
       'cronoprogramma_view': true,
+      'ordini_view': true,           // Default for users
       'profilo_azienda_view': false, // Usually admin
       'utenti_view': false,          // Admin
       'utenti_manage': false         // Admin
-    };
+      };
 
     if (user.role === 'user') {
        // If permission is explicitly granted/denied in user object or role, respect it.

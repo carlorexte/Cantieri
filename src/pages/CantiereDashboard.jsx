@@ -4,6 +4,7 @@ import { Subappalto } from '@/entities/Subappalto';
 import { Documento } from '@/entities/Documento';
 import { Impresa } from '@/entities/Impresa';
 import { base44 } from '@/api/base44Client';
+import { usePermissions } from '@/components/shared/PermissionGuard';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +54,7 @@ export default function CantiereDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser, hasPermission, hasCantierePermission } = usePermissions();
   
   // Document Viewer State
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -63,14 +64,7 @@ export default function CantiereDashboardPage() {
   const [direttoreLavori, setDirettoreLavori] = useState(null);
   const [responsabileUnico, setResponsabileUnico] = useState(null);
 
-  const loadUser = useCallback(async () => {
-    try {
-      const user = await base44.auth.me();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error("Errore caricamento utente:", error);
-    }
-  }, []);
+  // loadUser removed in favor of usePermissions
 
   const loadData = useCallback(async (cantiereId) => {
     setIsLoading(true);
@@ -140,9 +134,7 @@ export default function CantiereDashboardPage() {
     } else {
       setIsLoading(false);
     }
-    
-    loadUser();
-  }, [loadData, loadUser]);
+  }, [loadData]);
 
   const handleDocumentoSubmit = useCallback(async (formData) => {
     try {
@@ -432,7 +424,7 @@ export default function CantiereDashboardPage() {
             </Button>
           </Link>
           
-          {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+          {(currentUser?.role === 'admin' || hasPermission('cantieri_edit')) && (
             <Button 
               onClick={() => setShowCantiereForm(true)}
               className="bg-indigo-600 hover:bg-indigo-700"
@@ -627,7 +619,7 @@ export default function CantiereDashboardPage() {
                     <div className="border-t pt-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-semibold text-slate-700">Documenti Contratto</h4>
-                        {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+                        {(currentUser?.role === 'admin' || hasPermission('cantieri_edit')) && (
                           <Button 
                             variant="outline" 
                             size="sm"

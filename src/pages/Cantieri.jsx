@@ -145,8 +145,8 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
 CantiereCard.displayName = 'CantiereCard';
 
 export default function Cantieri() {
-  const { cantieri, currentUser, refreshCantieri } = useData();
-  const { hasPermission } = usePermissions();
+  const { cantieri, refreshCantieri } = useData();
+  const { user: currentUser, hasPermission } = usePermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("tutti");
   const [isLoading, setIsLoading] = useState(false);

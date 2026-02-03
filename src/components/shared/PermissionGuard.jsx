@@ -85,20 +85,34 @@ export function usePermissions() {
     if (!user) return false;
     if (user.role === 'admin') return true;
 
-    // Se non ci sono cantieri assegnati, l'utente ha accesso a tutti (se ha permessi generali)
-    if (!user.cantieri_assegnati || user.cantieri_assegnati.length === 0) {
-      return hasPermission(permesso);
+    // 1. PRIORITY: Global Permission Check
+    // If the user has the global permission (e.g., 'cantieri_view' is true on their profile),
+    // they have access regardless of specific assignments.
+    // This allows "Managers" to see everything while still having an assigned list for convenience.
+    if (hasPermission(permesso)) return true;
+
+    // 2. Assignment Check
+    // If they don't have global permission, we check if they are assigned to this specific cantiere.
+    const isAssigned = user.cantieri_assegnati && user.cantieri_assegnati.includes(cantiereId);
+    
+    if (isAssigned) {
+        // If assigned, check if there are specific granular permissions (PermessoCantiereUtente)
+        // Or if the basic assignment implies read access (usually assignment = read at least)
+        const permessoCantiere = permessiCantieri.find(p => p.cantiere_id === cantiereId);
+        
+        // If they have a specific override for this cantiere
+        if (permessoCantiere?.permessi?.[permesso]) return true;
+        
+        // Default: If assigned, they usually have 'view' access implicitly.
+        // For 'edit' or others, they need the explicit permission or the global one checked above.
+        if (permesso === 'cantieri_view' || permesso === 'dashboard_view') return true;
     }
 
-    // Controlla se il cantiere è tra quelli assegnati
-    if (!user.cantieri_assegnati.includes(cantiereId)) return false;
+    // 3. Ownership Check (Frontend side approximation of RLS created_by)
+    // Note: RLS handles the real security. This is just for UI hiding.
+    // We can't easily check created_by here without the record, so we rely on the above.
 
-    // Controlla permessi specifici per il cantiere
-    const permessoCantiere = permessiCantieri.find(p => p.cantiere_id === cantiereId);
-    if (permessoCantiere?.permessi?.[permesso]) return true;
-
-    // Fallback ai permessi generali
-    return hasPermission(permesso);
+    return false;
   };
 
   const getAccessibleCantieri = () => {

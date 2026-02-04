@@ -1,5 +1,80 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { syncUserAccess } from './syncPermissions.ts';
+
+// Helper function inlined to avoid import errors
+async function syncUserAccess(base44) {
+    const users = await base44.asServiceRole.entities.User.list();
+    const teams = await base44.asServiceRole.entities.Team.list();
+    const allCantieri = await base44.asServiceRole.entities.Cantiere.list();
+    
+    const results = [];
+
+    for (const user of users) {
+        // --- 1. Sync Cantieri (PermessoCantiereUtente) ---
+        const perms = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({
+            utente_id: user.id
+        });
+        const directAssignedIds = perms
+            .filter(p => p.permessi?.view !== false)
+            .map(p => p.cantiere_id);
+
+        // --- 2. Sync Teams ---
+        const userTeams = teams.filter(t => t.membri_ids?.includes(user.id));
+        const teamIds = userTeams.map(t => t.id);
+
+        const teamAssignedIds = allCantieri
+            .filter(c => c.team_assegnati?.some(tid => teamIds.includes(tid)))
+            .map(c => c.id);
+
+        const assignedIds = [...new Set([...directAssignedIds, ...teamAssignedIds])];
+
+        // --- 3. Update User ---
+        const updates = {};
+        let needsUpdate = false;
+
+        const currentAssigned = user.cantieri_assegnati || [];
+        const sortedNew = [...assignedIds].sort();
+        const sortedOld = [...currentAssigned].sort();
+        
+        const isDifferent = sortedNew.length !== sortedOld.length || 
+                            !sortedNew.every((val, index) => val === sortedOld[index]);
+
+        if (isDifferent) {
+            updates.cantieri_assegnati = assignedIds;
+            needsUpdate = true;
+        }
+
+        const currentTeams = user.team_ids || [];
+        const sortedNewTeams = [...teamIds].sort();
+        const sortedOldTeams = [...currentTeams].sort();
+        
+        const isTeamsDifferent = sortedNewTeams.length !== sortedOldTeams.length ||
+                                 !sortedNewTeams.every((val, index) => val === sortedOldTeams[index]);
+
+        if (isTeamsDifferent) {
+            updates.team_ids = teamIds;
+            needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+            await base44.asServiceRole.entities.User.update(user.id, updates);
+            results.push({ 
+                email: user.email, 
+                updated: true, 
+                cantieriCount: assignedIds.length,
+                teamsCount: teamIds.length
+            });
+        } else {
+            results.push({ 
+                email: user.email, 
+                updated: false, 
+                cantieriCount: currentAssigned.length,
+                teamsCount: currentTeams.length
+            });
+        }
+    }
+
+    return results;
+}
 
 Deno.serve(async (req) => {
     try {
@@ -13,7 +88,6 @@ Deno.serve(async (req) => {
         const targetUser = users[0];
         const updates = {};
         
-        // Grant view permissions for all related entities
         const viewPerms = [
             "dashboard_view",
             "cantieri_view",
@@ -35,7 +109,6 @@ Deno.serve(async (req) => {
             }
         });
 
-        // Also ensure arrays
         if (!Array.isArray(targetUser.team_ids)) updates.team_ids = [];
         if (!Array.isArray(targetUser.cantieri_assegnati)) updates.cantieri_assegnati = [];
 
@@ -43,7 +116,6 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.User.update(targetUser.id, updates);
         }
 
-        // Run full sync to ensure team access is calculated
         const syncResults = await syncUserAccess(base44);
         const mySync = syncResults.find(r => r.email === targetUser.email);
 

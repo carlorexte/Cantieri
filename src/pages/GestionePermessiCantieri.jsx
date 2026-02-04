@@ -2,35 +2,28 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Building2, Users, Save, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Shield, Save, Search, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/components/shared/PermissionGuard";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function GestionePermessiCantieriPage() {
-  const queryClient = useQueryClient();
+  const { hasPermission, isLoading: isAuthLoading } = usePermissions();
   const [cantieri, setCantieri] = useState([]);
   const [utenti, setUtenti] = useState([]);
-  const [permessi, setPermessi] = useState([]);
+  const [permessiOverrides, setPermessiOverrides] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showDialog, setShowDialog] = useState(false);
   const [selectedCantiere, setSelectedCantiere] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showDialog, setShowDialog] = useState(false);
   
-  // We don't fetch currentUser here manually anymore, relying on RLS or layout passed user if needed.
-  // But for the page access check "if (!currentUser || currentUser.role !== 'admin')", we need it.
-  // We can fetch it, or use useQuery to get it from cache if Layout fetched it.
-  // Since Layout fetches it with key 'currentUser', we can use queryClient.getQueryData(['currentUser']) 
-  // but it might be undefined if not fetched yet. 
-  // Better to just fetch it or use the same useQuery.
-  // For simplicity and consistency with previous code, I'll keep fetching it but separate it from the bulk load
-  // or just use cache invalidation side effect.
-  
-  const [currentUser, setCurrentUser] = useState(null);
-
   useEffect(() => {
     loadData();
   }, []);
@@ -38,16 +31,14 @@ export default function GestionePermessiCantieriPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [cantieriData, utentiData, permessiData, user] = await Promise.all([
-        base44.entities.Cantiere.list(),
+      const [cantieriData, utentiData, overridesData] = await Promise.all([
+        base44.entities.Cantiere.list('-created_date', 100),
         base44.entities.User.list(),
-        base44.entities.PermessoCantiereUtente.list(),
-        base44.auth.me()
+        base44.entities.PermessoCantiereUtente.list()
       ]);
       setCantieri(cantieriData);
-      setUtenti(utentiData.filter(u => u.role !== 'admin'));
-      setPermessi(permessiData);
-      setCurrentUser(user);
+      setUtenti(utentiData);
+      setPermessiOverrides(overridesData);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
       toast.error("Errore nel caricamento dei dati");
@@ -55,337 +46,228 @@ export default function GestionePermessiCantieriPage() {
     setIsLoading(false);
   };
 
-  const handleAssegnaUtenti = async (cantiereId, utentiIds) => {
-    try {
-      await base44.functions.invoke('manageCantiereAssignments', {
-        action: 'assign_bulk',
-        cantiereId,
-        userIds: utentiIds
-      });
-      
-      queryClient.invalidateQueries(['currentUser']);
-      toast.success("Utenti assegnati. Se gli utenti non vedono le modifiche, chiedi loro di effettuare logout e login.");
-      loadData();
-    } catch (error) {
-      console.error("Errore assegnazione utenti:", error);
-      toast.error("Errore generale nell'assegnazione");
-    }
+  const handleEditOverride = (user, cantiere) => {
+    setSelectedUser(user);
+    setSelectedCantiere(cantiere);
+    setShowDialog(true);
   };
 
-  if (!currentUser || currentUser.role !== 'admin') {
-    return (
-      <div className="p-8 text-center">
-        <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-400" />
-        <h2 className="text-xl font-semibold mb-2">Accesso Negato</h2>
-        <p className="text-slate-600">Non hai i permessi per accedere a questa pagina.</p>
-      </div>
-    );
+  if (isAuthLoading) return null;
+
+  if (!hasPermission('user_management', 'manage_cantiere_permissions')) {
+     return (
+       <div className="p-8 text-center">
+         <Shield className="w-16 h-16 mx-auto mb-4 text-slate-400" />
+         <h2 className="text-xl font-semibold mb-2">Accesso Negato</h2>
+         <p className="text-slate-600">Non hai i permessi per gestire i permessi dei cantieri.</p>
+       </div>
+     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
+    <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Gestione Permessi per Cantiere</h1>
-          <p className="text-slate-600 mt-1">Assegna utenti specifici ai cantieri e configura i loro permessi</p>
+          <h1 className="text-3xl font-bold text-slate-900">Permessi Specifici Cantieri</h1>
+          <p className="text-slate-600 mt-1">Definisci eccezioni ai ruoli per specifici cantieri e utenti</p>
         </div>
 
-        {isLoading ? (
-          <div className="text-center py-12">Caricamento...</div>
-        ) : (
-          <div className="space-y-4">
-            {cantieri.map(cantiere => {
-              const utentiAssegnati = utenti.filter(u => 
-                u.cantieri_assegnati?.includes(cantiere.id)
-              );
-              const permessiCantiere = permessi.filter(p => p.cantiere_id === cantiere.id);
+        <Card className="border-0 shadow-sm">
+          <CardHeader>
+             <CardTitle>Matrice Utenti / Cantieri</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <p className="text-sm text-slate-500 mb-4">
+                 Seleziona una cella per modificare i permessi specifici di un utente su un cantiere.
+                 <br/>
+                 <span className="inline-block w-3 h-3 bg-indigo-100 border border-indigo-300 rounded-full mr-1 align-middle"></span> 
+                 Indica che è presente un override specifico.
+             </p>
+             <div className="overflow-x-auto">
+                 <Table>
+                     <TableHeader>
+                         <TableRow>
+                             <TableHead className="w-[200px]">Utente</TableHead>
+                             {cantieri.map(c => (
+                                 <TableHead key={c.id} className="min-w-[150px] text-center">
+                                     <div className="font-semibold truncate max-w-[140px]" title={c.denominazione}>
+                                         {c.denominazione}
+                                     </div>
+                                     <div className="text-xs font-normal text-slate-400">{c.codice_cig || 'NO CIG'}</div>
+                                 </TableHead>
+                             ))}
+                         </TableRow>
+                     </TableHeader>
+                     <TableBody>
+                         {utenti.map(u => (
+                             <TableRow key={u.id}>
+                                 <TableCell className="font-medium">
+                                     <div className="flex items-center gap-2">
+                                         <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs">
+                                             {u.full_name?.charAt(0)}
+                                         </div>
+                                         <div className="truncate max-w-[180px]" title={u.full_name}>
+                                             {u.full_name}
+                                         </div>
+                                     </div>
+                                 </TableCell>
+                                 {cantieri.map(c => {
+                                     const override = permessiOverrides.find(p => p.utente_id === u.id && p.cantiere_id === c.id);
+                                     const isAssigned = (u.cantieri_assegnati || []).includes(c.id);
+                                     
+                                     return (
+                                         <TableCell key={c.id} className="text-center p-1">
+                                             <Button 
+                                                 variant="ghost" 
+                                                 className={`h-8 w-full ${override ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : (isAssigned ? 'bg-slate-50' : 'opacity-50')}`}
+                                                 onClick={() => handleEditOverride(u, c)}
+                                             >
+                                                 {override ? "Custom" : (isAssigned ? "Assegnato" : "-")}
+                                             </Button>
+                                         </TableCell>
+                                     );
+                                 })}
+                             </TableRow>
+                         ))}
+                     </TableBody>
+                 </Table>
+             </div>
+          </CardContent>
+        </Card>
 
-              return (
-                <Card key={cantiere.id} className="border-0 shadow-sm">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Building2 className="w-5 h-5 text-indigo-600" />
-                          {cantiere.denominazione}
-                        </CardTitle>
-                        <p className="text-sm text-slate-500 mt-1">{cantiere.oggetto_lavori}</p>
-                      </div>
-                      <Button
-                        onClick={() => {
-                          setSelectedCantiere(cantiere);
-                          setShowDialog(true);
-                        }}
-                        size="sm"
-                        className="bg-indigo-600 hover:bg-indigo-700"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Gestisci Utenti
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {utentiAssegnati.length === 0 ? (
-                      <p className="text-sm text-slate-500 italic">Nessun utente assegnato (tutti gli utenti hanno accesso se hanno i permessi generali)</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {utentiAssegnati.map(utente => {
-                          const permesso = permessiCantiere.find(p => p.utente_id === utente.id);
-                          return (
-                            <div key={utente.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                                  <Users className="w-4 h-4 text-indigo-600" />
-                                </div>
-                                <div>
-                                  <p className="font-medium text-sm">{utente.full_name}</p>
-                                  <p className="text-xs text-slate-500">{utente.email}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                {permesso?.permessi?.edit && <Badge variant="secondary" className="text-xs">Modifica</Badge>}
-                                {permesso?.permessi?.manage_documenti && <Badge variant="secondary" className="text-xs">Doc</Badge>}
-                                {permesso?.permessi?.manage_sal && <Badge variant="secondary" className="text-xs">SAL</Badge>}
-                                {permesso?.permessi?.manage_costi && <Badge variant="secondary" className="text-xs">Costi</Badge>}
-                                {!permesso && <Badge variant="outline" className="text-xs">Solo visualizzazione</Badge>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+        {showDialog && (
+            <OverrideDialog 
+                open={showDialog}
+                onOpenChange={setShowDialog}
+                user={selectedUser}
+                cantiere={selectedCantiere}
+                existingOverride={permessiOverrides.find(p => p.utente_id === selectedUser?.id && p.cantiere_id === selectedCantiere?.id)}
+                onSave={loadData}
+            />
         )}
-
-        <GestioneUtentiCantiereDialog
-          open={showDialog}
-          onOpenChange={setShowDialog}
-          cantiere={selectedCantiere}
-          utenti={utenti}
-          permessi={permessi}
-          onSave={loadData}
-        />
       </div>
     </div>
   );
 }
 
-function GestioneUtentiCantiereDialog({ open, onOpenChange, cantiere, utenti, permessi, onSave }) {
-  const queryClient = useQueryClient();
-  const [selectedUtente, setSelectedUtente] = useState(null);
-  const [permessiUtente, setPermessiUtente] = useState({
-    view: true,
-    edit: false,
-    manage_documenti: false,
-    manage_sal: false,
-    manage_costi: false,
-    manage_subappalti: false,
-    manage_cronoprogramma: false
-  });
+function OverrideDialog({ open, onOpenChange, user, cantiere, existingOverride, onSave }) {
+    const [permessi, setPermessi] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
 
-  const handleAssegnaUtente = async () => {
-    if (!selectedUtente || !cantiere) return;
+    useEffect(() => {
+        if (existingOverride && existingOverride.permessi) {
+            setPermessi(existingOverride.permessi);
+        } else {
+            setPermessi({});
+        }
+    }, [existingOverride]);
 
-    try {
-      // 1. Aggiornamento Utente (Core per RLS) e 2. Aggiornamento Permessi (Dettaglio)
-      // Tutto gestito via Backend Function per sicurezza e coerenza
-      await base44.functions.invoke('manageCantiereAssignments', {
-        action: 'assign_single',
-        userId: selectedUtente,
-        cantiereId: cantiere.id,
-        permessi: permessiUtente
-      });
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            if (Object.keys(permessi).length === 0) {
+                // If empty, verify if we should delete existing override
+                if (existingOverride) {
+                    await base44.entities.PermessoCantiereUtente.delete(existingOverride.id);
+                    toast.success("Override rimosso");
+                }
+            } else {
+                if (existingOverride) {
+                    await base44.entities.PermessoCantiereUtente.update(existingOverride.id, { permessi });
+                } else {
+                    await base44.entities.PermessoCantiereUtente.create({
+                        utente_id: user.id,
+                        cantiere_id: cantiere.id,
+                        permessi
+                    });
+                }
+                toast.success("Permessi salvati");
+            }
+            onSave();
+            onOpenChange(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Errore salvataggio");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-      toast.success("Utente assegnato. Potrebbe essere necessario un logout/login per vedere le modifiche.");
-      queryClient.invalidateQueries(['currentUser']);
-      setSelectedUtente(null);
-      // Reset form
-      setPermessiUtente({
-        view: true,
-        edit: false,
-        manage_documenti: false,
-        manage_sal: false,
-        manage_costi: false,
-        manage_subappalti: false,
-        manage_cronoprogramma: false
-      });
-      onSave();
-    } catch (error) {
-      console.error("Errore assegnazione utente:", error);
-      toast.error("Errore nell'assegnazione: " + error.message);
-    }
-  };
+    const modules = [
+        { id: "cantieri", label: "Cantiere", actions: ["view", "edit", "admin.delete", "admin.archive"] },
+        { id: "sal", label: "SAL", actions: ["view", "edit", "admin.delete", "admin.approve"] },
+        { id: "costi", label: "Costi", actions: ["view", "edit", "admin.delete"] },
+        { id: "ordini_materiale", label: "Ordini", actions: ["view", "edit", "admin.delete", "admin.accept"] },
+        { id: "documenti", label: "Documenti", actions: ["view", "edit", "admin.delete", "admin.archive"] },
+        { id: "cronoprogramma", label: "Cronoprogramma", actions: ["view", "edit"] },
+    ];
 
-  const handleRimuoviUtente = async (utenteId) => {
-    if (!cantiere) return;
+    const updateNestedPermission = (permObj, moduleId, path, value) => {
+        const newPerm = JSON.parse(JSON.stringify(permObj));
+        if (!newPerm[moduleId]) newPerm[moduleId] = {};
+        
+        const parts = path.split('.');
+        let current = newPerm[moduleId];
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!current[part]) current[part] = {};
+            current = current[part];
+        }
+        current[parts[parts.length - 1]] = value;
+        return newPerm;
+    };
+    
+    const getPermissionValue = (permObj, moduleId, path) => {
+        if (!permObj || !permObj[moduleId]) return false;
+        const parts = path.split('.');
+        let current = permObj[moduleId];
+        for (let i = 0; i < parts.length; i++) {
+            if (current === undefined) return false;
+            current = current[parts[i]];
+        }
+        return !!current;
+    };
 
-    if (!confirm("Sei sicuro di voler rimuovere questo utente dal cantiere?")) return;
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Permessi specifici: {cantiere?.denominazione}</DialogTitle>
+                    <DialogDescription>
+                        Utente: <span className="font-semibold text-slate-900">{user?.full_name}</span>
+                        <br/>
+                        Questi permessi sovrascrivono quelli del ruolo base per questo specifico cantiere.
+                    </DialogDescription>
+                </DialogHeader>
 
-    try {
-      // Rimozione completa (User RLS + Permessi specifici) via Backend Function
-      await base44.functions.invoke('manageCantiereAssignments', {
-        action: 'remove',
-        userId: utenteId,
-        cantiereId: cantiere.id
-      });
-
-      toast.success("Utente rimosso con successo");
-      queryClient.invalidateQueries(['currentUser']);
-      onSave();
-    } catch (error) {
-      console.error("Errore rimozione utente:", error);
-      toast.error("Errore durante la rimozione: " + error.message);
-    }
-  };
-
-  if (!cantiere) return null;
-
-  const utentiAssegnati = utenti.filter(u => 
-    u.cantieri_assegnati?.includes(cantiere.id)
-  );
-  const utentiDisponibili = utenti.filter(u => 
-    !u.cantieri_assegnati?.includes(cantiere.id)
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Gestisci Utenti - {cantiere.denominazione}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Aggiungi nuovo utente */}
-          <Card className="border-0 bg-slate-50">
-            <CardHeader>
-              <CardTitle className="text-sm">Assegna Nuovo Utente</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Seleziona Utente</Label>
-                <Select value={selectedUtente || ""} onValueChange={setSelectedUtente}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Scegli un utente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {utentiDisponibili.map(utente => (
-                      <SelectItem key={utente.id} value={utente.id}>
-                        {utente.full_name} ({utente.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedUtente && (
-                <>
-                  <div className="space-y-3">
-                    <Label>Permessi Specifici</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={permessiUtente.edit}
-                          onCheckedChange={(checked) => setPermessiUtente(prev => ({ ...prev, edit: checked }))}
-                        />
-                        <Label className="text-sm">Modifica Cantiere</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={permessiUtente.manage_documenti}
-                          onCheckedChange={(checked) => setPermessiUtente(prev => ({ ...prev, manage_documenti: checked }))}
-                        />
-                        <Label className="text-sm">Gestione Documenti</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={permessiUtente.manage_sal}
-                          onCheckedChange={(checked) => setPermessiUtente(prev => ({ ...prev, manage_sal: checked }))}
-                        />
-                        <Label className="text-sm">Gestione SAL</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={permessiUtente.manage_costi}
-                          onCheckedChange={(checked) => setPermessiUtente(prev => ({ ...prev, manage_costi: checked }))}
-                        />
-                        <Label className="text-sm">Gestione Costi</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={permessiUtente.manage_subappalti}
-                          onCheckedChange={(checked) => setPermessiUtente(prev => ({ ...prev, manage_subappalti: checked }))}
-                        />
-                        <Label className="text-sm">Gestione Subappalti</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={permessiUtente.manage_cronoprogramma}
-                          onCheckedChange={(checked) => setPermessiUtente(prev => ({ ...prev, manage_cronoprogramma: checked }))}
-                        />
-                        <Label className="text-sm">Gestione Cronoprogramma</Label>
-                      </div>
+                <ScrollArea className="h-[60vh] pr-4">
+                    <div className="space-y-4">
+                        {modules.map(module => (
+                            <div key={module.id} className="border rounded-lg p-4 bg-slate-50">
+                                <h4 className="font-semibold text-sm mb-3">{module.label}</h4>
+                                <div className="flex flex-wrap gap-4">
+                                    {module.actions.map(actionPath => (
+                                        <div key={actionPath} className="flex items-center gap-2">
+                                            <Switch 
+                                                checked={getPermissionValue(permessi, module.id, actionPath)}
+                                                onCheckedChange={(val) => setPermessi(prev => updateNestedPermission(prev, module.id, actionPath, val))}
+                                            />
+                                            <Label className="text-xs">
+                                                {actionPath.split('.').pop()}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                  </div>
+                </ScrollArea>
 
-                  <Button onClick={handleAssegnaUtente} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                    <Save className="w-4 h-4 mr-2" />
-                    Assegna Utente
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Lista utenti assegnati */}
-          <div>
-            <h3 className="font-semibold mb-3">Utenti Assegnati ({utentiAssegnati.length})</h3>
-            <div className="space-y-2">
-              {utentiAssegnati.map(utente => {
-                const permesso = permessi.find(
-                  p => p.utente_id === utente.id && p.cantiere_id === cantiere.id
-                );
-                return (
-                  <Card key={utente.id} className="border-0 bg-slate-50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-indigo-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{utente.full_name}</p>
-                            <p className="text-sm text-slate-500">{utente.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-wrap gap-1">
-                            {permesso?.permessi?.edit && <Badge className="text-xs bg-blue-100 text-blue-800">Modifica</Badge>}
-                            {permesso?.permessi?.manage_documenti && <Badge className="text-xs bg-green-100 text-green-800">Doc</Badge>}
-                            {permesso?.permessi?.manage_sal && <Badge className="text-xs bg-purple-100 text-purple-800">SAL</Badge>}
-                            {permesso?.permessi?.manage_costi && <Badge className="text-xs bg-orange-100 text-orange-800">Costi</Badge>}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRimuoviUtente(utente.id)}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+                <div className="flex justify-end gap-2 mt-4">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
+                    <Button onClick={handleSave} disabled={isSaving}>Salva</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
 }

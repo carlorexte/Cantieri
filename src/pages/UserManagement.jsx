@@ -236,6 +236,16 @@ export default function UserManagementPage() {
                                 </SelectContent>
                               </Select>
                             </div>
+                            
+                            {/* Responsabile Azienda Toggle */}
+                            <div className="flex items-center space-x-2">
+                                <Switch 
+                                    id={`force-view-${utente.id}`}
+                                    checked={utente.force_all_cantieri_view || false}
+                                    onCheckedChange={(val) => handleUpdateUser(utente.id, { force_all_cantieri_view: val })}
+                                />
+                                <Label htmlFor={`force-view-${utente.id}`} className="text-xs">Vede Tutti i Cantieri</Label>
+                            </div>
 
                             {/* Team Selection (Multi-select simulation via Popover or simple list for now) */}
                             <div className="min-w-[200px]">

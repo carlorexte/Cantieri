@@ -152,11 +152,6 @@ export default function GestionePermessiPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                          <span className="font-semibold text-slate-700 block mb-1">Permessi inclusi:</span>
-                          {Object.values(ruolo.permessi || {}).filter(v => v === true).length} permessi attivi su {Object.keys(ruolo.permessi || {}).length}
-                        </div>
-                        
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
@@ -210,7 +205,6 @@ export default function GestionePermessiPage() {
                   </TableHeader>
                   <TableBody>
                     {utenti.map(utente => {
-                      const ruoloAssegnato = ruoli.find(r => r.id === utente.ruolo_id);
                       return (
                         <TableRow key={utente.id}>
                           <TableCell className="font-medium">
@@ -300,51 +294,171 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
     }
   }, [ruolo]);
 
-  const entities = [
-    { id: "cantieri", label: "Cantieri" },
-    { id: "imprese", label: "Imprese" },
-    { id: "persone", label: "Professionisti" },
-    { id: "subappalti", label: "Subappalti" },
-    { id: "costi", label: "Costi" },
-    { id: "sal", label: "SAL" },
-    { id: "attivita", label: "Attività" },
-    { id: "documenti", label: "Documenti" },
-    { id: "teams", label: "Team" },
-    { id: "cronoprogramma", label: "Cronoprogramma", actions: ["view", "edit"] },
-    { id: "dashboard", label: "Dashboard", actions: ["view"] },
-    { id: "profilo_azienda", label: "Profilo Azienda", actions: ["view", "edit"] },
-    { id: "utenti", label: "Utenti", actions: ["view", "manage"] },
+  // Defined modules with actions structure
+  const modules = [
+    { 
+        id: "cantieri", 
+        label: "Cantieri", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" },
+            { id: "archive", label: "Archivia", path: "admin.archive" }
+        ]
+    },
+    { 
+        id: "sal", 
+        label: "SAL", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" },
+            { id: "approve", label: "Approva", path: "admin.approve" }
+        ]
+    },
+    { 
+        id: "ordini_materiale", 
+        label: "Ordini Materiale", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" },
+            { id: "accept", label: "Accetta", path: "admin.accept" }
+        ]
+    },
+    { 
+        id: "documenti", 
+        label: "Documenti", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" },
+            { id: "archive", label: "Archivia", path: "admin.archive" }
+        ]
+    },
+    { 
+        id: "costi", 
+        label: "Costi", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" }
+        ]
+    },
+    { 
+        id: "imprese", 
+        label: "Imprese", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" }
+        ]
+    },
+    { 
+        id: "persone", 
+        label: "Professionisti", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" }
+        ]
+    },
+    { 
+        id: "subappalti", 
+        label: "Subappalti", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" }
+        ]
+    },
+    { 
+        id: "attivita_interne", 
+        label: "Attività", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" },
+            { id: "delete", label: "Elimina", path: "admin.delete" }
+        ]
+    },
+    { 
+        id: "cronoprogramma", 
+        label: "Cronoprogramma", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" }
+        ]
+    },
+    { 
+        id: "dashboard", 
+        label: "Dashboard", 
+        actions: [
+            { id: "view", label: "Visualizza" }
+        ]
+    },
+    { 
+        id: "ai_assistant", 
+        label: "AI Assistant", 
+        actions: [
+            { id: "view", label: "Visualizza" }
+        ]
+    },
+    { 
+        id: "profilo_azienda", 
+        label: "Profilo Azienda", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "edit", label: "Modifica" }
+        ]
+    },
+    { 
+        id: "user_management", 
+        label: "Gestione Utenti", 
+        actions: [
+            { id: "view", label: "Visualizza" },
+            { id: "manage_users", label: "Gest. Utenti", path: "manage_users" },
+            { id: "manage_roles", label: "Gest. Ruoli", path: "manage_roles" },
+            { id: "manage_cantiere_permissions", label: "Permessi Cantieri", path: "manage_cantiere_permissions" }
+        ]
+    },
   ];
 
-  const actions = [
-    { id: "view", label: "Visualizza" },
-    { id: "create", label: "Crea" },
-    { id: "edit", label: "Modifica" },
-    { id: "delete", label: "Elimina" }
-  ];
-
-  const handlePermessoChange = (entityId, actionId, value) => {
-    const key = `${entityId}_${actionId}`;
-    setFormData(prev => ({
-      ...prev,
-      permessi: {
-        ...prev.permessi,
-        [key]: value
-      }
-    }));
+  const updateNestedPermission = (permObj, moduleId, path, value) => {
+    // Deep clone to safely mutate
+    const newPerm = JSON.parse(JSON.stringify(permObj));
+    if (!newPerm[moduleId]) newPerm[moduleId] = {};
+    
+    const parts = path.split('.');
+    let current = newPerm[moduleId];
+    
+    for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!current[part]) current[part] = {};
+        current = current[part];
+    }
+    
+    current[parts[parts.length - 1]] = value;
+    return newPerm;
   };
 
-  const handleRowToggle = (entityId, value) => {
-    const entity = entities.find(e => e.id === entityId);
-    const entityActions = entity.actions || actions.map(a => a.id);
+  const getPermissionValue = (permObj, moduleId, path) => {
+    if (!permObj || !permObj[moduleId]) return false;
     
-    setFormData(prev => {
-      const newPermessi = { ...prev.permessi };
-      entityActions.forEach(action => {
-        newPermessi[`${entityId}_${action}`] = value;
-      });
-      return { ...prev, permessi: newPermessi };
-    });
+    const parts = path.split('.');
+    let current = permObj[moduleId];
+    
+    for (let i = 0; i < parts.length; i++) {
+        if (current === undefined || current === null) return false;
+        current = current[parts[i]];
+    }
+    return !!current;
+  };
+
+  const handlePermessoChange = (moduleId, actionPath, value) => {
+    setFormData(prev => ({
+        ...prev,
+        permessi: updateNestedPermission(prev.permessi, moduleId, actionPath, value)
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -360,7 +474,7 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
       
       if (res.data?.error) throw new Error(res.data.error);
       
-      toast.success(ruolo ? "Ruolo aggiornato e sincronizzato" : "Ruolo creato");
+      toast.success(ruolo ? "Ruolo aggiornato" : "Ruolo creato");
       onSave();
     } catch (error) {
       console.error("Errore salvataggio:", error);
@@ -372,11 +486,11 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>{ruolo ? "Modifica Ruolo" : "Nuovo Ruolo"}</DialogTitle>
           <DialogDescription>
-            Configura i dettagli del ruolo e la matrice dei permessi.
+            Configura i dettagli del ruolo e i permessi granulari per ogni modulo.
           </DialogDescription>
         </DialogHeader>
         
@@ -406,63 +520,32 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
               </div>
             </div>
 
-            <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
-              <div className="bg-slate-50 p-4 border-b">
-                <h3 className="font-semibold text-slate-800">Matrice Permessi</h3>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px]">Entità</TableHead>
-                    <TableHead className="text-center w-[100px]">Tutti</TableHead>
-                    {actions.map(action => (
-                      <TableHead key={action.id} className="text-center">{action.label}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entities.map(entity => {
-                    const entityActions = entity.actions || actions.map(a => a.id);
-                    const allChecked = entityActions.every(a => formData.permessi[`${entity.id}_${a}`]);
-                    const someChecked = entityActions.some(a => formData.permessi[`${entity.id}_${a}`]);
-
-                    return (
-                      <TableRow key={entity.id} className="hover:bg-slate-50/50">
-                        <TableCell className="font-medium text-slate-700">
-                          {entity.label}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox 
-                            checked={allChecked}
-                            onCheckedChange={(val) => handleRowToggle(entity.id, val)}
-                            className="data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
-                          />
-                        </TableCell>
-                        {actions.map(action => {
-                          const isAvailable = entityActions.includes(action.id);
-                          const permissionKey = `${entity.id}_${action.id}`;
-                          
-                          if (!isAvailable) {
-                            return <TableCell key={action.id} className="bg-slate-50/50" />;
-                          }
-
-                          return (
-                            <TableCell key={action.id} className="text-center">
-                              <div className="flex justify-center">
-                                <Switch
-                                  checked={formData.permessi[permissionKey] || false}
-                                  onCheckedChange={(val) => handlePermessoChange(entity.id, action.id, val)}
-                                  className="data-[state=checked]:bg-indigo-600"
-                                />
-                              </div>
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <div className="space-y-4">
+               {modules.map(module => (
+                   <div key={module.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                       <h3 className="font-semibold text-sm text-slate-800 mb-3 border-b pb-2">{module.label}</h3>
+                       <div className="flex flex-wrap gap-4">
+                           {module.actions.map(action => {
+                               const path = action.path || action.id;
+                               const isChecked = getPermissionValue(formData.permessi, module.id, path);
+                               
+                               return (
+                                   <div key={action.id} className="flex items-center gap-2">
+                                       <Switch 
+                                            id={`${module.id}-${action.id}`}
+                                            checked={isChecked}
+                                            onCheckedChange={(val) => handlePermessoChange(module.id, path, val)}
+                                            className={action.path?.includes('admin') ? "data-[state=checked]:bg-red-500" : ""}
+                                       />
+                                       <Label htmlFor={`${module.id}-${action.id}`} className="text-xs cursor-pointer">
+                                           {action.label}
+                                       </Label>
+                                   </div>
+                               );
+                           })}
+                       </div>
+                   </div>
+               ))}
             </div>
           </ScrollArea>
 

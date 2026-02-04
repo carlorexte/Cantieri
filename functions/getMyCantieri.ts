@@ -11,47 +11,51 @@ Deno.serve(async (req) => {
 
         // 1. Admin gets everything
         if (user.role === 'admin') {
-            const cantieri = await base44.entities.Cantiere.list('-created_date', 100);
+            const cantieri = await base44.asServiceRole.entities.Cantiere.list('-created_date', 1000);
             return Response.json({ items: cantieri, role: 'admin' });
         }
 
         const fullUser = await base44.asServiceRole.entities.User.get(user.id);
         
-        // 2. Global View Permission gets everything
-        if (fullUser.cantieri_view) {
-             const cantieri = await base44.entities.Cantiere.list('-created_date', 100);
-             return Response.json({ items: cantieri, role: 'user_full_view' });
-        }
+        // 2. Determine visibility
+        // If 'cantieri_view' is used for menu visibility, we shouldn't use it for "See All Data" unless explicitly intended.
+        // However, to be safe, if the user has NO assignments, we might want to show nothing.
+        // We will prioritize ASSIGNED and TEAM cantieri.
+        
+        // Note: If you want specific users to see ALL cantieri without being admin, 
+        // you should check a specific flag like 'view_all_cantieri' or rely on 'cantieri_view' 
+        // IF 'cantieri_view' is NOT given to everyone by default.
+        // Given the recent fix gave 'cantieri_view' to everyone, we MUST NOT use it to grant full access here.
 
         const assignedIds = fullUser.cantieri_assegnati || [];
         const teamIds = fullUser.team_ids || [];
         
         let allCantieri = [];
 
-        // 3. Fetch directly assigned cantieri
+        // 3. Fetch directly assigned cantieri (Using ServiceRole to bypass RLS)
         if (assignedIds.length > 0) {
             try {
+                // Fetch in batches if necessary, but for now assuming < 1000 assigned
                 const assigned = await base44.asServiceRole.entities.Cantiere.filter({
                     id: { $in: assignedIds }
-                }, '-created_date', 100);
+                }, '-created_date', 1000);
                 allCantieri = [...allCantieri, ...assigned];
             } catch (e) {
                 console.error("Error fetching assigned cantieri:", e);
             }
         }
 
-        // 4. Fetch team assigned cantieri (Manual robust filtering)
+        // 4. Fetch team assigned cantieri (Using ServiceRole to bypass RLS)
         if (teamIds.length > 0) {
             try {
-                // Fetch active cantieri to filter in memory - SAFER than complex queries
-                // We limit to 200 most recent active ones to avoid performance issues but ensure visibility
+                // Fetch active cantieri to filter in memory 
+                // Using ServiceRole ensures we get the data
                 const activeCantieri = await base44.asServiceRole.entities.Cantiere.filter({
-                    stato: { $ne: 'archiviato' } // Get everything not archived
-                }, '-created_date', 200);
+                    // Optional: filter by status if needed, or get all
+                }, '-created_date', 1000);
 
                 const teamCantieri = activeCantieri.filter(c => {
                     if (!c.team_assegnati || !Array.isArray(c.team_assegnati)) return false;
-                    // Check intersection
                     return c.team_assegnati.some(tid => teamIds.includes(tid));
                 });
 
@@ -68,11 +72,18 @@ Deno.serve(async (req) => {
             }
         }
 
-        return Response.json({ items: allCantieri, role: 'user', debug: { assigned: assignedIds.length, teams: teamIds.length } });
+        return Response.json({ 
+            items: allCantieri, 
+            role: 'user', 
+            debug: { 
+                assignedCount: assignedIds.length, 
+                teamsCount: teamIds.length,
+                found: allCantieri.length 
+            } 
+        });
 
     } catch (error) {
         console.error("Error in getMyCantieri:", error);
-        // Fallback: return empty array instead of 500 so app doesn't crash
         return Response.json({ items: [], error: error.message }, { status: 200 });
     }
 });

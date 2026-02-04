@@ -54,7 +54,7 @@ export default function CantiereDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
-  const { user: currentUser, hasPermission, hasCantierePermission } = usePermissions();
+  const { user: currentUser, hasPermission, hasCantiereObjectPermission } = usePermissions();
   
   // Document Viewer State
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -436,7 +436,7 @@ export default function CantiereDashboardPage() {
             </Button>
           </Link>
           
-          {(currentUser?.role === 'admin' || hasPermission('cantieri_edit')) && (
+          {(currentUser?.role === 'admin' || hasCantiereObjectPermission(cantiere, 'cantieri_edit')) && (
             <Button 
               onClick={() => setShowCantiereForm(true)}
               className="bg-indigo-600 hover:bg-indigo-700"

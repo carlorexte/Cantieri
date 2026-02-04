@@ -5,12 +5,11 @@ Deno.serve(async (req) => {
         const base44 = createClientFromRequest(req);
         const user = await base44.auth.me();
         
-        console.log("getMyCantieri called by:", user?.email);
-
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // 1. Admin gets everything
         if (user.role === 'admin') {
             const cantieri = await base44.entities.Cantiere.list('-created_date', 100);
             return Response.json({ items: cantieri, role: 'admin' });
@@ -18,62 +17,62 @@ Deno.serve(async (req) => {
 
         const fullUser = await base44.asServiceRole.entities.User.get(user.id);
         
-        // 1. Global View Permission gets everything
+        // 2. Global View Permission gets everything
         if (fullUser.cantieri_view) {
              const cantieri = await base44.entities.Cantiere.list('-created_date', 100);
              return Response.json({ items: cantieri, role: 'user_full_view' });
         }
 
-        // 2. Direct Assignments
         const assignedIds = fullUser.cantieri_assegnati || [];
-        
-        // 3. Team Assignments
         const teamIds = fullUser.team_ids || [];
-        let teamCantieriIds = [];
         
-        if (teamIds.length > 0) {
-            // Find cantieri where team_assegnati contains any of my teams
-            // We use filter with $containsAny if supported, or fetch all and filter in memory if needed.
-            // Assuming $containsAny works as it's used in RLS.
+        let allCantieri = [];
+
+        // 3. Fetch directly assigned cantieri
+        if (assignedIds.length > 0) {
             try {
-                const teamCantieri = await base44.asServiceRole.entities.Cantiere.filter({
-                    team_assegnati: { $containsAny: teamIds }
-                });
-                if (teamCantieri && teamCantieri.length > 0) {
-                    teamCantieriIds = teamCantieri.map(c => c.id);
-                }
+                const assigned = await base44.asServiceRole.entities.Cantiere.filter({
+                    id: { $in: assignedIds }
+                }, '-created_date', 100);
+                allCantieri = [...allCantieri, ...assigned];
             } catch (e) {
-                console.warn("Error filtering by teams, falling back:", e);
-                // Fallback: list active cantieri and check team_assegnati manually
-                const allCantieri = await base44.asServiceRole.entities.Cantiere.filter({
-                    stato: 'attivo'
-                }, '-created_date', 200);
-                
-                teamCantieriIds = allCantieri
-                    .filter(c => c.team_assegnati && c.team_assegnati.some(tid => teamIds.includes(tid)))
-                    .map(c => c.id);
+                console.error("Error fetching assigned cantieri:", e);
             }
         }
 
-        const allIds = [...new Set([...assignedIds, ...teamCantieriIds])];
-        
-        console.log("Assigned IDs:", assignedIds);
-        console.log("Team IDs:", teamIds);
-        console.log("Team Cantieri IDs:", teamCantieriIds);
-        console.log("Total IDs:", allIds);
+        // 4. Fetch team assigned cantieri (Manual robust filtering)
+        if (teamIds.length > 0) {
+            try {
+                // Fetch active cantieri to filter in memory - SAFER than complex queries
+                // We limit to 200 most recent active ones to avoid performance issues but ensure visibility
+                const activeCantieri = await base44.asServiceRole.entities.Cantiere.filter({
+                    stato: { $ne: 'archiviato' } // Get everything not archived
+                }, '-created_date', 200);
 
-        if (allIds.length === 0) {
-            return Response.json({ items: [], role: 'user', message: 'No assignments' });
+                const teamCantieri = activeCantieri.filter(c => {
+                    if (!c.team_assegnati || !Array.isArray(c.team_assegnati)) return false;
+                    // Check intersection
+                    return c.team_assegnati.some(tid => teamIds.includes(tid));
+                });
+
+                // Merge avoiding duplicates
+                const existingIds = new Set(allCantieri.map(c => c.id));
+                teamCantieri.forEach(c => {
+                    if (!existingIds.has(c.id)) {
+                        allCantieri.push(c);
+                        existingIds.add(c.id);
+                    }
+                });
+            } catch (e) {
+                console.error("Error fetching team cantieri:", e);
+            }
         }
 
-        const cantieri = await base44.asServiceRole.entities.Cantiere.filter({
-            id: { $in: allIds }
-        }, '-created_date', 100);
-
-        return Response.json({ items: cantieri, role: 'user', debug_ids: allIds });
+        return Response.json({ items: allCantieri, role: 'user', debug: { assigned: assignedIds.length, teams: teamIds.length } });
 
     } catch (error) {
         console.error("Error in getMyCantieri:", error);
-        return Response.json({ error: error.message }, { status: 500 });
+        // Fallback: return empty array instead of 500 so app doesn't crash
+        return Response.json({ items: [], error: error.message }, { status: 200 });
     }
 });

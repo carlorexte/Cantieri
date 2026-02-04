@@ -92,27 +92,51 @@ export function usePermissions() {
     // This allows "Managers" to see everything while still having an assigned list for convenience.
     if (hasPermission(permesso)) return true;
 
-    // 2. Assignment Check
+    // 2. Assignment Check (Direct or Team)
     // If they don't have global permission, we check if they are assigned to this specific cantiere.
-    const isAssigned = user.cantieri_assegnati && user.cantieri_assegnati.includes(cantiereId);
     
-    if (isAssigned) {
-        // If assigned, check if there are specific granular permissions (PermessoCantiereUtente)
-        // Or if the basic assignment implies read access (usually assignment = read at least)
-        const permessoCantiere = permessiCantieri.find(p => p.cantiere_id === cantiereId);
-        
+    // Check direct assignment
+    const isDirectlyAssigned = user.cantieri_assegnati && user.cantieri_assegnati.includes(cantiereId);
+    
+    // Check team assignment (if cantiere object or team list is available)
+    // IMPORTANT: hasCantierePermission should ideally receive the cantiere object as 3rd arg or look it up contextually
+    // Since we don't have the cantiere object here easily, we rely on:
+    // A) Direct assignment
+    // B) PermessoCantiereUtente existence (which implies some assignment/permission)
+    
+    const permessoCantiere = permessiCantieri.find(p => p.cantiere_id === cantiereId);
+
+    if (isDirectlyAssigned || permessoCantiere) {
         // If they have a specific override for this cantiere
         if (permessoCantiere?.permessi?.[permesso]) return true;
         
         // Default: If assigned, they usually have 'view' access implicitly.
-        // For 'edit' or others, they need the explicit permission or the global one checked above.
         if (permesso === 'cantieri_view' || permesso === 'dashboard_view') return true;
     }
 
-    // 3. Ownership Check (Frontend side approximation of RLS created_by)
-    // Note: RLS handles the real security. This is just for UI hiding.
-    // We can't easily check created_by here without the record, so we rely on the above.
-
+    // Fallback: If the permission logic is called with a cantiere object (optional 3rd arg pattern in some components)
+    // We can check team assignments.
+    // NOTE: Implementing this requires updating callsites. 
+    // Instead, we trust that if the user can SEE the cantiere in the list (getMyCantieri), they have View access.
+    
+    return false;
+  };
+  
+  // Extended helper to check with cantiere object
+  const hasCantiereObjectPermission = (cantiere, permesso) => {
+    if (!cantiere) return false;
+    if (hasCantierePermission(cantiere.id, permesso)) return true;
+    
+    // Check Team Assignment on the object
+    if (user.team_ids && cantiere.team_assegnati) {
+        const hasTeamAccess = cantiere.team_assegnati.some(tid => user.team_ids.includes(tid));
+        if (hasTeamAccess) {
+             // Team members typically get View access, and maybe Edit if configured.
+             // For now, assume Team = View + Operate, but NOT strict Edit/Delete unless specified.
+             // Adjust based on your policy.
+             if (permesso === 'cantieri_view' || permesso === 'dashboard_view' || permesso === 'ordini_view') return true;
+        }
+    }
     return false;
   };
 
@@ -128,6 +152,7 @@ export function usePermissions() {
     isLoading,
     hasPermission,
     hasCantierePermission,
+    hasCantiereObjectPermission,
     getAccessibleCantieri,
     isAdmin: user?.role === 'admin'
   };

@@ -13,9 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
-// Add ImpresaForm import
 import ImpresaForm from "../components/imprese/ImpresaForm";
 
 export default function ImpresePage() {
@@ -26,6 +25,8 @@ export default function ImpresePage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingImpresa, setEditingImpresa] = useState(null);
+  
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -34,13 +35,11 @@ export default function ImpresePage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Load essential data first
       const [impreseData, user] = await Promise.all([
         base44.entities.Impresa.list("-created_date", 100),
         base44.auth.me()
       ]);
 
-      // Load related data with fail-safe to prevent page crash if user lacks permissions
       let subappaltiData = [];
       let sociData = [];
       let cantieriAttiviData = [];
@@ -136,7 +135,7 @@ export default function ImpresePage() {
   };
 
   return (
-    <PermissionGuard permission="imprese_view">
+    <PermissionGuard module="imprese" action="view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -146,7 +145,7 @@ export default function ImpresePage() {
               <h1 className="text-3xl font-bold text-slate-900">Anagrafica Imprese</h1>
               <p className="text-slate-600 mt-1">Gestione soci consorziati e imprese partner</p>
             </div>
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_soci) && (
+            {(currentUser?.role === 'admin' || hasPermission('imprese', 'edit')) && (
               <Button 
                 onClick={() => {
                   setEditingImpresa(null);
@@ -269,9 +268,9 @@ export default function ImpresePage() {
                       )}
                     </div>
 
-                    {(currentUser?.role === 'admin' || currentUser?.perm_edit_soci || currentUser?.perm_delete_soci) && (
+                    {(currentUser?.role === 'admin' || hasPermission('imprese', 'edit') || hasPermission('imprese', 'delete')) && (
                       <div className="flex gap-2 mt-4">
-                        {(currentUser?.role === 'admin' || currentUser?.perm_edit_soci) && (
+                        {(currentUser?.role === 'admin' || hasPermission('imprese', 'edit')) && (
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -282,7 +281,7 @@ export default function ImpresePage() {
                             Modifica
                           </Button>
                         )}
-                        {(currentUser?.role === 'admin' || currentUser?.perm_delete_soci) && (
+                        {(currentUser?.role === 'admin' || hasPermission('imprese', 'delete')) && (
                           <Button 
                             variant="outline" 
                             size="icon"

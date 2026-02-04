@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 import PersonaEsternaForm from "../components/persone-esterne/PersonaEsternaForm";
 
@@ -31,6 +31,8 @@ export default function PersoneEsterne() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState(null);
+
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     loadPersone();
@@ -113,7 +115,7 @@ export default function PersoneEsterne() {
   };
 
   return (
-    <PermissionGuard permission="persone_view">
+    <PermissionGuard module="persone" action="view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -123,7 +125,7 @@ export default function PersoneEsterne() {
               <h1 className="text-3xl font-bold text-slate-900">Persone Esterne</h1>
               <p className="text-slate-600 mt-1">Anagrafica collaboratori esterni e figure di riferimento</p>
             </div>
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+            {(currentUser?.role === 'admin' || hasPermission('persone', 'edit')) && (
               <Button 
                 onClick={() => { 
                   setEditingPersona(null); 
@@ -214,7 +216,7 @@ export default function PersoneEsterne() {
                         </div>
                       </div>
 
-                      {(currentUser?.role === 'admin' || currentUser?.perm_edit_cantieri) && (
+                      {(currentUser?.role === 'admin' || hasPermission('persone', 'edit')) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
@@ -226,13 +228,16 @@ export default function PersoneEsterne() {
                               <Edit className="w-4 h-4 mr-2" />
                               Modifica
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(persona.id)}
-                              className="text-red-600 focus:bg-red-50 focus:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Elimina
-                            </DropdownMenuItem>
+                            {/* Check delete permission */}
+                            {(currentUser?.role === 'admin' || hasPermission('persone', 'delete')) && (
+                                <DropdownMenuItem 
+                                  onClick={() => handleDelete(persona.id)}
+                                  className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Elimina
+                                </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}

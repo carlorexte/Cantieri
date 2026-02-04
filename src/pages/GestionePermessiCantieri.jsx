@@ -222,7 +222,7 @@ function OverrideDialog({ open, onOpenChange, user, cantiere, existingOverride, 
         const parts = path.split('.');
         let current = permObj[moduleId];
         for (let i = 0; i < parts.length; i++) {
-            if (current === undefined) return false;
+            if (current === undefined || current === null) return false;
             current = current[parts[i]];
         }
         return !!current;

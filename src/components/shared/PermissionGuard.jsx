@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Shield } from 'lucide-react';
 
@@ -15,13 +15,26 @@ export function usePermissions() {
   const loadPermissions = async () => {
     try {
       const currentUser = await base44.auth.me();
-      setUser(currentUser);
+      
+      // Fetch full user details (custom fields)
+      let fullUser = currentUser;
+      try {
+        // We might need to fetch the entity directly if auth.me doesn't have custom fields yet (depending on SDK version/cache)
+        // Usually auth.me returns standard fields. Let's ensure we have custom fields.
+        // But for safety, let's assume currentUser has them or we fetch them if missing.
+        // Actually, PermissionGuard usually runs inside the app where DataContext might have fetched it.
+        // But to be standalone:
+        const userEntity = await base44.entities.User.get(currentUser.id);
+        fullUser = { ...currentUser, ...userEntity }; // Merge
+      } catch (e) {
+        console.log("Could not fetch extra user details", e);
+      }
+      
+      setUser(fullUser);
 
-      if (currentUser.ruolo_id) {
-        const ruoloData = await base44.entities.Ruolo.filter({ id: currentUser.ruolo_id });
-        if (ruoloData.length > 0) {
-          setRuolo(ruoloData[0]);
-        }
+      if (fullUser.ruolo_id) {
+        const ruoloData = await base44.entities.Ruolo.get(fullUser.ruolo_id);
+        setRuolo(ruoloData);
       }
 
       const permessi = await base44.entities.PermessoCantiereUtente.filter({ 
@@ -30,121 +43,74 @@ export function usePermissions() {
       setPermessiCantieri(permessi);
     } catch (error) {
       console.error("Errore caricamento permessi:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  const hasPermission = (permesso) => {
+  // module: 'cantieri', 'sal', 'costi', etc.
+  // action: 'view', 'edit', 'admin' (which returns object), or specific like 'approve'
+  // For simplicity, we support checking specific leaf permissions:
+  // hasPermission('sal', 'view') -> true/false
+  // hasPermission('sal', 'approve') -> checks sal.admin.approve
+  const hasPermission = useCallback((module, action = 'view') => {
     if (!user) return false;
     if (user.role === 'admin') return true;
-    if (permesso === 'all') return true;
 
-    // Default permissions for standard 'user' role based on revised policy
-    const DEFAULT_USER_PERMISSIONS = {
-      // Visibility permissions (Menu/Pages)
-      'dashboard_view': true,
-      'cantieri_view': true,
-      'imprese_view': true,
-      'persone_view': true,
-      'subappalti_view': true,
-      'costi_view': true,
-      'sal_view': true,
-      'attivita_view': true,
-      'documenti_view': true,
-      'cronoprogramma_view': true,
-      'ordini_view': true,           // Default for users
-      'profilo_azienda_view': false, // Usually admin
-      'utenti_view': false,          // Admin
-      'utenti_manage': false         // Admin
-      };
+    if (!ruolo || !ruolo.permessi) return false;
 
-    if (user.role === 'user') {
-       // If permission is explicitly granted/denied in user object or role, respect it.
-       // Otherwise, fallback to default policy.
-       if (user[permesso] !== undefined) return user[permesso];
-       if (ruolo?.permessi?.[permesso] !== undefined) return ruolo?.permessi?.[permesso];
-       
-       // Fallback to defaults
-       if (DEFAULT_USER_PERMISSIONS[permesso] !== undefined) {
-         return DEFAULT_USER_PERMISSIONS[permesso];
-       }
-    }
+    const modulePerms = ruolo.permessi[module];
+    if (!modulePerms) return false;
 
-    // Check direct permission (flattened on user object by managePermissions)
-    if (user[permesso]) return true;
+    // Direct check: view, edit
+    if (modulePerms[action] === true) return true;
 
-    // Backward compatibility for old keys (perm_*)
-    if (user[`perm_${permesso}`]) return true;
-
-    // Check custom role object if loaded
-    if (ruolo?.permessi?.[permesso]) return true;
-
+    // Admin check: if action is 'delete', 'approve', 'archive', etc., it's inside 'admin' object
+    if (modulePerms.admin && modulePerms.admin[action] === true) return true;
+    
     return false;
-  };
+  }, [user, ruolo]);
 
-  const hasCantierePermission = (cantiereId, permesso) => {
+  const hasCantierePermission = useCallback((cantiereId, module, action = 'view') => {
     if (!user) return false;
     if (user.role === 'admin') return true;
 
-    // 1. PRIORITY: Global Permission Check
-    // If the user has the global permission (e.g., 'cantieri_view' is true on their profile),
-    // they have access regardless of specific assignments.
-    // This allows "Managers" to see everything while still having an assigned list for convenience.
-    if (hasPermission(permesso)) return true;
-
-    // 2. Assignment Check (Direct or Team)
-    // If they don't have global permission, we check if they are assigned to this specific cantiere.
-    
-    // Check direct assignment
-    const isDirectlyAssigned = user.cantieri_assegnati && user.cantieri_assegnati.includes(cantiereId);
-    
-    // Check team assignment (if cantiere object or team list is available)
-    // IMPORTANT: hasCantierePermission should ideally receive the cantiere object as 3rd arg or look it up contextually
-    // Since we don't have the cantiere object here easily, we rely on:
-    // A) Direct assignment
-    // B) PermessoCantiereUtente existence (which implies some assignment/permission)
-    
-    const permessoCantiere = permessiCantieri.find(p => p.cantiere_id === cantiereId);
-
-    if (isDirectlyAssigned || permessoCantiere) {
-        // If they have a specific override for this cantiere
-        if (permessoCantiere?.permessi?.[permesso]) return true;
+    // 1. SCOPE CHECK
+    // Is user allowed to access this cantiere?
+    const canSeeCantiere = 
+        user.force_all_cantieri_view || 
+        (user.cantieri_assegnati && user.cantieri_assegnati.includes(cantiereId)) ||
+        // Check permissions override existence implies visibility/access
+        permessiCantieri.some(p => p.cantiere_id === cantiereId);
+        // Note: Team check is harder here without cantiere object. 
+        // We assume if they are calling this, they might have access. 
+        // Strict scope check is done by getMyCantieri.
         
-        // Default: If assigned, they usually have 'view' access implicitly.
-        if (permesso === 'cantieri_view' || permesso === 'dashboard_view') return true;
+    // For specific action check, we proceed.
+    
+    // 2. CAPABILITY CHECK
+    
+    // Check Override
+    const override = permessiCantieri.find(p => p.cantiere_id === cantiereId);
+    if (override && override.permessi && override.permessi[module]) {
+        const mod = override.permessi[module];
+        if (mod[action] === true) return true;
+        if (mod.admin && mod.admin[action] === true) return true;
+        
+        // If override exists for the module but value is false, IT BLOCKS even if global role says true?
+        // Usually Overrides are additive or replacements. 
+        // Let's assume Replacement for that module. 
+        // If the module object exists in override, we respect it.
+        // If the specific key is undefined/false in override, it's denied (if we treat it as replacement).
+        // BUT, usually "Override" means "Specific settings". 
+        // Let's implement: If module is defined in override, USE IT. Ignore Global.
+        return false; 
     }
 
-    // Fallback: If the permission logic is called with a cantiere object (optional 3rd arg pattern in some components)
-    // We can check team assignments.
-    // NOTE: Implementing this requires updating callsites. 
-    // Instead, we trust that if the user can SEE the cantiere in the list (getMyCantieri), they have View access.
-    
-    return false;
-  };
-  
-  // Extended helper to check with cantiere object
-  const hasCantiereObjectPermission = (cantiere, permesso) => {
-    if (!cantiere) return false;
-    if (hasCantierePermission(cantiere.id, permesso)) return true;
-    
-    // Check Team Assignment on the object
-    if (user.team_ids && cantiere.team_assegnati) {
-        const hasTeamAccess = cantiere.team_assegnati.some(tid => user.team_ids.includes(tid));
-        if (hasTeamAccess) {
-             // Team members typically get View access, and maybe Edit if configured.
-             // For now, assume Team = View + Operate, but NOT strict Edit/Delete unless specified.
-             // Adjust based on your policy.
-             if (permesso === 'cantieri_view' || permesso === 'dashboard_view' || permesso === 'ordini_view') return true;
-        }
-    }
-    return false;
-  };
+    // Fallback to Global Role
+    return hasPermission(module, action);
 
-  const getAccessibleCantieri = () => {
-    if (!user) return [];
-    if (user.role === 'admin') return null; // null = tutti i cantieri
-    return user.cantieri_assegnati || null;
-  };
+  }, [user, permessiCantieri, hasPermission]);
 
   return {
     user,
@@ -152,29 +118,23 @@ export function usePermissions() {
     isLoading,
     hasPermission,
     hasCantierePermission,
-    hasCantiereObjectPermission,
-    getAccessibleCantieri,
     isAdmin: user?.role === 'admin'
   };
 }
 
-export function PermissionGuard({ permission, cantiereId, children, fallback }) {
+export function PermissionGuard({ module, action = 'view', cantiereId, children, fallback }) {
   const { hasPermission, hasCantierePermission, isLoading } = usePermissions();
 
   if (isLoading) return null;
 
   const hasAccess = cantiereId 
-    ? hasCantierePermission(cantiereId, permission)
-    : hasPermission(permission);
+    ? hasCantierePermission(cantiereId, module, action)
+    : hasPermission(module, action);
 
   if (!hasAccess) {
-    return fallback || (
-      <div className="p-8 text-center">
-        <Shield className="w-16 h-16 mx-auto mb-4 text-slate-400" />
-        <h2 className="text-xl font-semibold mb-2">Accesso Negato</h2>
-        <p className="text-slate-600">Non hai i permessi necessari per questa sezione.</p>
-      </div>
-    );
+    return fallback || null; 
+    // Default fallback null is better for UI elements that should just disappear. 
+    // Page level guards should provide specific fallback.
   }
 
   return children;

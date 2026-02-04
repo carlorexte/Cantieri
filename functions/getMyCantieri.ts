@@ -3,84 +3,77 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
+        const authUser = await base44.auth.me();
         
-        if (!user) {
+        if (!authUser) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         // 1. Admin gets everything
-        if (user.role === 'admin') {
+        if (authUser.role === 'admin') {
             const cantieri = await base44.asServiceRole.entities.Cantiere.list('-created_date', 1000);
             return Response.json({ items: cantieri, role: 'admin' });
         }
 
-        const fullUser = await base44.asServiceRole.entities.User.get(user.id);
+        // 2. Get full user details for RBAC
+        const fullUser = await base44.asServiceRole.entities.User.get(authUser.id);
         
-        // 2. Determine visibility
-        // If 'cantieri_view' is used for menu visibility, we shouldn't use it for "See All Data" unless explicitly intended.
-        // However, to be safe, if the user has NO assignments, we might want to show nothing.
-        // We will prioritize ASSIGNED and TEAM cantieri.
-        
-        // Note: If you want specific users to see ALL cantieri without being admin, 
-        // you should check a specific flag like 'view_all_cantieri' or rely on 'cantieri_view' 
-        // IF 'cantieri_view' is NOT given to everyone by default.
-        // Given the recent fix gave 'cantieri_view' to everyone, we MUST NOT use it to grant full access here.
+        // 3. Check 'force_all_cantieri_view' (Responsabile Azienda use case)
+        if (fullUser.force_all_cantieri_view) {
+             const cantieri = await base44.asServiceRole.entities.Cantiere.list('-created_date', 1000);
+             return Response.json({ items: cantieri, role: 'user', scope: 'all' });
+        }
 
+        // 4. Collect assigned IDs
         const assignedIds = fullUser.cantieri_assegnati || [];
         const teamIds = fullUser.team_ids || [];
         
-        let allCantieri = [];
+        let targetIds = new Set(assignedIds);
 
-        // 3. Fetch directly assigned cantieri (Using ServiceRole to bypass RLS)
-        if (assignedIds.length > 0) {
-            try {
-                // Fetch in batches if necessary, but for now assuming < 1000 assigned
-                const assigned = await base44.asServiceRole.entities.Cantiere.filter({
-                    id: { $in: assignedIds }
-                }, '-created_date', 1000);
-                allCantieri = [...allCantieri, ...assigned];
-            } catch (e) {
-                console.error("Error fetching assigned cantieri:", e);
-            }
-        }
-
-        // 4. Fetch team assigned cantieri (Using ServiceRole to bypass RLS)
+        // 5. If has teams, find cantieri assigned to those teams
         if (teamIds.length > 0) {
             try {
-                // Fetch active cantieri to filter in memory 
-                // Using ServiceRole ensures we get the data
-                const activeCantieri = await base44.asServiceRole.entities.Cantiere.filter({
-                    // Optional: filter by status if needed, or get all
-                }, '-created_date', 1000);
-
-                const teamCantieri = activeCantieri.filter(c => {
-                    if (!c.team_assegnati || !Array.isArray(c.team_assegnati)) return false;
-                    return c.team_assegnati.some(tid => teamIds.includes(tid));
-                });
-
-                // Merge avoiding duplicates
-                const existingIds = new Set(allCantieri.map(c => c.id));
-                teamCantieri.forEach(c => {
-                    if (!existingIds.has(c.id)) {
-                        allCantieri.push(c);
-                        existingIds.add(c.id);
+                // We need to find cantieri where 'team_assegnati' contains any of 'teamIds'
+                // SDK filter support for array contains might be limited, so we might need to fetch all or use specific query
+                // Using a wider search or iterative search. 
+                // For efficiency, let's fetch cantieri that HAVE teams assigned, then filter in memory if needed
+                // OR better: use the 'team_assegnati' field.
+                // Assuming we can't do complex OR queries easily for array intersection in one go without a specific operator.
+                
+                // Workaround: fetch all active cantieri and filter (efficient enough for <1000 items)
+                // OR rely on a specific lookup table if we had one.
+                // Let's fetch all (since we did it for force_all_cantieri_view anyway) and filter.
+                // It's safer for consistency.
+                
+                const allCantieri = await base44.asServiceRole.entities.Cantiere.list('-created_date', 1000);
+                
+                const accessibleCantieri = allCantieri.filter(c => {
+                    // Direct assignment
+                    if (targetIds.has(c.id)) return true;
+                    
+                    // Team assignment
+                    if (c.team_assegnati && Array.isArray(c.team_assegnati)) {
+                        return c.team_assegnati.some(tid => teamIds.includes(tid));
                     }
+                    return false;
                 });
+
+                return Response.json({ items: accessibleCantieri, role: 'user', scope: 'assigned' });
+
             } catch (e) {
                 console.error("Error fetching team cantieri:", e);
             }
+        } else {
+             // Only direct assignments
+             if (assignedIds.length > 0) {
+                 const assigned = await base44.asServiceRole.entities.Cantiere.filter({
+                    id: { $in: assignedIds }
+                 }, '-created_date', 1000);
+                 return Response.json({ items: assigned, role: 'user', scope: 'assigned' });
+             }
         }
 
-        return Response.json({ 
-            items: allCantieri, 
-            role: 'user', 
-            debug: { 
-                assignedCount: assignedIds.length, 
-                teamsCount: teamIds.length,
-                found: allCantieri.length 
-            } 
-        });
+        return Response.json({ items: [], role: 'user', scope: 'none' });
 
     } catch (error) {
         console.error("Error in getMyCantieri:", error);

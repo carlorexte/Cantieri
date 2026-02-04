@@ -1,8 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Cantiere } from '@/entities/Cantiere';
-import { Subappalto } from '@/entities/Subappalto';
-import { Documento } from '@/entities/Documento';
-import { Impresa } from '@/entities/Impresa';
 import { base44 } from '@/api/base44Client';
 import { usePermissions } from '@/components/shared/PermissionGuard';
 import { Link } from 'react-router-dom';
@@ -71,16 +67,16 @@ export default function CantiereDashboardPage() {
     try {
       // Use individual fetches or Promise.allSettled to prevent one failure from blocking everything
       const results = await Promise.allSettled([
-        Cantiere.get(cantiereId),
-        Subappalto.filter({ cantiere_id: cantiereId }),
+        base44.entities.Cantiere.get(cantiereId),
+        base44.entities.Subappalto.filter({ cantiere_id: cantiereId }),
         // Punto 17: Cerca documenti collegati a questo cantiere
-        Documento.filter({
+        base44.entities.Documento.filter({
           "$or": [
             { "entita_collegata_id": cantiereId },
             { "entita_collegate.entita_id": cantiereId }
           ]
         }, "-created_date", 50),
-        Impresa.list("-created_date", 100),
+        base44.entities.Impresa.list("-created_date", 100),
         base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal"),
         base44.entities.Attivita.filter({ cantiere_id: cantiereId }, "-data_fine")
       ]);
@@ -155,7 +151,7 @@ export default function CantiereDashboardPage() {
         toast.error("Errore: ID Cantiere non disponibile.");
         return;
       }
-      await Documento.create({
+      await base44.entities.Documento.create({
         ...formData,
         entita_collegata_id: cantiere.id,
         entita_collegata_tipo: 'cantiere',
@@ -172,7 +168,7 @@ export default function CantiereDashboardPage() {
   const handleCantiereSubmit = useCallback(async (formData) => {
     try {
       if (cantiere?.id) {
-        await Cantiere.update(cantiere.id, formData);
+        await base44.entities.Cantiere.update(cantiere.id, formData);
         setShowCantiereForm(false);
         loadData(cantiere.id);
         toast.success("Cantiere aggiornato con successo!");

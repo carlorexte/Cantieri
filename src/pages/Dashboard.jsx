@@ -9,6 +9,7 @@ import {
   Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 // Components
 import KPICard from "@/components/dashboard/KPICard";
@@ -30,6 +31,8 @@ export default function Dashboard() {
     documenti: [],
     attivitaInterne: [],
   });
+  
+  const { isAdmin } = usePermissions();
   
   const [filters, setFilters] = useState({
     stato: "attivo",
@@ -64,7 +67,7 @@ export default function Dashboard() {
     try {
       // Use Promise.all but wrap individual calls to prevent one failure from breaking all
       const [cantieri, sal, costi, documenti, attivitaInterne] = await Promise.all([
-        fetchSafe(base44.entities.Cantiere.list()),
+        fetchSafe(base44.functions.invoke('getMyCantieri').then(r => r.data?.items || [])),
         fetchSafe(base44.entities.SAL.list()),
         fetchSafe(base44.entities.Costo.list()),
         fetchSafe(base44.entities.Documento.list()),
@@ -197,6 +200,7 @@ export default function Dashboard() {
   }, [data.cantieri]);
 
   return (
+    <PermissionGuard module="dashboard" action="view">
     <div className="p-6 bg-slate-50 min-h-screen">
       <div className="max-w-[1600px] mx-auto space-y-8">
         {/* Header */}
@@ -205,7 +209,7 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
             <p className="text-slate-500 mt-1">Panoramica generale dell'attività aziendale</p>
           </div>
-          {currentUser?.role === 'admin' && (
+          {isAdmin && (
             <DashboardWidgetManager 
               currentConfig={widgets} 
               availableWidgets={[
@@ -304,5 +308,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

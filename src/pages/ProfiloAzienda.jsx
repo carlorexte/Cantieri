@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Save, Plus, Building, FileText, FileCheck, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 import DocumentoForm from "../components/documenti/DocumentoForm";
 
@@ -19,6 +20,8 @@ export default function ProfiloAziendaPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingDocumento, setEditingDocumento] = useState(null);
   
+  const { hasPermission, isAdmin } = usePermissions();
+
   useEffect(() => {
     loadData();
   }, []);
@@ -111,8 +114,10 @@ export default function ProfiloAziendaPage() {
   }
 
   const canAddDocuments = azienda && azienda.id;
+  const canEdit = isAdmin || hasPermission('profilo_azienda', 'edit');
 
   return (
+    <PermissionGuard module="profilo_azienda" action="view">
     <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-8">
         <h1 className="text-3xl font-bold text-slate-900">Profilo Azienda</h1>
@@ -126,25 +131,27 @@ export default function ProfiloAziendaPage() {
             <CardDescription>Informazioni generali e fiscali della tua azienda.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="space-y-1"><Label>Ragione Sociale *</Label><Input value={azienda?.ragione_sociale || ''} onChange={e => handleAziendaChange('ragione_sociale', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Partita IVA *</Label><Input value={azienda?.partita_iva || ''} onChange={e => handleAziendaChange('partita_iva', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Codice Fiscale</Label><Input value={azienda?.codice_fiscale || ''} onChange={e => handleAziendaChange('codice_fiscale', e.target.value)} /></div>
-            <div className="space-y-1 col-span-1 md:col-span-2"><Label>Indirizzo Sede Legale</Label><Input value={azienda?.indirizzo_legale || ''} onChange={e => handleAziendaChange('indirizzo_legale', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Città</Label><Input value={azienda?.citta_legale || ''} onChange={e => handleAziendaChange('citta_legale', e.target.value)} /></div>
-            <div className="space-y-1"><Label>CAP</Label><Input value={azienda?.cap_legale || ''} onChange={e => handleAziendaChange('cap_legale', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Provincia</Label><Input value={azienda?.provincia_legale || ''} onChange={e => handleAziendaChange('provincia_legale', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Email</Label><Input type="email" value={azienda?.email || ''} onChange={e => handleAziendaChange('email', e.target.value)} /></div>
-            <div className="space-y-1"><Label>PEC</Label><Input type="email" value={azienda?.pec || ''} onChange={e => handleAziendaChange('pec', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Telefono</Label><Input value={azienda?.telefono || ''} onChange={e => handleAziendaChange('telefono', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Codice SDI</Label><Input value={azienda?.codice_sdi || ''} onChange={e => handleAziendaChange('codice_sdi', e.target.value)} /></div>
-            <div className="space-y-1"><Label>Banca d'appoggio</Label><Input value={azienda?.banca_appoggio || ''} onChange={e => handleAziendaChange('banca_appoggio', e.target.value)} /></div>
-            <div className="space-y-1 col-span-1 md:col-span-2"><Label>IBAN</Label><Input value={azienda?.iban || ''} onChange={e => handleAziendaChange('iban', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Ragione Sociale *</Label><Input disabled={!canEdit} value={azienda?.ragione_sociale || ''} onChange={e => handleAziendaChange('ragione_sociale', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Partita IVA *</Label><Input disabled={!canEdit} value={azienda?.partita_iva || ''} onChange={e => handleAziendaChange('partita_iva', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Codice Fiscale</Label><Input disabled={!canEdit} value={azienda?.codice_fiscale || ''} onChange={e => handleAziendaChange('codice_fiscale', e.target.value)} /></div>
+            <div className="space-y-1 col-span-1 md:col-span-2"><Label>Indirizzo Sede Legale</Label><Input disabled={!canEdit} value={azienda?.indirizzo_legale || ''} onChange={e => handleAziendaChange('indirizzo_legale', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Città</Label><Input disabled={!canEdit} value={azienda?.citta_legale || ''} onChange={e => handleAziendaChange('citta_legale', e.target.value)} /></div>
+            <div className="space-y-1"><Label>CAP</Label><Input disabled={!canEdit} value={azienda?.cap_legale || ''} onChange={e => handleAziendaChange('cap_legale', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Provincia</Label><Input disabled={!canEdit} value={azienda?.provincia_legale || ''} onChange={e => handleAziendaChange('provincia_legale', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Email</Label><Input disabled={!canEdit} type="email" value={azienda?.email || ''} onChange={e => handleAziendaChange('email', e.target.value)} /></div>
+            <div className="space-y-1"><Label>PEC</Label><Input disabled={!canEdit} type="email" value={azienda?.pec || ''} onChange={e => handleAziendaChange('pec', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Telefono</Label><Input disabled={!canEdit} value={azienda?.telefono || ''} onChange={e => handleAziendaChange('telefono', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Codice SDI</Label><Input disabled={!canEdit} value={azienda?.codice_sdi || ''} onChange={e => handleAziendaChange('codice_sdi', e.target.value)} /></div>
+            <div className="space-y-1"><Label>Banca d'appoggio</Label><Input disabled={!canEdit} value={azienda?.banca_appoggio || ''} onChange={e => handleAziendaChange('banca_appoggio', e.target.value)} /></div>
+            <div className="space-y-1 col-span-1 md:col-span-2"><Label>IBAN</Label><Input disabled={!canEdit} value={azienda?.iban || ''} onChange={e => handleAziendaChange('iban', e.target.value)} /></div>
           </CardContent>
-          <div className="p-6 pt-0 text-right">
-            <Button onClick={handleSaveAzienda} className="bg-blue-600 hover:bg-blue-700 shadow-lg">
-              <Save className="w-4 h-4 mr-2" /> Salva Profilo
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="p-6 pt-0 text-right">
+              <Button onClick={handleSaveAzienda} className="bg-blue-600 hover:bg-blue-700 shadow-lg">
+                <Save className="w-4 h-4 mr-2" /> Salva Profilo
+              </Button>
+            </div>
+          )}
         </Card>
 
         <Card className="border-0 shadow-lg">
@@ -157,17 +164,19 @@ export default function ProfiloAziendaPage() {
               <CardDescription>Gestione dei documenti e delle scadenze relative all'azienda.</CardDescription>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <Button 
-                onClick={() => { 
-                  setEditingDocumento(null); 
-                  setShowForm(true); 
-                }} 
-                disabled={!canAddDocuments} 
-                className="bg-blue-600 hover:bg-blue-700 shadow-lg disabled:opacity-50"
-              >
-                <Plus className="w-4 h-4 mr-2" /> Aggiungi Documento
-              </Button>
-              {!canAddDocuments && (
+              {canEdit && (
+                <Button 
+                  onClick={() => { 
+                    setEditingDocumento(null); 
+                    setShowForm(true); 
+                  }} 
+                  disabled={!canAddDocuments} 
+                  className="bg-blue-600 hover:bg-blue-700 shadow-lg disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Aggiungi Documento
+                </Button>
+              )}
+              {!canAddDocuments && canEdit && (
                 <p className="text-xs text-slate-500 italic">
                   Salva prima il profilo aziendale per aggiungere documenti
                 </p>
@@ -206,7 +215,7 @@ export default function ProfiloAziendaPage() {
                           : <span className="text-slate-400">-</span>}
                       </TableCell>
                       <TableCell>
-                        <Button variant="outline" size="sm" onClick={() => handleEditDocumento(doc)}>Modifica</Button>
+                        {canEdit && <Button variant="outline" size="sm" onClick={() => handleEditDocumento(doc)}>Modifica</Button>}
                       </TableCell>
                     </TableRow>
                   )
@@ -236,5 +245,6 @@ export default function ProfiloAziendaPage() {
         </Dialog>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

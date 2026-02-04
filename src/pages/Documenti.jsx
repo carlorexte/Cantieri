@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 import DocumentoFormEnhanced from "../components/documenti/DocumentoFormEnhanced";
 import RicercaAvanzataDocumenti from "../components/documenti/RicercaAvanzataDocumenti";
@@ -53,6 +53,8 @@ export default function DocumentiPage() {
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
+  
+  const { hasPermission, isAdmin } = usePermissions();
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -241,8 +243,32 @@ export default function DocumentiPage() {
     return entita;
   }, [cantieri, imprese]);
 
+  async function handleDownloadDocument(doc) {
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
+          expires_in: 300
+        });
+        url = result.signed_url;
+      }
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.nome_documento;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Download avviato");
+    } catch (error) {
+      console.error("Errore download:", error);
+      toast.error("Impossibile scaricare il documento");
+    }
+  }
+
   return (
-    <PermissionGuard permission="documenti_view">
+    <PermissionGuard module="documenti" action="view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -252,16 +278,18 @@ export default function DocumentiPage() {
               <h1 className="text-3xl font-bold text-slate-900">Documenti</h1>
               <p className="text-slate-600 mt-1">Gestione centralizzata con OCR e categorizzazione automatica</p>
             </div>
-            <Button 
-              onClick={() => {
-                setEditingDocumento(null);
-                setShowForm(true);
-              }} 
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Nuovo Documento
-            </Button>
+            {(isAdmin || hasPermission('documenti', 'edit')) && (
+              <Button 
+                onClick={() => {
+                  setEditingDocumento(null);
+                  setShowForm(true);
+                }} 
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Nuovo Documento
+              </Button>
+            )}
           </div>
 
           {/* Stats */}
@@ -442,7 +470,7 @@ export default function DocumentiPage() {
                                   </Button>
                                 </>
                               )}
-                              {(currentUser?.role === 'admin' || currentUser?.perm_edit_documenti) && !doc.readonly && (
+                              {(isAdmin || hasPermission('documenti', 'edit')) && !doc.readonly && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -454,23 +482,27 @@ export default function DocumentiPage() {
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleArchive(doc.id)}
-                                    className="hover:bg-amber-50 hover:text-amber-600"
-                                    title="Archivia"
-                                  >
-                                    <Archive className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDelete(doc.id)}
-                                    className="hover:bg-red-50 hover:text-red-600"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                  {(isAdmin || hasPermission('documenti', 'admin.archive')) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleArchive(doc.id)}
+                                      className="hover:bg-amber-50 hover:text-amber-600"
+                                      title="Archivia"
+                                    >
+                                      <Archive className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  {(isAdmin || hasPermission('documenti', 'admin.delete')) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDelete(doc.id)}
+                                      className="hover:bg-red-50 hover:text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -537,28 +569,4 @@ export default function DocumentiPage() {
     </div>
     </PermissionGuard>
   );
-
-  async function handleDownloadDocument(doc) {
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 300
-        });
-        url = result.signed_url;
-      }
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.nome_documento;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast.success("Download avviato");
-    } catch (error) {
-      console.error("Errore download:", error);
-      toast.error("Impossibile scaricare il documento");
-    }
-  }
 }

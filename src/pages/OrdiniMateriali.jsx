@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useData } from '@/components/shared/DataContext';
-import { usePermissions } from '@/components/shared/PermissionGuard';
+import { usePermissions, PermissionGuard } from '@/components/shared/PermissionGuard';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +32,7 @@ const statusConfig = {
 };
 
 export default function OrdiniMateriali() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isAdmin } = usePermissions();
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -97,6 +96,7 @@ export default function OrdiniMateriali() {
   );
 
   return (
+    <PermissionGuard module="ordini_materiale" action="view">
     <div className="p-6 bg-slate-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -105,7 +105,7 @@ export default function OrdiniMateriali() {
             <p className="text-slate-500 mt-1">Gestione ordini e approvvigionamenti cantiere</p>
           </div>
           
-          {(hasPermission('ordini_create') || hasPermission('admin')) && (
+          {(hasPermission('ordini_materiale', 'edit') || isAdmin) && (
             <Button 
                 className="bg-indigo-600 hover:bg-indigo-700 shadow-sm"
                 onClick={() => { setSelectedOrdine(null); setIsFormOpen(true); }}
@@ -210,5 +210,6 @@ export default function OrdiniMateriali() {
 
       </div>
     </div>
+    </PermissionGuard>
   );
 }

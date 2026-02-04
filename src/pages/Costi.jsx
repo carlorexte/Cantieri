@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Costo } from "@/entities/Costo";
 import { Cantiere } from "@/entities/Cantiere";
@@ -23,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 import CostoForm from "../components/costi/CostoForm";
 
@@ -51,7 +51,8 @@ export default function CostiPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCosto, setEditingCosto] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  
+  const { hasPermission, isAdmin } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -85,14 +86,12 @@ export default function CostiPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [costiData, cantieriData, user] = await Promise.all([
+      const [costiData, cantieriData] = await Promise.all([
         Costo.list("-data_sostenimento"),
-        Cantiere.list(),
-        User.me()
+        Cantiere.list()
       ]);
       setCosti(costiData);
       setCantieri(cantieriData);
-      setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
     }
@@ -143,6 +142,7 @@ export default function CostiPage() {
   };
 
   return (
+    <PermissionGuard module="costi" action="view">
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -152,7 +152,7 @@ export default function CostiPage() {
               <h1 className="text-3xl font-bold text-slate-900">Costi</h1>
               <p className="text-slate-600 mt-1">Monitoraggio e gestione costi di cantiere</p>
             </div>
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_costi) && (
+            {(isAdmin || hasPermission('costi', 'edit')) && (
               <Button onClick={() => { setEditingCosto(null); setShowForm(true); }} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm">
                 <Plus className="w-5 h-5 mr-2" />
                 Nuovo Costo
@@ -315,7 +315,7 @@ export default function CostiPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {(currentUser?.role === 'admin' || currentUser?.perm_edit_costi) && (
+                          {(isAdmin || hasPermission('costi', 'edit')) && (
                             <div className="flex justify-end gap-1">
                               <Button 
                                 variant="ghost" 
@@ -325,14 +325,16 @@ export default function CostiPage() {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleDelete(costo.id)}
-                                className="hover:bg-red-50 hover:text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              {(isAdmin || hasPermission('costi', 'admin.delete')) && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDelete(costo.id)}
+                                  className="hover:bg-red-50 hover:text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </TableCell>
@@ -368,5 +370,6 @@ export default function CostiPage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

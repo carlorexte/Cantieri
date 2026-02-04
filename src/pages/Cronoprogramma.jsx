@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 import TeamsystemGantt from "../components/cronoprogramma/TeamsystemGantt";
 import AttivitaForm from "../components/cronoprogramma/AttivitaForm";
@@ -46,6 +46,8 @@ export default function CronoprogrammaPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(1);
   const [showFullscreenView, setShowFullscreenView] = useState(false);
+  
+  const { hasPermission, isAdmin } = usePermissions();
 
   // Memoized values - SEMPRE prima di qualsiasi condizionale
   const getCantiereStats = useCallback((cantiere) => {
@@ -268,6 +270,7 @@ export default function CronoprogrammaPage() {
   const overallStats = getOverallStats;
 
   return (
+    <PermissionGuard module="cronoprogramma" action="view">
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="p-8">
         <div className="max-w-full mx-auto">
@@ -346,7 +349,7 @@ export default function CronoprogrammaPage() {
               )}
 
               {/* Import Button */}
-              {(currentUser?.role === 'admin' || currentUser?.perm_edit_cronoprogramma) && (
+              {(isAdmin || hasPermission('cronoprogramma', 'edit')) && (
                 <Button
                   onClick={() => setShowImportForm(true)}
                   variant="outline"
@@ -360,7 +363,7 @@ export default function CronoprogrammaPage() {
               )}
 
               {/* Reset Button */}
-              {(currentUser?.role === 'admin' || currentUser?.perm_edit_cronoprogramma) && viewMode === "single" && selectedCantiereId && cantieriAttivita[selectedCantiereId]?.length > 0 && (
+              {(isAdmin || hasPermission('cronoprogramma', 'edit')) && viewMode === "single" && selectedCantiereId && cantieriAttivita[selectedCantiereId]?.length > 0 && (
                 <Button
                   onClick={handleDeleteCronoprogramma}
                   variant="outline"
@@ -373,7 +376,7 @@ export default function CronoprogrammaPage() {
               )}
 
               {/* Global Add Attivita Button */}
-              {(currentUser?.role === 'admin' || currentUser?.perm_edit_cronoprogramma) && (
+              {(isAdmin || hasPermission('cronoprogramma', 'edit')) && (
                 <Button
                   onClick={() => {
                     setEditingAttivita(null);
@@ -531,7 +534,7 @@ export default function CronoprogrammaPage() {
                           <BarChart3 className="w-4 h-4 mr-2" />
                           Visualizza Gantt
                         </Button>
-                        {(currentUser?.role === 'admin' || currentUser?.perm_edit_cronoprogramma) && (
+                        {(isAdmin || hasPermission('cronoprogramma', 'edit')) && (
                           <Button 
                             size="sm" 
                             className="bg-blue-600 hover:bg-blue-700"
@@ -614,7 +617,7 @@ export default function CronoprogrammaPage() {
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
                     onEditAttivita={handleEditAttivita}
                     onUpdateAttivita={handleUpdateAttivita}
-                    canEdit={(currentUser?.role === 'admin' || currentUser?.perm_edit_cronoprogramma)}
+                    canEdit={(isAdmin || hasPermission('cronoprogramma', 'edit'))}
                   />
                 )}
               </div>
@@ -673,7 +676,7 @@ export default function CronoprogrammaPage() {
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
                     onEditAttivita={handleEditAttivita}
                     onUpdateAttivita={handleUpdateAttivita}
-                    canEdit={(currentUser?.role === 'admin' || currentUser?.perm_edit_cronoprogramma)}
+                    canEdit={(isAdmin || hasPermission('cronoprogramma', 'edit'))}
                     isFullscreen={true}
                   />
                 )}
@@ -759,5 +762,6 @@ export default function CronoprogrammaPage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

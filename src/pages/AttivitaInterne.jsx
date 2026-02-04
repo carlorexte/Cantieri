@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 import AttivitaInternaForm from "../components/attivita-interne/AttivitaInternaForm";
 
 const prioritaMap = {
@@ -51,6 +52,8 @@ export default function AttivitaInternePage() {
   const [filtroStato, setFiltroStato] = useState("tutti");
   const [filtroAssegnatario, setFiltroAssegnatario] = useState("tutti");
   const [filtroPriorita, setFiltroPriorita] = useState("tutti");
+  
+  const { hasPermission, isAdmin } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -139,6 +142,7 @@ export default function AttivitaInternePage() {
   };
 
   return (
+    <PermissionGuard module="attivita_interne" action="view">
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="p-8">
         <div className="max-w-full mx-auto">
@@ -147,7 +151,7 @@ export default function AttivitaInternePage() {
               <h1 className="text-3xl font-bold text-slate-900">Attività Interne</h1>
               <p className="text-slate-600 mt-1">Gestione e monitoraggio dei compiti del team</p>
             </div>
-            {(currentUser?.role === 'admin' || currentUser?.perm_edit_attivita_interne) && (
+            {(isAdmin || hasPermission('attivita_interne', 'edit')) && (
               <Dialog open={showForm} onOpenChange={setShowForm}>
                 <DialogTrigger asChild>
                   <Button onClick={handleAddNew} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10">
@@ -319,7 +323,7 @@ export default function AttivitaInternePage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {(currentUser?.role === 'admin' || currentUser?.perm_edit_attivita_interne) && (
+                          {(isAdmin || hasPermission('attivita_interne', 'edit')) && (
                             <div className="flex justify-end gap-1">
                               <Button 
                                 variant="ghost" 
@@ -329,14 +333,16 @@ export default function AttivitaInternePage() {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 hover:bg-red-50 hover:text-red-600" 
-                                onClick={() => handleDelete(item.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              {(isAdmin || hasPermission('attivita_interne', 'admin.delete')) && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 hover:bg-red-50 hover:text-red-600" 
+                                  onClick={() => handleDelete(item.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </TableCell>
@@ -357,5 +363,6 @@ export default function AttivitaInternePage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

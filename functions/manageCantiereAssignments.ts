@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        
+
         // Check authentication
         const currentUser = await base44.auth.me();
         if (!currentUser || currentUser.role !== 'admin') {
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
                     utente_id: userId,
                     cantiere_id: cantiereId
                 });
-                
+
                 if (permessiList.length > 0) {
                     await base44.asServiceRole.entities.PermessoCantiereUtente.update(permessiList[0].id, {
                         permessi
@@ -41,12 +41,13 @@ Deno.serve(async (req) => {
                     });
                 }
             }
-            
+
             return Response.json({ success: true });
         }
 
         if (action === 'assign_bulk') {
             const promises = userIds.map(async (uid) => {
+                // 1. Update User (RLS) - Immediate access
                 const user = await base44.asServiceRole.entities.User.get(uid);
                 const current = user.cantieri_assegnati || [];
                 if (!current.includes(cantiereId)) {
@@ -54,8 +55,21 @@ Deno.serve(async (req) => {
                         cantieri_assegnati: [...current, cantiereId]
                     });
                 }
-                // Bulk assignment usually doesn't set specific permissions immediately, 
-                // or sets defaults. For now, we only handle the User link as before.
+
+                // 2. Create Persistent Permission Record
+                // Check if exists first to avoid duplicates
+                const existingPerms = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({
+                    utente_id: uid,
+                    cantiere_id: cantiereId
+                });
+
+                if (existingPerms.length === 0) {
+                    await base44.asServiceRole.entities.PermessoCantiereUtente.create({
+                        utente_id: uid,
+                        cantiere_id: cantiereId,
+                        permessi: { cantieri_view: true } // Default permission
+                    });
+                }
             });
             await Promise.all(promises);
             return Response.json({ success: true });
@@ -77,7 +91,7 @@ Deno.serve(async (req) => {
                 utente_id: userId,
                 cantiere_id: cantiereId
             });
-            
+
             for (const p of permessiList) {
                 await base44.asServiceRole.entities.PermessoCantiereUtente.delete(p.id);
             }

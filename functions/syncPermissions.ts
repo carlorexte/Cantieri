@@ -3,15 +3,17 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 export async function syncUserAccess(base44) {
     const users = await base44.asServiceRole.entities.User.list();
     const teams = await base44.asServiceRole.entities.Team.list();
+    const allCantieri = await base44.asServiceRole.entities.Cantiere.list();
     
     const results = [];
 
     for (const user of users) {
         // --- 1. Sync Cantieri (PermessoCantiereUtente) ---
+        // A) Direct Access via specific permission record
         const perms = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({
             utente_id: user.id
         });
-        const assignedIds = perms
+        const directAssignedIds = perms
             .filter(p => p.permessi?.view !== false)
             .map(p => p.cantiere_id);
 
@@ -20,20 +22,41 @@ export async function syncUserAccess(base44) {
         const userTeams = teams.filter(t => t.membri_ids?.includes(user.id));
         const teamIds = userTeams.map(t => t.id);
 
+        // B) Team Access via Cantiere.team_assegnati
+        const teamAssignedIds = allCantieri
+            .filter(c => c.team_assegnati?.some(tid => teamIds.includes(tid)))
+            .map(c => c.id);
+
+        // Merge unique IDs
+        const assignedIds = [...new Set([...directAssignedIds, ...teamAssignedIds])];
+
         // --- 3. Update User ---
         const updates = {};
         let needsUpdate = false;
 
         // Check cantieri_assegnati
         const currentAssigned = user.cantieri_assegnati || [];
-        if (assignedIds.length !== currentAssigned.length || !assignedIds.every(id => currentAssigned.includes(id))) {
+        // Check if length differs OR if any element is missing (order doesn't matter for sets, but unique check handles it)
+        const sortedNew = [...assignedIds].sort();
+        const sortedOld = [...currentAssigned].sort();
+        
+        const isDifferent = sortedNew.length !== sortedOld.length || 
+                            !sortedNew.every((val, index) => val === sortedOld[index]);
+
+        if (isDifferent) {
             updates.cantieri_assegnati = assignedIds;
             needsUpdate = true;
         }
 
         // Check team_ids
         const currentTeams = user.team_ids || [];
-        if (teamIds.length !== currentTeams.length || !teamIds.every(id => currentTeams.includes(id))) {
+        const sortedNewTeams = [...teamIds].sort();
+        const sortedOldTeams = [...currentTeams].sort();
+        
+        const isTeamsDifferent = sortedNewTeams.length !== sortedOldTeams.length ||
+                                 !sortedNewTeams.every((val, index) => val === sortedOldTeams[index]);
+
+        if (isTeamsDifferent) {
             updates.team_ids = teamIds;
             needsUpdate = true;
         }

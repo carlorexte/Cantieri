@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import GlobalErrorBoundary from "@/components/shared/GlobalErrorBoundary";
+import { PermissionGuard } from "@/components/shared/PermissionGuard";
 
 function MessageBubble({ message }) {
     const isUser = message.role === 'user';
@@ -255,9 +256,6 @@ export default function AIAssistantPage() {
             let convId;
             // Get the most recent one if multiple exist
             if (existing && existing.length > 0) {
-                // Sort by created date desc if possible, but existing[0] is usually oldest or newest depending on API.
-                // We'll just take the last one in the list assuming append behavior, or the first if desc.
-                // Let's stick to existing[0] but if we are resetting we create new.
                 convId = existing[0].id;
                 setMessages(existing[0].messages || []);
             } else {
@@ -333,6 +331,7 @@ export default function AIAssistantPage() {
     };
 
     return (
+        <PermissionGuard module="ai_assistant" action="view">
         <div className="h-[calc(100vh-2rem)] flex flex-col max-w-6xl mx-auto p-4 gap-6">
             <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-indigo-100 rounded-lg">
@@ -437,5 +436,6 @@ export default function AIAssistantPage() {
                 </div>
             </Card>
         </div>
+        </PermissionGuard>
     );
 }

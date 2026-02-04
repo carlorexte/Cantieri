@@ -120,13 +120,13 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            {(currentUser?.role === 'admin' || hasPermission('cantieri_edit')) && (
+            {(currentUser?.role === 'admin' || hasPermission('cantieri', 'edit')) && (
               <DropdownMenuItem onClick={() => onEdit(cantiere)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Modifica
               </DropdownMenuItem>
             )}
-            {(currentUser?.role === 'admin' || hasPermission('cantieri_delete')) && (
+            {(currentUser?.role === 'admin' || hasPermission('cantieri', 'delete')) && (
               <DropdownMenuItem 
                 onClick={() => onDelete(cantiere.id)}
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
@@ -250,7 +250,7 @@ export default function Cantieri() {
                   Riepilogo Cantieri
                 </Button>
               </Link>
-              {(currentUser?.role === 'admin' || hasPermission('cantieri_create')) && (
+              {(currentUser?.role === 'admin' || hasPermission('cantieri', 'edit')) && (
                 <Button 
                   onClick={() => { 
                     setEditingCantiere(null); 

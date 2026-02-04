@@ -53,34 +53,34 @@ export default function Layout({ children }) {
     };
 
     const generaleItems = [
-        { title: "Dashboard", url: "Dashboard", icon: LayoutDashboard, permission: "dashboard_view" },
-        { title: "AI Assistant", url: "AIAssistant", icon: Sparkles, permission: "dashboard_view" },
-        { title: "Cantieri", url: "Cantieri", icon: Building2, permission: "cantieri_view" },
-        { title: "Imprese", url: "Imprese", icon: Building, permission: "imprese_view" },
-        { title: "Professionisti", url: "PersoneEsterne", icon: Users, permission: "persone_view" },
-        { title: "Subappalti", url: "Subappalti", icon: GitMerge, permission: "subappalti_view" },
-        { title: "Costi", url: "Costi", icon: Calculator, permission: "costi_view" },
-        { title: "SAL", url: "SAL", icon: FileText, permission: "sal_view" },
-        { title: "Ordini Materiali", url: "OrdiniMateriali", icon: ShoppingCart, permission: "ordini_view" },
-        { title: "Attività Interne", url: "AttivitaInterne", icon: ClipboardList, permission: "attivita_view" },
-        { title: "Documenti", url: "Documenti", icon: FileText, permission: "documenti_view" },
-        { title: "Cronoprogramma", url: "Cronoprogramma", icon: Calendar, permission: "cronoprogramma_view" },
-        { title: "Guida all'Uso", url: "Guida", icon: BookOpen, permission: "all" },
+        { title: "Dashboard", url: "Dashboard", icon: LayoutDashboard, module: "dashboard", action: "view" },
+        { title: "AI Assistant", url: "AIAssistant", icon: Sparkles, module: "ai_assistant", action: "view" },
+        { title: "Cantieri", url: "Cantieri", icon: Building2, module: "cantieri", action: "view" },
+        { title: "Imprese", url: "Imprese", icon: Building, module: "imprese", action: "view" },
+        { title: "Professionisti", url: "PersoneEsterne", icon: Users, module: "persone", action: "view" },
+        { title: "Subappalti", url: "Subappalti", icon: GitMerge, module: "subappalti", action: "view" },
+        { title: "Costi", url: "Costi", icon: Calculator, module: "costi", action: "view" },
+        { title: "SAL", url: "SAL", icon: FileText, module: "sal", action: "view" },
+        { title: "Ordini Materiali", url: "OrdiniMateriali", icon: ShoppingCart, module: "ordini_materiale", action: "view" },
+        { title: "Attività Interne", url: "AttivitaInterne", icon: ClipboardList, module: "attivita_interne", action: "view" },
+        { title: "Documenti", url: "Documenti", icon: FileText, module: "documenti", action: "view" },
+        { title: "Cronoprogramma", url: "Cronoprogramma", icon: Calendar, module: "cronoprogramma", action: "view" },
+        { title: "Guida all'Uso", url: "Guida", icon: BookOpen, module: "all" },
     ];
 
     const impostazioniItems = [
-        { title: "Profilo Azienda", url: "ProfiloAzienda", icon: Briefcase, permission: "profilo_azienda_view" },
-        { title: "Gestione Utenti", url: "UserManagement", icon: UserCog, permission: "utenti_view" },
-        { title: "Ruoli e Permessi", url: "GestionePermessi", icon: Shield, permission: "utenti_manage" },
-        { title: "Permessi Cantieri", url: "GestionePermessiCantieri", icon: Key, permission: "utenti_manage" },
-        { title: "Il Mio Profilo", url: "MyProfile", icon: User, permission: "all" },
+        { title: "Profilo Azienda", url: "ProfiloAzienda", icon: Briefcase, module: "profilo_azienda", action: "view" },
+        { title: "Gestione Utenti", url: "UserManagement", icon: UserCog, module: "user_management", action: "view" },
+        { title: "Ruoli e Permessi", url: "GestionePermessi", icon: Shield, module: "user_management", action: "manage_roles" },
+        { title: "Permessi Cantieri", url: "GestionePermessiCantieri", icon: Key, module: "user_management", action: "manage_cantiere_permissions" },
+        { title: "Il Mio Profilo", url: "MyProfile", icon: User, module: "all" },
     ];
 
     const filterItems = (items) => {
         return items.filter(item => {
             if (isAdmin) return true;
-            if (item.permission === "all") return true;
-            return hasPermission(item.permission);
+            if (item.module === "all") return true;
+            return hasPermission(item.module, item.action);
         });
     };
 

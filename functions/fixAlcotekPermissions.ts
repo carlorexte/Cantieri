@@ -1,11 +1,11 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { syncUserAccess } from './syncPermissions.ts';
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
         const users = await base44.asServiceRole.entities.User.filter({ email: "alcotek@gmail.com" });
-        
         if (users.length === 0) {
             return Response.json({ message: "User not found" });
         }
@@ -13,9 +13,10 @@ Deno.serve(async (req) => {
         const targetUser = users[0];
         const updates = {};
         
-        // Grant view permissions for all related entities to match cantieri_view=true intent
-        // This ensures they can see details of any cantiere they can access
+        // Grant view permissions for all related entities
         const viewPerms = [
+            "dashboard_view",
+            "cantieri_view",
             "imprese_view",
             "persone_view",
             "subappalti_view",
@@ -42,10 +43,15 @@ Deno.serve(async (req) => {
             await base44.asServiceRole.entities.User.update(targetUser.id, updates);
         }
 
-        return Response.json({
-            success: true,
+        // Run full sync to ensure team access is calculated
+        const syncResults = await syncUserAccess(base44);
+        const mySync = syncResults.find(r => r.email === targetUser.email);
+
+        return Response.json({ 
+            success: true, 
             updated_fields: Object.keys(updates),
-            user_email: targetUser.email
+            user_email: targetUser.email,
+            sync_result: mySync || "User not found in sync results"
         });
 
     } catch (error) {

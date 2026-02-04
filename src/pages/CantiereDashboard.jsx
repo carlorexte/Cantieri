@@ -69,10 +69,11 @@ export default function CantiereDashboardPage() {
   const loadData = useCallback(async (cantiereId) => {
     setIsLoading(true);
     try {
-      const [cantiereData, subappaltiData, documentiData, impreseData, salData, attivitaData] = await Promise.all([
+      // Use individual fetches or Promise.allSettled to prevent one failure from blocking everything
+      const results = await Promise.allSettled([
         Cantiere.get(cantiereId),
         Subappalto.filter({ cantiere_id: cantiereId }),
-        // Punto 17: Cerca documenti collegati a questo cantiere (supporta sia vecchio campo che nuovo array)
+        // Punto 17: Cerca documenti collegati a questo cantiere
         Documento.filter({
           "$or": [
             { "entita_collegata_id": cantiereId },
@@ -83,13 +84,24 @@ export default function CantiereDashboardPage() {
         base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal"),
         base44.entities.Attivita.filter({ cantiere_id: cantiereId }, "-data_fine")
       ]);
-      setCantiere(cantiereData);
-      setSubappalti(subappaltiData);
-      setDocumenti(documentiData);
-      setImprese(impreseData);
-      setSalList(salData);
-      setAttivita(attivitaData);
-      setAttivita(attivitaData);
+
+      const [cantiereRes, subappaltiRes, documentiRes, impreseRes, salRes, attivitaRes] = results;
+
+      if (cantiereRes.status === 'fulfilled') {
+        setCantiere(cantiereRes.value);
+      } else {
+        console.error("Errore caricamento Cantiere:", cantiereRes.reason);
+        // If main cantiere fails, we can't show much, but maybe we can show error
+        toast.error("Errore caricamento dati cantiere");
+      }
+
+      setSubappalti(subappaltiRes.status === 'fulfilled' ? subappaltiRes.value : []);
+      setDocumenti(documentiRes.status === 'fulfilled' ? documentiRes.value : []);
+      setImprese(impreseRes.status === 'fulfilled' ? impreseRes.value : []);
+      setSalList(salRes.status === 'fulfilled' ? salRes.value : []);
+      setAttivita(attivitaRes.status === 'fulfilled' ? attivitaRes.value : []);
+
+      const cantiereData = cantiereRes.status === 'fulfilled' ? cantiereRes.value : null;
 
       // Load PersoneEsterne in parallelo
       const personaPromises = [];

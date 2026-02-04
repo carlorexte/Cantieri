@@ -62,6 +62,7 @@ import Home from './pages/Home';
 import ImpresaDashboard from './pages/ImpresaDashboard';
 import Imprese from './pages/Imprese';
 import MyProfile from './pages/MyProfile';
+import OrdiniMateriali from './pages/OrdiniMateriali';
 import PersoneEsterne from './pages/PersoneEsterne';
 import ProfiloAzienda from './pages/ProfiloAzienda';
 import RiepilogoCantieri from './pages/RiepilogoCantieri';
@@ -70,7 +71,6 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
-import OrdiniMateriali from './pages/OrdiniMateriali';
 import __Layout from './Layout.jsx';
 
 
@@ -90,6 +90,7 @@ export const PAGES = {
     "ImpresaDashboard": ImpresaDashboard,
     "Imprese": Imprese,
     "MyProfile": MyProfile,
+    "OrdiniMateriali": OrdiniMateriali,
     "PersoneEsterne": PersoneEsterne,
     "ProfiloAzienda": ProfiloAzienda,
     "RiepilogoCantieri": RiepilogoCantieri,
@@ -98,7 +99,6 @@ export const PAGES = {
     "Subappalti": Subappalti,
     "TestData": TestData,
     "UserManagement": UserManagement,
-    "OrdiniMateriali": OrdiniMateriali,
 }
 
 export const pagesConfig = {

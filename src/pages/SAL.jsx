@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 const statoPagamentoColori = {
   da_fatturare: "bg-blue-50 text-blue-700 border-blue-200",
@@ -57,25 +58,32 @@ export default function SalPage() {
   const [viewerFileName, setViewerFileName] = useState('');
   const [loadingViewer, setLoadingViewer] = useState(false);
 
+  const { hasPermission, hasCantierePermission } = usePermissions();
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [salData, cantieriData, user] = await Promise.all([
-        base44.entities.SAL.list("-data_sal", 100), // Limitato a 100 SAL
-        base44.entities.Cantiere.list("-created_date", 50), // Limitato a 50 cantieri
+        base44.entities.SAL.list("-data_sal", 100),
+        // Use getMyCantieri for consistency
+        base44.functions.invoke('getMyCantieri'),
         base44.auth.me()
       ]);
       setSalList(salData);
-      setCantieri(cantieriData);
+      
+      const cantieriPayload = cantieriData.data || cantieriData;
+      setCantieri(cantieriPayload.items || []);
       setCurrentUser(user);
       
       const urlParams = new URLSearchParams(window.location.search);
       const cantiereIdFromUrl = urlParams.get('cantiere_id');
       
-      if (cantiereIdFromUrl && cantieriData.find(c => c.id === cantiereIdFromUrl)) {
+      const availableCantieri = cantieriPayload.items || [];
+      
+      if (cantiereIdFromUrl && availableCantieri.find(c => c.id === cantiereIdFromUrl)) {
         setSelectedCantiereId(cantiereIdFromUrl);
-      } else if (cantieriData.length > 0 && !selectedCantiereId) {
-        setSelectedCantiereId(cantieriData[0].id);
+      } else if (availableCantieri.length > 0 && !selectedCantiereId) {
+        setSelectedCantiereId(availableCantieri[0].id);
       }
     } catch (error) {
       console.error("Errore caricamento dati:", error);
@@ -181,7 +189,13 @@ export default function SalPage() {
     [stats.totaleCertificato, importoContrattoOltreIva]
   );
 
+  const canCreateSAL = useMemo(() => {
+      if (!selectedCantiereId) return false;
+      return currentUser?.role === 'admin' || hasCantierePermission(selectedCantiereId, 'sal', 'edit');
+  }, [currentUser, selectedCantiereId, hasCantierePermission]);
+
   return (
+    <PermissionGuard module="sal" action="view">
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
@@ -222,7 +236,7 @@ export default function SalPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {(currentUser?.role === 'admin' || currentUser?.perm_edit_sal) && (
+              {canCreateSAL && (
                 <Button onClick={() => setShowForm(true)} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10" disabled={!selectedCantiereId}>
                   <Plus className="w-4 h-4 mr-2" />
                   Nuovo SAL
@@ -562,5 +576,6 @@ export default function SalPage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

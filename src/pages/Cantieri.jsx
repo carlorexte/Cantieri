@@ -33,7 +33,11 @@ const statusColors = {
 };
 
 const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) => {
-  const { hasPermission } = usePermissions();
+  const { hasCantiereObjectPermission, isAdmin } = usePermissions();
+  
+  const canEdit = isAdmin || hasCantiereObjectPermission(cantiere, 'cantieri', 'edit');
+  const canDelete = isAdmin || hasCantiereObjectPermission(cantiere, 'cantieri', 'admin.delete');
+
   return (
   <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white group">
     <CardContent className="p-6">
@@ -113,6 +117,7 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
           </div>
         </div>
 
+        {(canEdit || canDelete) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
@@ -120,13 +125,13 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            {(currentUser?.role === 'admin' || hasPermission('cantieri', 'edit')) && (
+            {canEdit && (
               <DropdownMenuItem onClick={() => onEdit(cantiere)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Modifica
               </DropdownMenuItem>
             )}
-            {(currentUser?.role === 'admin' || hasPermission('cantieri', 'delete')) && (
+            {canDelete && (
               <DropdownMenuItem 
                 onClick={() => onDelete(cantiere.id)}
                 className="text-red-600 focus:bg-red-50 focus:text-red-700"
@@ -137,6 +142,7 @@ const CantiereCard = React.memo(({ cantiere, currentUser, onEdit, onDelete }) =>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
     </CardContent>
   </Card>
@@ -187,10 +193,8 @@ export default function Cantieri() {
         });
       }
       setShowForm(false);
-      // Punto 4: Quando aggiorno il cantiere non si deve chiudere
       setFormIsDirty(false);
       await refreshCantieri();
-      // Non chiudiamo il form
     } catch (error) {
       console.error("Errore salvataggio cantiere:", error);
     }
@@ -400,7 +404,6 @@ export default function Cantieri() {
             open={showForm} 
             onOpenChange={(open) => {
               if (!open) {
-                // Previene chiusura accidentale se dirty, ma qui gestiamo con onInteractOutside
                 if (formIsDirty) {
                    if (window.confirm("Hai modifiche non salvate. Chiudere?")) {
                      handleCloseForm();
@@ -414,7 +417,6 @@ export default function Cantieri() {
             <DialogContent 
               className="max-w-4xl max-h-[90vh] overflow-y-auto"
               onInteractOutside={(e) => {
-                // Punto 3: Se si clicca fuori, il riquadro NON si chiude
                 e.preventDefault();
               }}
               onEscapeKeyDown={(e) => {

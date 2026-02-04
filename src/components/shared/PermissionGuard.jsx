@@ -112,12 +112,40 @@ export function usePermissions() {
 
   }, [user, permessiCantieri, hasPermission]);
 
+  const hasCantiereObjectPermission = useCallback((cantiere, module, action = 'view') => {
+      if (!cantiere) return false;
+      
+      // 1. Check ID-based permission (Direct assignment, Override, Global Role)
+      const idCheck = hasCantierePermission(cantiere.id, module, action);
+      if (idCheck) return true;
+
+      // 2. Check Team Assignment
+      if (user && user.team_ids && cantiere.team_assegnati) {
+          const hasTeamAccess = cantiere.team_assegnati.some(tid => user.team_ids.includes(tid));
+          
+          if (hasTeamAccess) {
+              // If user is in a team assigned to this cantiere:
+              // Check if their Global Role allows the action.
+              return hasPermission(module, action);
+          }
+      }
+
+      return false;
+  }, [user, hasCantierePermission, hasPermission]);
+
+  const getAccessibleCantieri = useCallback(() => {
+    // This is mostly for debugging or legacy support, prefer using getMyCantieri backend function
+    return user?.cantieri_assegnati || [];
+  }, [user]);
+
   return {
     user,
     ruolo,
     isLoading,
     hasPermission,
     hasCantierePermission,
+    hasCantiereObjectPermission,
+    getAccessibleCantieri,
     isAdmin: user?.role === 'admin'
   };
 }

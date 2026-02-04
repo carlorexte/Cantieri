@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Subappalto } from "@/entities/Subappalto";
 import { Cantiere } from "@/entities/Cantiere";
 import { Impresa } from "@/entities/Impresa";
+import { User } from "@/entities/User";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,8 +55,9 @@ export default function SubappaltiPage() {
   const [nuovoTipoRelazione, setNuovoTipoRelazione] = useState("subappalto");
   const [showDetail, setShowDetail] = useState(false);
   const [selectedSubappalto, setSelectedSubappalto] = useState(null);
-  
-  const { hasPermission, isAdmin } = usePermissions();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -93,14 +95,16 @@ export default function SubappaltiPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [subappaltiData, cantieriData, impreseData] = await Promise.all([
+      const [subappaltiData, cantieriData, impreseData, user] = await Promise.all([
         Subappalto.list("-created_date"),
         Cantiere.list(),
-        Impresa.list()
+        Impresa.list(),
+        User.me()
       ]);
       setSubappalti(subappaltiData);
       setCantieri(cantieriData);
       setImprese(impreseData);
+      setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
     }
@@ -181,7 +185,7 @@ export default function SubappaltiPage() {
               <h1 className="text-3xl font-bold text-slate-900">Subappalti e Subaffidamenti</h1>
               <p className="text-slate-600 mt-1">Gestione contratti di subappalto e subaffidamento</p>
             </div>
-            {(isAdmin || hasPermission('subappalti', 'edit')) && (
+            {(currentUser?.role === 'admin' || hasPermission('subappalti', 'edit')) && (
               <div className="flex gap-2">
                 <Button onClick={handleNuovoSubappalto} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm">
                   <Plus className="w-5 h-5 mr-2" />
@@ -379,7 +383,7 @@ export default function SubappaltiPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            {(isAdmin || hasPermission('subappalti', 'edit')) && (
+                            {(currentUser?.role === 'admin' || hasPermission('subappalti', 'edit')) && (
                               <Button 
                                 variant="ghost" 
                                 size="icon"
@@ -389,7 +393,7 @@ export default function SubappaltiPage() {
                                 <Edit className="w-4 h-4" />
                               </Button>
                             )}
-                            {(isAdmin || hasPermission('subappalti', 'admin.delete')) && (
+                            {(currentUser?.role === 'admin' || hasPermission('subappalti', 'delete')) && (
                               <Button 
                                 variant="ghost" 
                                 size="icon"

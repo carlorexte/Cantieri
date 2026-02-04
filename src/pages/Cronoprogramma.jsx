@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Filter, Building2, Plus, BarChart3, Grid3X3, Clock, CheckCircle2, AlertCircle, Play, Upload, Trash2, RotateCcw, ArrowLeft, Maximize2, Home, Calendar as CalendarIcon } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Filter, Building2, Plus, BarChart3, Grid3X3, Clock, CheckCircle2, AlertCircle, Play, Upload, Trash2, RotateCcw, ArrowLeft, Maximize2, Home, Calendar as CalendarIcon, ClipboardList } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -46,10 +45,9 @@ export default function CronoprogrammaPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState(1);
   const [showFullscreenView, setShowFullscreenView] = useState(false);
-  
-  const { hasPermission, isAdmin } = usePermissions();
 
-  // Memoized values - SEMPRE prima di qualsiasi condizionale
+  const { hasPermission, hasCantierePermission } = usePermissions();
+
   const getCantiereStats = useCallback((cantiere) => {
     if (!cantiere || !cantiere.id) return { totale: 0, percentualeCompletamento: 0 };
     const attivita = cantieriAttivita[cantiere.id] || [];
@@ -85,45 +83,36 @@ export default function CronoprogrammaPage() {
     setIsLoading(true);
     try {
       const [cantieriData, user] = await Promise.all([
-          base44.entities.Cantiere.filter({ stato: "attivo" }, "-created_date"),
+          base44.functions.invoke('getMyCantieri').then(res => res.data?.items || res.items || []),
           base44.auth.me()
       ]);
-      setCantieri(cantieriData);
+      // Filter only active cantieri for cronoprogramma view
+      const activeCantieri = cantieriData.filter(c => c.stato === "attivo");
+      setCantieri(activeCantieri);
       setCurrentUser(user);
       
       console.log('Caricamento tutte le attività...');
       const tutteLeAttivita = await base44.entities.Attivita.list("data_inizio");
-      console.log(`Caricate ${tutteLeAttivita.length} attività totali`);
       
-      const cantieriAttivitaMap = cantieriData.reduce((acc, cantiere) => {
+      const cantieriAttivitaMap = activeCantieri.reduce((acc, cantiere) => {
         acc[cantiere.id] = tutteLeAttivita.filter(a => a.cantiere_id === cantiere.id);
         return acc;
       }, {});
       
-      console.log('Attività raggruppate per cantiere:', Object.keys(cantieriAttivitaMap).map(id => ({
-        cantiere: cantieriData.find(c => c.id === id)?.denominazione,
-        count: cantieriAttivitaMap[id].length
-      })));
-      
       setCantieriAttivita(cantieriAttivitaMap);
 
-      // Logic to determine initial selectedCantiereId
       const urlParams = new URLSearchParams(window.location.search);
       const cantiereIdFromUrl = urlParams.get('cantiere_id');
       
       let initialCantiereToSelect = null;
 
-      if (cantiereIdFromUrl && cantieriData.some(c => c.id === cantiereIdFromUrl)) {
-        // 1. Valid cantiere_id from URL takes precedence
+      if (cantiereIdFromUrl && activeCantieri.some(c => c.id === cantiereIdFromUrl)) {
         initialCantiereToSelect = cantiereIdFromUrl;
-      } else if (selectedCantiereId && cantieriData.some(c => c.id === selectedCantiereId)) {
-        // 2. If a cantiere was already selected and is still valid
+      } else if (selectedCantiereId && activeCantieri.some(c => c.id === selectedCantiereId)) {
         initialCantiereToSelect = selectedCantiereId;
-      } else if (cantieriData.length > 0) {
-        // 3. Otherwise, select the first available cantiere
-        initialCantiereToSelect = cantieriData[0].id;
+      } else if (activeCantieri.length > 0) {
+        initialCantiereToSelect = activeCantieri[0].id;
       }
-      // 4. If cantieriData is empty, initialCantiereToSelect remains null.
 
       setSelectedCantiereId(initialCantiereToSelect);
 
@@ -132,7 +121,7 @@ export default function CronoprogrammaPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCantiereId]); // Dependency on selectedCantiereId to prevent stale closure for initial selection logic
+  }, [selectedCantiereId]);
 
   useEffect(() => {
     loadData();
@@ -201,7 +190,6 @@ export default function CronoprogrammaPage() {
       return;
     }
     
-    const cantiere = cantieri.find(c => c.id === selectedCantiereId);
     const attivitaCantiere = cantieriAttivita[selectedCantiereId] || [];
     
     if (attivitaCantiere.length === 0) {
@@ -211,10 +199,9 @@ export default function CronoprogrammaPage() {
     
     setDeleteConfirmStep(1);
     setShowDeleteDialog(true);
-  }, [selectedCantiereId, cantieri, cantieriAttivita]);
+  }, [selectedCantiereId, cantieriAttivita]);
 
   const handleConfirmDelete = useCallback(async () => {
-    const cantiere = cantieri.find(c => c.id === selectedCantiereId);
     const attivitaCantiere = cantieriAttivita[selectedCantiereId] || [];
     
     try {
@@ -252,7 +239,7 @@ export default function CronoprogrammaPage() {
       setShowDeleteDialog(false);
       setDeleteConfirmStep(1);
     }
-  }, [selectedCantiereId, cantieri, cantieriAttivita, setReloadTrigger]);
+  }, [selectedCantiereId, cantieriAttivita, setReloadTrigger]);
 
   if (isLoading) {
     return (
@@ -268,6 +255,7 @@ export default function CronoprogrammaPage() {
   }
 
   const overallStats = getOverallStats;
+  const canEdit = currentUser?.role === 'admin' || hasPermission('cronoprogramma', 'edit');
 
   return (
     <PermissionGuard module="cronoprogramma" action="view">
@@ -349,7 +337,7 @@ export default function CronoprogrammaPage() {
               )}
 
               {/* Import Button */}
-              {(isAdmin || hasPermission('cronoprogramma', 'edit')) && (
+              {canEdit && (
                 <Button
                   onClick={() => setShowImportForm(true)}
                   variant="outline"
@@ -363,7 +351,7 @@ export default function CronoprogrammaPage() {
               )}
 
               {/* Reset Button */}
-              {(isAdmin || hasPermission('cronoprogramma', 'edit')) && viewMode === "single" && selectedCantiereId && cantieriAttivita[selectedCantiereId]?.length > 0 && (
+              {canEdit && viewMode === "single" && selectedCantiereId && cantieriAttivita[selectedCantiereId]?.length > 0 && (
                 <Button
                   onClick={handleDeleteCronoprogramma}
                   variant="outline"
@@ -376,7 +364,7 @@ export default function CronoprogrammaPage() {
               )}
 
               {/* Global Add Attivita Button */}
-              {(isAdmin || hasPermission('cronoprogramma', 'edit')) && (
+              {canEdit && (
                 <Button
                   onClick={() => {
                     setEditingAttivita(null);
@@ -534,7 +522,7 @@ export default function CronoprogrammaPage() {
                           <BarChart3 className="w-4 h-4 mr-2" />
                           Visualizza Gantt
                         </Button>
-                        {(isAdmin || hasPermission('cronoprogramma', 'edit')) && (
+                        {canEdit && (
                           <Button 
                             size="sm" 
                             className="bg-blue-600 hover:bg-blue-700"
@@ -617,7 +605,7 @@ export default function CronoprogrammaPage() {
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
                     onEditAttivita={handleEditAttivita}
                     onUpdateAttivita={handleUpdateAttivita}
-                    canEdit={(isAdmin || hasPermission('cronoprogramma', 'edit'))}
+                    canEdit={canEdit}
                   />
                 )}
               </div>
@@ -676,7 +664,7 @@ export default function CronoprogrammaPage() {
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
                     onEditAttivita={handleEditAttivita}
                     onUpdateAttivita={handleUpdateAttivita}
-                    canEdit={(isAdmin || hasPermission('cronoprogramma', 'edit'))}
+                    canEdit={canEdit}
                     isFullscreen={true}
                   />
                 )}

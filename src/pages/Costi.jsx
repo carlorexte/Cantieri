@@ -51,8 +51,9 @@ export default function CostiPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCosto, setEditingCosto] = useState(null);
-  
-  const { hasPermission, isAdmin } = usePermissions();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -86,12 +87,14 @@ export default function CostiPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [costiData, cantieriData] = await Promise.all([
+      const [costiData, cantieriData, user] = await Promise.all([
         Costo.list("-data_sostenimento"),
-        Cantiere.list()
+        Cantiere.list(),
+        User.me()
       ]);
       setCosti(costiData);
       setCantieri(cantieriData);
+      setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
     }
@@ -152,7 +155,7 @@ export default function CostiPage() {
               <h1 className="text-3xl font-bold text-slate-900">Costi</h1>
               <p className="text-slate-600 mt-1">Monitoraggio e gestione costi di cantiere</p>
             </div>
-            {(isAdmin || hasPermission('costi', 'edit')) && (
+            {(currentUser?.role === 'admin' || hasPermission('costi', 'edit')) && (
               <Button onClick={() => { setEditingCosto(null); setShowForm(true); }} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm">
                 <Plus className="w-5 h-5 mr-2" />
                 Nuovo Costo
@@ -315,7 +318,7 @@ export default function CostiPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {(isAdmin || hasPermission('costi', 'edit')) && (
+                          {(currentUser?.role === 'admin' || hasPermission('costi', 'edit')) && (
                             <div className="flex justify-end gap-1">
                               <Button 
                                 variant="ghost" 
@@ -325,7 +328,7 @@ export default function CostiPage() {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              {(isAdmin || hasPermission('costi', 'admin.delete')) && (
+                              {(currentUser?.role === 'admin' || hasPermission('costi', 'delete')) && (
                                 <Button 
                                   variant="ghost" 
                                   size="icon"

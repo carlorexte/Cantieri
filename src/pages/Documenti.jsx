@@ -53,8 +53,8 @@ export default function DocumentiPage() {
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
-  
-  const { hasPermission, isAdmin } = usePermissions();
+
+  const { hasPermission } = usePermissions();
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -243,30 +243,6 @@ export default function DocumentiPage() {
     return entita;
   }, [cantieri, imprese]);
 
-  async function handleDownloadDocument(doc) {
-    try {
-      let url = doc.cloud_file_url;
-      if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
-          file_uri: doc.file_uri,
-          expires_in: 300
-        });
-        url = result.signed_url;
-      }
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.nome_documento;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast.success("Download avviato");
-    } catch (error) {
-      console.error("Errore download:", error);
-      toast.error("Impossibile scaricare il documento");
-    }
-  }
-
   return (
     <PermissionGuard module="documenti" action="view">
     <div className="min-h-screen bg-slate-50">
@@ -278,7 +254,7 @@ export default function DocumentiPage() {
               <h1 className="text-3xl font-bold text-slate-900">Documenti</h1>
               <p className="text-slate-600 mt-1">Gestione centralizzata con OCR e categorizzazione automatica</p>
             </div>
-            {(isAdmin || hasPermission('documenti', 'edit')) && (
+            {(currentUser?.role === 'admin' || hasPermission('documenti', 'edit')) && (
               <Button 
                 onClick={() => {
                   setEditingDocumento(null);
@@ -470,7 +446,7 @@ export default function DocumentiPage() {
                                   </Button>
                                 </>
                               )}
-                              {(isAdmin || hasPermission('documenti', 'edit')) && !doc.readonly && (
+                              {(currentUser?.role === 'admin' || hasPermission('documenti', 'edit')) && !doc.readonly && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -482,25 +458,25 @@ export default function DocumentiPage() {
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>
-                                  {(isAdmin || hasPermission('documenti', 'admin.archive')) && (
+                                  {(currentUser?.role === 'admin' || hasPermission('documenti', 'archive')) && (
                                     <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleArchive(doc.id)}
-                                      className="hover:bg-amber-50 hover:text-amber-600"
-                                      title="Archivia"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleArchive(doc.id)}
+                                        className="hover:bg-amber-50 hover:text-amber-600"
+                                        title="Archivia"
                                     >
-                                      <Archive className="w-4 h-4" />
+                                        <Archive className="w-4 h-4" />
                                     </Button>
                                   )}
-                                  {(isAdmin || hasPermission('documenti', 'admin.delete')) && (
+                                  {(currentUser?.role === 'admin' || hasPermission('documenti', 'delete')) && (
                                     <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleDelete(doc.id)}
-                                      className="hover:bg-red-50 hover:text-red-600"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDelete(doc.id)}
+                                        className="hover:bg-red-50 hover:text-red-600"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="w-4 h-4" />
                                     </Button>
                                   )}
                                 </>
@@ -569,4 +545,28 @@ export default function DocumentiPage() {
     </div>
     </PermissionGuard>
   );
+
+  async function handleDownloadDocument(doc) {
+    try {
+      let url = doc.cloud_file_url;
+      if (doc.file_uri) {
+        const result = await base44.integrations.Core.CreateFileSignedUrl({
+          file_uri: doc.file_uri,
+          expires_in: 300
+        });
+        url = result.signed_url;
+      }
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.nome_documento;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Download avviato");
+    } catch (error) {
+      console.error("Errore download:", error);
+      toast.error("Impossibile scaricare il documento");
+    }
+  }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { usePermissions, PermissionGuard } from '@/components/shared/PermissionGuard';
+import { useData } from '@/components/shared/DataContext';
+import { PermissionGuard, usePermissions } from '@/components/shared/PermissionGuard';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ const statusConfig = {
 };
 
 export default function OrdiniMateriali() {
-  const { hasPermission, isAdmin } = usePermissions();
+  const { hasPermission } = usePermissions();
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,7 +83,6 @@ export default function OrdiniMateriali() {
           setSelectedOrdine(prev => ({ ...prev, stato: newStatus }));
       }
       
-      // If approved or rejected, close detail maybe? kept open for now
     } catch (error) {
       console.error("Errore aggiornamento stato:", error);
       toast.error("Errore aggiornamento stato");
@@ -105,7 +105,7 @@ export default function OrdiniMateriali() {
             <p className="text-slate-500 mt-1">Gestione ordini e approvvigionamenti cantiere</p>
           </div>
           
-          {(hasPermission('ordini_materiale', 'edit') || isAdmin) && (
+          {(hasPermission('ordini_materiale', 'edit') || hasPermission('admin')) && (
             <Button 
                 className="bg-indigo-600 hover:bg-indigo-700 shadow-sm"
                 onClick={() => { setSelectedOrdine(null); setIsFormOpen(true); }}

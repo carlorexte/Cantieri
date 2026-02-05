@@ -1,52 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Shield } from 'lucide-react';
+import { useCallback } from 'react';
+import { useData } from '@/components/shared/DataContext';
 
 export function usePermissions() {
-  const [user, setUser] = useState(null);
-  const [ruolo, setRuolo] = useState(null);
-  const [permessiCantieri, setPermessiCantieri] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadPermissions();
-  }, []);
-
-  const loadPermissions = async () => {
-    try {
-      const currentUser = await base44.auth.me();
-      
-      // Fetch full user details (custom fields)
-      let fullUser = currentUser;
-      try {
-        // We might need to fetch the entity directly if auth.me doesn't have custom fields yet (depending on SDK version/cache)
-        // Usually auth.me returns standard fields. Let's ensure we have custom fields.
-        // But for safety, let's assume currentUser has them or we fetch them if missing.
-        // Actually, PermissionGuard usually runs inside the app where DataContext might have fetched it.
-        // But to be standalone:
-        const userEntity = await base44.entities.User.get(currentUser.id);
-        fullUser = { ...currentUser, ...userEntity }; // Merge
-      } catch (e) {
-        console.log("Could not fetch extra user details", e);
-      }
-      
-      setUser(fullUser);
-
-      if (fullUser.ruolo_id) {
-        const ruoloData = await base44.entities.Ruolo.get(fullUser.ruolo_id);
-        setRuolo(ruoloData);
-      }
-
-      const permessi = await base44.entities.PermessoCantiereUtente.filter({ 
-        utente_id: currentUser.id 
-      });
-      setPermessiCantieri(permessi);
-    } catch (error) {
-      console.error("Errore caricamento permessi:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Use data directly from DataContext instead of fetching it again
+  const { 
+      currentUser: user, 
+      currentRole: ruolo, 
+      cantierePermissions: permessiCantieri, 
+      isLoading 
+  } = useData();
 
   // Mapping to map module+action to flattened user field
   const getPermissionField = (module, action) => {

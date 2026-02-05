@@ -16,7 +16,16 @@ export const DataProvider = ({ children }) => {
   const [imprese, setImprese] = useState([]);
   const [personeEsterne, setPersoneEsterne] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Stati per i permessi (spostati da PermissionGuard)
+  const [currentRole, setCurrentRole] = useState(null);
+  const [cantierePermissions, setCantierePermissions] = useState([]);
+
+  // isLoadingUser: blocca solo l'auth/permessi iniziali
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  // isLoadingData: indica caricamento dati in background
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
   const [lastFetch, setLastFetch] = useState({});
 
   const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
@@ -26,82 +35,115 @@ export const DataProvider = ({ children }) => {
     return Date.now() - lastFetch[key] > CACHE_DURATION;
   }, [lastFetch]);
 
-  const loadCommonData = useCallback(async (force = false) => {
-    setIsLoading(true);
+  // Caricamento CRITICO: Utente + Permessi
+  const loadUserAndPermissions = useCallback(async (force = false) => {
+    if (!force && currentUser && !shouldRefetch('user')) return;
+    
+    setIsLoadingUser(true);
     try {
-      // 1. Fetch User
-      let user = currentUser;
-      if (force || shouldRefetch('user') || !user) {
-        try {
-          user = await base44.auth.me();
-          setCurrentUser(user);
-          setLastFetch(prev => ({ ...prev, user: Date.now() }));
-        } catch (e) {
-          console.error("Error fetching user", e);
-          user = null;
-        }
+      let user = await base44.auth.me();
+      
+      // Fetch full user details se necessario (copiato da PermissionGuard logic)
+      try {
+         const userEntity = await base44.entities.User.get(user.id);
+         user = { ...user, ...userEntity };
+      } catch (e) {
+         // Ignora se fallisce fetch extra, usa auth.me base
+      }
+      
+      setCurrentUser(user);
+      setLastFetch(prev => ({ ...prev, user: Date.now() }));
+
+      // Fetch Ruolo e Permessi in parallelo
+      const permsPromises = [];
+      
+      if (user.ruolo_id) {
+        permsPromises.push(
+          base44.entities.Ruolo.get(user.ruolo_id)
+            .then(r => setCurrentRole(r))
+            .catch(e => console.error("Err ruolo", e))
+        );
+      } else {
+        setCurrentRole(null);
       }
 
-      const fetchPromises = [];
+      permsPromises.push(
+        base44.entities.PermessoCantiereUtente.filter({ utente_id: user.id })
+          .then(p => setCantierePermissions(p))
+          .catch(e => console.error("Err permessi cantieri", e))
+      );
 
-      // 2. Fetch Cantieri using backend function to ensure consistent visibility/RLS handling
-      if (force || shouldRefetch('cantieri')) {
-        fetchPromises.push(
-          base44.functions.invoke('getMyCantieri')
-            .then(response => {
-              // Support both {data: {items: []}} (axios style) and direct body
-              const payload = response.data || response;
+      await Promise.all(permsPromises);
 
+    } catch (e) {
+      console.error("Error fetching user/perms", e);
+      setCurrentUser(null);
+    } finally {
+      setIsLoadingUser(false);
+      // Dopo aver caricato l'utente, scateniamo il caricamento dei dati secondari
+      loadSecondaryData();
+    }
+  }, [shouldRefetch]);
 
-              if (payload && payload.items && Array.isArray(payload.items)) {
-                setCantieri(payload.items);
-                setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
-              } else if (Array.isArray(payload)) {
-                setCantieri(payload);
-                setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
-              } else {
-                console.warn("getMyCantieri returned invalid data structure:", payload);
-                setCantieri([]);
-              }
-            })
-            .catch(err => {
-              console.error("Error fetching cantieri:", err);
+  // Caricamento SECONDARIO: Liste dati (Cantieri, Imprese, ecc)
+  // Non blocca la UI principale
+  const loadSecondaryData = useCallback(async (force = false) => {
+    setIsLoadingData(true);
+    const fetchPromises = [];
+
+    if (force || shouldRefetch('cantieri')) {
+      fetchPromises.push(
+        base44.functions.invoke('getMyCantieri')
+          .then(response => {
+            const payload = response.data || response;
+            if (payload && payload.items && Array.isArray(payload.items)) {
+              setCantieri(payload.items);
+            } else if (Array.isArray(payload)) {
+              setCantieri(payload);
+            } else {
               setCantieri([]);
-            })
-        );
-      }
+            }
+            setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+          })
+          .catch(err => {
+            console.error("Error fetching cantieri:", err);
+            setCantieri([]);
+          })
+      );
+    }
 
-      if (force || shouldRefetch('imprese')) {
-        fetchPromises.push(
-          base44.entities.Impresa.list('-created_date', 100)
-            .then(data => {
-              setImprese(data);
-              setLastFetch(prev => ({ ...prev, imprese: Date.now() }));
-            })
-        );
-      }
+    if (force || shouldRefetch('imprese')) {
+      fetchPromises.push(
+        base44.entities.Impresa.list('-created_date', 100)
+          .then(data => {
+            setImprese(data);
+            setLastFetch(prev => ({ ...prev, imprese: Date.now() }));
+          })
+      );
+    }
 
-      if (force || shouldRefetch('personeEsterne')) {
-        fetchPromises.push(
-          base44.entities.PersonaEsterna.list('-created_date', 100)
-            .then(data => {
-              setPersoneEsterne(data);
-              setLastFetch(prev => ({ ...prev, personeEsterne: Date.now() }));
-            })
-        );
-      }
+    if (force || shouldRefetch('personeEsterne')) {
+      fetchPromises.push(
+        base44.entities.PersonaEsterna.list('-created_date', 100)
+          .then(data => {
+            setPersoneEsterne(data);
+            setLastFetch(prev => ({ ...prev, personeEsterne: Date.now() }));
+          })
+      );
+    }
 
+    try {
       await Promise.all(fetchPromises);
     } catch (error) {
-      console.error('Errore caricamento dati comuni:', error);
+      console.error("Error fetching secondary data", error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingData(false);
     }
   }, [shouldRefetch]);
 
   useEffect(() => {
-    loadCommonData();
-  }, [loadCommonData]);
+    loadUserAndPermissions();
+  }, [loadUserAndPermissions]);
 
   const refreshCantieri = useCallback(async () => {
     try {
@@ -145,11 +187,17 @@ export const DataProvider = ({ children }) => {
     imprese,
     personeEsterne,
     currentUser,
-    isLoading,
+    currentRole,
+    cantierePermissions,
+    isLoading: isLoadingUser, // Retrocompatibilità: isLoading principale si riferisce all'utente
+    isLoadingData, // Nuovo stato per chi vuole sapere se stiamo caricando liste
     refreshCantieri,
     refreshImprese,
     refreshPersoneEsterne,
-    refreshAll: () => loadCommonData(true)
+    refreshAll: () => {
+        loadUserAndPermissions(true);
+        loadSecondaryData(true);
+    }
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

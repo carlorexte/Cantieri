@@ -18,14 +18,13 @@ Deno.serve(async (req) => {
         const fullUser = await base44.asServiceRole.entities.User.get(authUser.id);
 
         // Fetch the cantiere first to check permissions
-        // We use service role to fetch it, then check if user has access
         const cantiere = await base44.asServiceRole.entities.Cantiere.get(cantiere_id);
 
         if (!cantiere) {
             return Response.json({ error: 'Cantiere not found' }, { status: 404 });
         }
 
-        // Permission Check Logic
+        // Permission Check Logic for Cantiere (Dashboard Access)
         let hasAccess = false;
 
         // 1. Admin
@@ -53,28 +52,59 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
+        // --- SPECIFIC MODULE PERMISSIONS ---
+        
+        // SAL Permission Check
+        let canViewSAL = false;
+        if (fullUser.role === 'admin' || fullUser.sal_view === true) {
+            canViewSAL = true;
+        } else {
+            // Check override
+            const overrides = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({ 
+                utente_id: authUser.id, 
+                cantiere_id: cantiere_id 
+            });
+            // Check if specific permission exists and is true
+            // Also need to handle complex object path if filter doesn't support deep query well here, 
+            // but we fetch the object so we can check in JS.
+            if (overrides.length > 0) {
+                const override = overrides[0];
+                if (override.permessi && override.permessi.sal && override.permessi.sal.view === true) {
+                    canViewSAL = true;
+                }
+            }
+        }
+
         // Parallel Fetch of related data
-        const [subappalti, documenti, imprese, sal, attivita] = await Promise.all([
+        const promises = [
             base44.asServiceRole.entities.Subappalto.filter({ cantiere_id }),
             base44.asServiceRole.entities.Documento.filter({
                 "$or": [
                     { "entita_collegata_id": cantiere_id },
-                    { "entita_collegate": { "$elemMatch": { "entita_id": cantiere_id } } }, // safer mongo-like syntax if supported, or try simple path
-                    // Fallback to simple path if $elemMatch isn't supported by the specific adapter, but standard base44 usually supports dot notation for simple matches
                     { "entita_collegate.entita_id": cantiere_id }
                 ]
             }, "-created_date", 50),
             base44.asServiceRole.entities.Impresa.list("-created_date", 100),
-            base44.asServiceRole.entities.SAL.filter({ cantiere_id }, "-data_sal"),
             base44.asServiceRole.entities.Attivita.filter({ cantiere_id }, "-data_fine")
-        ]);
+        ];
+
+        // Only fetch SAL if allowed
+        let salPromise;
+        if (canViewSAL) {
+            salPromise = base44.asServiceRole.entities.SAL.filter({ cantiere_id }, "-data_sal");
+        } else {
+            salPromise = Promise.resolve([]);
+        }
+
+        const [subappalti, documenti, imprese, attivita] = await Promise.all(promises);
+        const sal = await salPromise;
 
         return Response.json({
             cantiere,
             subappalti,
             documenti,
             imprese,
-            sal,
+            sal, // Will be empty if no permission
             attivita
         });
 

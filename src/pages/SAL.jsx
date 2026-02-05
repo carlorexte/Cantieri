@@ -63,13 +63,15 @@ export default function SalPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [salData, cantieriData, user] = await Promise.all([
-        base44.entities.SAL.list("-data_sal", 100),
+      const [salResponse, cantieriData, user] = await Promise.all([
+        base44.functions.invoke('getMySALs'),
         // Use getMyCantieri for consistency
         base44.functions.invoke('getMyCantieri'),
         base44.auth.me()
       ]);
-      setSalList(salData);
+      
+      const salPayload = salResponse.data || salResponse;
+      setSalList(salPayload.items || []);
       
       const cantieriPayload = cantieriData.data || cantieriData;
       setCantieri(cantieriPayload.items || []);

@@ -48,25 +48,46 @@ export function usePermissions() {
     }
   };
 
-  // module: 'cantieri', 'sal', 'costi', etc.
-  // action: 'view', 'edit', 'admin' (which returns object), or specific like 'approve'
-  // For simplicity, we support checking specific leaf permissions:
-  // hasPermission('sal', 'view') -> true/false
-  // hasPermission('sal', 'approve') -> checks sal.admin.approve
+  // Mapping to map module+action to flattened user field
+  const getPermissionField = (module, action) => {
+    const map = {
+        'cantieri': { 'view': 'cantieri_view', 'edit': 'cantieri_edit', 'create': 'cantieri_create', 'delete': 'cantieri_delete', 'archive': 'cantieri_archive' },
+        'sal': { 'view': 'sal_view', 'edit': 'sal_edit', 'create': 'sal_create', 'delete': 'sal_delete', 'approve': 'sal_approve' },
+        'costi': { 'view': 'costi_view', 'edit': 'costi_edit', 'create': 'costi_create', 'delete': 'costi_delete' },
+        'documenti': { 'view': 'documenti_view', 'edit': 'documenti_edit', 'create': 'documenti_create', 'delete': 'documenti_delete', 'archive': 'documenti_archive' },
+        'imprese': { 'view': 'imprese_view', 'edit': 'imprese_edit', 'create': 'imprese_create', 'delete': 'imprese_delete' },
+        'persone': { 'view': 'persone_view', 'edit': 'persone_edit', 'create': 'persone_create', 'delete': 'persone_delete' },
+        'subappalti': { 'view': 'subappalti_view', 'edit': 'subappalti_edit', 'create': 'subappalti_create', 'delete': 'subappalti_delete' },
+        'attivita_interne': { 'view': 'attivita_view', 'edit': 'attivita_edit', 'create': 'attivita_create', 'delete': 'attivita_delete' },
+        'ordini_materiale': { 'view': 'ordini_view', 'edit': 'ordini_edit', 'create': 'ordini_create', 'delete': 'ordini_delete', 'accept': 'ordini_accept' },
+        'cronoprogramma': { 'view': 'cronoprogramma_view', 'edit': 'cronoprogramma_edit' },
+        'profilo_azienda': { 'view': 'profilo_azienda_view', 'edit': 'profilo_azienda_edit' },
+        'user_management': { 'view': 'utenti_view', 'manage_users': 'utenti_manage', 'manage_roles': 'utenti_manage_roles', 'manage_cantiere_permissions': 'utenti_manage_cantiere_permissions' },
+        'dashboard': { 'view': 'dashboard_view' },
+        'ai_assistant': { 'view': 'ai_assistant_view' },
+        'teams': { 'view': 'perm_view_teams', 'edit': 'perm_manage_teams' }
+    };
+    return map[module]?.[action];
+  };
+
   const hasPermission = useCallback((module, action = 'view') => {
     if (!user) return false;
     if (user.role === 'admin') return true;
 
-    if (!ruolo || !ruolo.permessi) return false;
+    // 1. Check Flattened User Permissions (Priority)
+    const field = getPermissionField(module, action);
+    if (field && user[field] === true) return true;
 
-    const modulePerms = ruolo.permessi[module];
-    if (!modulePerms) return false;
-
-    // Direct check: view, edit
-    if (modulePerms[action] === true) return true;
-
-    // Admin check: if action is 'delete', 'approve', 'archive', etc., it's inside 'admin' object
-    if (modulePerms.admin && modulePerms.admin[action] === true) return true;
+    // 2. Fallback to Ruolo entity (Legacy)
+    if (ruolo && ruolo.permessi) {
+        const modulePerms = ruolo.permessi[module];
+        if (!modulePerms) return false;
+        
+        // Direct check
+        if (modulePerms[action] === true) return true;
+        // Admin sub-object check
+        if (modulePerms.admin && modulePerms.admin[action] === true) return true;
+    }
     
     return false;
   }, [user, ruolo]);

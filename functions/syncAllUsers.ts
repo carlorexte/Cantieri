@@ -1,6 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// Same mapping as managePermissions to ensure consistency
 const PERMISSION_MAPPING = [
     { path: 'cantieri.view', targets: ['cantieri_view'] },
     { path: 'cantieri.edit', targets: ['cantieri_edit', 'cantieri_create'] },
@@ -39,6 +38,8 @@ const PERMISSION_MAPPING = [
     { path: 'profilo_azienda.edit', targets: ['profilo_azienda_edit'] },
     { path: 'user_management.view', targets: ['utenti_view'] },
     { path: 'user_management.manage_users', targets: ['utenti_manage'] },
+    { path: 'user_management.manage_roles', targets: ['utenti_manage_roles'] },
+    { path: 'user_management.manage_cantiere_permissions', targets: ['utenti_manage_cantiere_permissions'] },
     { path: 'dashboard.view', targets: ['dashboard_view'] },
     { path: 'ai_assistant.view', targets: ['ai_assistant_view'] },
     { path: 'teams.view', targets: ['perm_view_teams'] },
@@ -63,7 +64,6 @@ function flattenPermissions(nestedPerms) {
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        // Ensure admin
         const caller = await base44.auth.me();
         if (!caller || caller.role !== 'admin') {
              return Response.json({ error: 'Unauthorized' }, { status: 403 });
@@ -78,7 +78,10 @@ Deno.serve(async (req) => {
                     const role = await base44.asServiceRole.entities.Ruolo.get(user.ruolo_id);
                     if (role) {
                         const flatPerms = flattenPermissions(role.permessi);
-                        await base44.asServiceRole.entities.User.update(user.id, flatPerms);
+                        await base44.asServiceRole.entities.User.update(user.id, {
+                            ...flatPerms,
+                            updated_date: new Date().toISOString()
+                        });
                         count++;
                     }
                 } catch (e) {

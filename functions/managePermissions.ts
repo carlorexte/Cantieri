@@ -41,13 +41,11 @@ const PERMISSION_MAPPING = [
     { path: 'subappalti.admin.delete', targets: ['subappalti_delete'] },
 
     // Attività (Interne)
-    // Note: Module name in role is 'attivita_interne', targets use 'attivita' prefix often
     { path: 'attivita_interne.view', targets: ['attivita_view'] },
     { path: 'attivita_interne.edit', targets: ['attivita_edit', 'attivita_create'] },
     { path: 'attivita_interne.admin.delete', targets: ['attivita_delete'] },
 
     // Ordini Materiale
-    // Note: Module name in role is 'ordini_materiale', targets use 'ordini' prefix
     { path: 'ordini_materiale.view', targets: ['ordini_view'] },
     { path: 'ordini_materiale.edit', targets: ['ordini_edit', 'ordini_create'] },
     { path: 'ordini_materiale.admin.delete', targets: ['ordini_delete'] },
@@ -64,12 +62,14 @@ const PERMISSION_MAPPING = [
     // User Management
     { path: 'user_management.view', targets: ['utenti_view'] },
     { path: 'user_management.manage_users', targets: ['utenti_manage'] },
+    { path: 'user_management.manage_roles', targets: ['utenti_manage_roles'] },
+    { path: 'user_management.manage_cantiere_permissions', targets: ['utenti_manage_cantiere_permissions'] },
     
     // Other
     { path: 'dashboard.view', targets: ['dashboard_view'] },
     { path: 'ai_assistant.view', targets: ['ai_assistant_view'] },
     { path: 'teams.view', targets: ['perm_view_teams'] },
-    { path: 'teams.edit', targets: ['perm_manage_teams'] } // Assuming edit includes create/delete for teams
+    { path: 'teams.edit', targets: ['perm_manage_teams'] }
 ];
 
 function getNestedValue(obj, path) {
@@ -78,17 +78,12 @@ function getNestedValue(obj, path) {
 
 function flattenPermissions(nestedPerms) {
     const flat = {};
-    
-    // Initialize all known targets to false first (optional, but safer if we want to clear old perms)
-    // Actually, iterating mapping is enough.
-    
     PERMISSION_MAPPING.forEach(mapping => {
         const val = !!getNestedValue(nestedPerms, mapping.path);
         mapping.targets.forEach(target => {
             flat[target] = val;
         });
     });
-
     return flat;
 }
 
@@ -106,16 +101,11 @@ Deno.serve(async (req) => {
 
         if (action === 'update_role') {
             const { roleId, roleData } = data;
-            
-            // 1. Update the Ruolo entity
             await base44.entities.Ruolo.update(roleId, roleData);
             
-            // 2. Sync all users with this role
-            // We need to fetch users who have this role_id
             const users = await base44.asServiceRole.entities.User.filter({ ruolo_id: roleId });
             const flatPerms = flattenPermissions(roleData.permessi);
             
-            // Update each user with new flattened permissions
             await Promise.all(users.map(u => 
                 base44.asServiceRole.entities.User.update(u.id, { 
                     ...flatPerms, 
@@ -134,10 +124,7 @@ Deno.serve(async (req) => {
             const { roleId } = data;
             await base44.entities.Ruolo.delete(roleId);
             
-            // Find users with this role and clear their permissions
             const users = await base44.asServiceRole.entities.User.filter({ ruolo_id: roleId });
-            
-            // Create an object with all permissions set to false
             const resetPerms = {};
             PERMISSION_MAPPING.forEach(m => {
                 m.targets.forEach(t => resetPerms[t] = false);
@@ -155,7 +142,6 @@ Deno.serve(async (req) => {
 
         } else if (action === 'assign_role') {
             const { userId, roleId } = data;
-            
             let updateData = { ruolo_id: roleId || null };
             
             if (roleId) {
@@ -165,7 +151,6 @@ Deno.serve(async (req) => {
                     updateData = { ...updateData, ...flatPerms };
                 }
             } else {
-                // If removing role, reset all perms to false
                 const resetPerms = {};
                 PERMISSION_MAPPING.forEach(m => {
                     m.targets.forEach(t => resetPerms[t] = false);

@@ -271,6 +271,135 @@ export default function GestionePermessiPage() {
   );
 }
 
+// Defined modules with actions structure
+const modules = [
+  { 
+      id: "cantieri", 
+      label: "Cantieri", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" },
+          { id: "archive", label: "Archivia", path: "admin.archive" }
+      ]
+  },
+  { 
+      id: "sal", 
+      label: "SAL", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" },
+          { id: "approve", label: "Approva", path: "admin.approve" }
+      ]
+  },
+  { 
+      id: "ordini_materiale", 
+      label: "Ordini Materiale", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" },
+          { id: "accept", label: "Accetta", path: "admin.accept" }
+      ]
+  },
+  { 
+      id: "documenti", 
+      label: "Documenti", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" },
+          { id: "archive", label: "Archivia", path: "admin.archive" }
+      ]
+  },
+  { 
+      id: "costi", 
+      label: "Costi", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" }
+      ]
+  },
+  { 
+      id: "imprese", 
+      label: "Imprese", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" }
+      ]
+  },
+  { 
+      id: "persone", 
+      label: "Professionisti", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" }
+      ]
+  },
+  { 
+      id: "subappalti", 
+      label: "Subappalti", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" }
+      ]
+  },
+  { 
+      id: "attivita_interne", 
+      label: "Attività", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" },
+          { id: "delete", label: "Elimina", path: "admin.delete" }
+      ]
+  },
+  { 
+      id: "cronoprogramma", 
+      label: "Cronoprogramma", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" }
+      ]
+  },
+  { 
+      id: "dashboard", 
+      label: "Dashboard", 
+      actions: [
+          { id: "view", label: "Visualizza" }
+      ]
+  },
+  { 
+      id: "ai_assistant", 
+      label: "AI Assistant", 
+      actions: [
+          { id: "view", label: "Visualizza" }
+      ]
+  },
+  { 
+      id: "profilo_azienda", 
+      label: "Profilo Azienda", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "edit", label: "Modifica" }
+      ]
+  },
+  { 
+      id: "user_management", 
+      label: "Gestione Utenti", 
+      actions: [
+          { id: "view", label: "Visualizza" },
+          { id: "manage_users", label: "Gest. Utenti", path: "manage_users" },
+          { id: "manage_roles", label: "Gest. Ruoli", path: "manage_roles" },
+          { id: "manage_cantiere_permissions", label: "Permessi Cantieri", path: "manage_cantiere_permissions" }
+      ]
+  },
+];
+
 function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
   const [formData, setFormData] = useState({
     nome: "",
@@ -279,135 +408,6 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
     is_system: false
   });
   const [isSaving, setIsSaving] = useState(false);
-
-  // Defined modules with actions structure
-  const modules = [
-    { 
-        id: "cantieri", 
-        label: "Cantieri", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" },
-            { id: "archive", label: "Archivia", path: "admin.archive" }
-        ]
-    },
-    { 
-        id: "sal", 
-        label: "SAL", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" },
-            { id: "approve", label: "Approva", path: "admin.approve" }
-        ]
-    },
-    { 
-        id: "ordini_materiale", 
-        label: "Ordini Materiale", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" },
-            { id: "accept", label: "Accetta", path: "admin.accept" }
-        ]
-    },
-    { 
-        id: "documenti", 
-        label: "Documenti", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" },
-            { id: "archive", label: "Archivia", path: "admin.archive" }
-        ]
-    },
-    { 
-        id: "costi", 
-        label: "Costi", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" }
-        ]
-    },
-    { 
-        id: "imprese", 
-        label: "Imprese", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" }
-        ]
-    },
-    { 
-        id: "persone", 
-        label: "Professionisti", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" }
-        ]
-    },
-    { 
-        id: "subappalti", 
-        label: "Subappalti", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" }
-        ]
-    },
-    { 
-        id: "attivita_interne", 
-        label: "Attività", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" },
-            { id: "delete", label: "Elimina", path: "admin.delete" }
-        ]
-    },
-    { 
-        id: "cronoprogramma", 
-        label: "Cronoprogramma", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" }
-        ]
-    },
-    { 
-        id: "dashboard", 
-        label: "Dashboard", 
-        actions: [
-            { id: "view", label: "Visualizza" }
-        ]
-    },
-    { 
-        id: "ai_assistant", 
-        label: "AI Assistant", 
-        actions: [
-            { id: "view", label: "Visualizza" }
-        ]
-    },
-    { 
-        id: "profilo_azienda", 
-        label: "Profilo Azienda", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "edit", label: "Modifica" }
-        ]
-    },
-    { 
-        id: "user_management", 
-        label: "Gestione Utenti", 
-        actions: [
-            { id: "view", label: "Visualizza" },
-            { id: "manage_users", label: "Gest. Utenti", path: "manage_users" },
-            { id: "manage_roles", label: "Gest. Ruoli", path: "manage_roles" },
-            { id: "manage_cantiere_permissions", label: "Permessi Cantieri", path: "manage_cantiere_permissions" }
-        ]
-    },
-  ];
 
   useEffect(() => {
     if (ruolo) {

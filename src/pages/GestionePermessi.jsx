@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function GestionePermessiPage() {
@@ -507,8 +506,9 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 p-6 pt-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="space-y-3">
                 <Label htmlFor="nome">Nome Ruolo *</Label>
                 <Input
@@ -559,7 +559,8 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
                    </div>
                ))}
             </div>
-          </ScrollArea>
+            </div>
+          </div>
 
           <div className="p-6 border-t bg-slate-50 flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>

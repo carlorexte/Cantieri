@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import RuoloDialog from "@/components/admin/RuoloDialog";
 
 export default function UserManagementPage() {
   const [ruoli, setRuoli] = useState([]);
@@ -52,29 +53,7 @@ export default function UserManagementPage() {
   };
 
   // --- RUOLI ---
-  const handleSaveRuolo = async (ruoloData) => {
-    try {
-      if (editingRuolo) {
-        await base44.functions.invoke('managePermissions', {
-          action: 'update_role',
-          data: { roleId: editingRuolo.id, roleData: ruoloData }
-        });
-        toast.success("Ruolo aggiornato con successo");
-      } else {
-        await base44.functions.invoke('managePermissions', {
-          action: 'create_role',
-          data: { roleData: ruoloData }
-        });
-        toast.success("Ruolo creato con successo");
-      }
-      setShowRuoloDialog(false);
-      setEditingRuolo(null);
-      loadData();
-    } catch (error) {
-      console.error("Errore salvataggio ruolo:", error);
-      toast.error("Errore nel salvataggio del ruolo");
-    }
-  };
+  // handleSaveRuolo is now handled inside RuoloDialog
 
   const handleDeleteRuolo = async (ruoloId, isSystem) => {
     if (isSystem) {
@@ -457,7 +436,11 @@ export default function UserManagementPage() {
           open={showRuoloDialog}
           onOpenChange={setShowRuoloDialog}
           ruolo={editingRuolo}
-          onSave={handleSaveRuolo}
+          onSave={() => {
+            setShowRuoloDialog(false);
+            setEditingRuolo(null);
+            loadData();
+          }}
         />
 
         {/* DIALOG TEAM */}
@@ -472,126 +455,7 @@ export default function UserManagementPage() {
   );
 }
 
-function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
-  const [formData, setFormData] = useState({
-    nome: "",
-    descrizione: "",
-    permessi: {},
-    is_system: false
-  });
 
-  useEffect(() => {
-    if (ruolo) {
-      setFormData(ruolo);
-    } else {
-      setFormData({
-        nome: "",
-        descrizione: "",
-        permessi: {},
-        is_system: false
-      });
-    }
-  }, [ruolo]);
-
-  const permessiCategorie = {
-    "Cantieri": ["cantieri_view", "cantieri_create", "cantieri_edit", "cantieri_delete"],
-    "Documenti": ["documenti_view", "documenti_create", "documenti_edit", "documenti_delete"],
-    "Imprese": ["imprese_view", "imprese_create", "imprese_edit", "imprese_delete"],
-    "Professionisti": ["persone_view", "persone_create", "persone_edit", "persone_delete"],
-    "Subappalti": ["subappalti_view", "subappalti_create", "subappalti_edit", "subappalti_delete"],
-    "Costi": ["costi_view", "costi_create", "costi_edit", "costi_delete"],
-    "SAL": ["sal_view", "sal_create", "sal_edit", "sal_delete"],
-    "Attività": ["attivita_view", "attivita_create", "attivita_edit", "attivita_delete"],
-    "Cronoprogramma": ["cronoprogramma_view", "cronoprogramma_edit"],
-    "Sistema": ["dashboard_view", "profilo_azienda_view", "profilo_azienda_edit", "utenti_view", "utenti_manage", "perm_view_teams", "perm_manage_teams"]
-  };
-
-  const handlePermessoChange = (permesso, value) => {
-    setFormData(prev => ({
-      ...prev,
-      permessi: {
-        ...prev.permessi,
-        [permesso]: value
-      }
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{ruolo ? "Modifica Ruolo" : "Nuovo Ruolo"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="nome">Nome Ruolo *</Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                required
-                placeholder="es. Responsabile Cantiere"
-              />
-            </div>
-            <div>
-              <Label htmlFor="descrizione">Descrizione</Label>
-              <Textarea
-                id="descrizione"
-                value={formData.descrizione}
-                onChange={(e) => setFormData(prev => ({ ...prev, descrizione: e.target.value }))}
-                placeholder="Descrivi il ruolo e le sue responsabilità"
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Permessi</h3>
-            {Object.entries(permessiCategorie).map(([categoria, permessi]) => (
-              <Card key={categoria} className="border-0 bg-slate-50">
-                <CardHeader className="pb-3 pt-4 px-4">
-                  <CardTitle className="text-sm font-semibold text-slate-700">{categoria}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {permessi.map(permesso => (
-                      <div key={permesso} className="flex items-center space-x-2">
-                        <Switch
-                          id={permesso}
-                          checked={formData.permessi?.[permesso] || false}
-                          onCheckedChange={(checked) => handlePermessoChange(permesso, checked)}
-                        />
-                        <Label htmlFor={permesso} className="text-xs cursor-pointer select-none">
-                          {permesso.split('_').slice(1).join(' ')}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
-            </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-              <Save className="w-4 h-4 mr-2" />
-              {ruolo ? "Aggiorna" : "Crea"} Ruolo
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function TeamDialog({ open, onOpenChange, team, onSave }) {
   const [formData, setFormData] = useState({

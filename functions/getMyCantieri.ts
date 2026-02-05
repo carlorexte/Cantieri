@@ -18,8 +18,11 @@ Deno.serve(async (req) => {
         // 2. Get full user details for RBAC
         const fullUser = await base44.asServiceRole.entities.User.get(authUser.id);
         
-        // 3. Check 'force_all_cantieri_view' (Responsabile Azienda use case)
-        if (fullUser.force_all_cantieri_view) {
+        // 3. Check global view permissions
+        // 'force_all_cantieri_view' is manual override
+        // 'cantieri_view' is from RBAC system (Role)
+        // If either is true, user can see all cantieri
+        if (fullUser.force_all_cantieri_view || fullUser.cantieri_view === true) {
              const cantieri = await base44.asServiceRole.entities.Cantiere.list('-created_date', 1000);
              return Response.json({ items: cantieri, role: 'user', scope: 'all' });
         }

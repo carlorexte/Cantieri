@@ -23,6 +23,12 @@ import { format, differenceInDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { toast } from "sonner";
 import { Badge } from '@/components/ui/badge';
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import DocumentViewer from '@/components/documenti/DocumentViewer';
 import DocumentoForm from '../components/documenti/DocumentoForm';

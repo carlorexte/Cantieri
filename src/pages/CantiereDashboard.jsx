@@ -47,6 +47,7 @@ export default function CantiereDashboardPage() {
   const [imprese, setImprese] = useState([]);
   const [salList, setSalList] = useState([]);
   const [attivita, setAttivita] = useState([]);
+  const [permissions, setPermissions] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
@@ -69,7 +70,7 @@ export default function CantiereDashboardPage() {
       const response = await base44.functions.invoke('getCantiereDashboardData', { cantiere_id: cantiereId });
       
       if (response.data && !response.data.error) {
-        const { cantiere: cantiereData, subappalti, documenti, imprese, sal, attivita } = response.data;
+        const { cantiere: cantiereData, subappalti, documenti, imprese, sal, attivita, permissions: perms } = response.data;
         
         setCantiere(cantiereData);
         setSubappalti(subappalti || []);
@@ -77,6 +78,7 @@ export default function CantiereDashboardPage() {
         setImprese(imprese || []);
         setSalList(sal || []);
         setAttivita(attivita || []);
+        setPermissions(perms);
 
         // Load PersoneEsterne (can still be client-side as they are generally visible to all users or have simple RLS)
         // Or we could move this to backend function too, but for now let's keep it here to reduce backend function complexity
@@ -472,23 +474,25 @@ export default function CantiereDashboardPage() {
             </div>
 
             {/* Avanzamento SAL - NEW BLOCK */}
-            <div className="mb-6 pb-6 border-b">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-slate-900">Avanzamento SAL</h3>
-                <div className="flex items-center gap-2 text-indigo-600">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="text-sm font-medium">
-                    {renderImporto(totaleCertificatoSAL)} / {renderImporto(cantiere.importo_contrattuale_oltre_iva)}
+            {permissions?.sal?.view && (
+              <div className="mb-6 pb-6 border-b">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-900">Avanzamento SAL</h3>
+                  <div className="flex items-center gap-2 text-indigo-600">
+                    <BarChart3 className="w-4 h-4" />
+                    <span className="text-sm font-medium">
+                      {renderImporto(totaleCertificatoSAL)} / {renderImporto(cantiere.importo_contrattuale_oltre_iva)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Progress value={calcolaAvanzamentoSAL} className="h-3 flex-1" />
+                  <span className="text-lg font-bold text-indigo-700 min-w-[60px] text-right">
+                    {calcolaAvanzamentoSAL}%
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <Progress value={calcolaAvanzamentoSAL} className="h-3 flex-1" />
-                <span className="text-lg font-bold text-indigo-700 min-w-[60px] text-right">
-                  {calcolaAvanzamentoSAL}%
-                </span>
-              </div>
-            </div>
+            )}
 
             <div className="mb-6">
               <AttivitaManager 
@@ -1176,12 +1180,30 @@ export default function CantiereDashboardPage() {
                   Aggiungi Documento
                 </Button>
 
-                <Link to={createPageUrl(`SAL?cantiere_id=${cantiere.id}`)}>
-                  <Button variant="outline" className="w-full justify-start">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Vai a SAL
-                  </Button>
-                </Link>
+                {permissions?.sal?.view ? (
+                  <Link to={createPageUrl(`SAL?cantiere_id=${cantiere.id}`)}>
+                    <Button variant="outline" className="w-full justify-start">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Vai a SAL
+                    </Button>
+                  </Link>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <div className="w-full">
+                          <Button variant="outline" className="w-full justify-start opacity-50 cursor-not-allowed" disabled>
+                            <BarChart3 className="w-4 h-4 mr-2" />
+                            Vai a SAL
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p className="font-semibold text-red-500">Non hai i permessi per questa sezione</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 <Link to={createPageUrl(`Cronoprogramma?cantiere_id=${cantiere.id}`)}>
                   <Button variant="outline" className="w-full justify-start">

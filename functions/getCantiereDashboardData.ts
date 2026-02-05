@@ -24,88 +24,100 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Cantiere not found' }, { status: 404 });
         }
 
-        // Permission Check Logic for Cantiere (Dashboard Access)
-        let hasAccess = false;
+        // --- DASHBOARD ACCESS CHECK ---
+        let hasDashboardAccess = false;
 
-        // 1. Admin
-        if (fullUser.role === 'admin') hasAccess = true;
-
-        // 2. Global View Permissions
-        else if (fullUser.force_all_cantieri_view || fullUser.cantieri_view === true) hasAccess = true;
-
-        // 3. Direct Assignment
-        else if (fullUser.cantieri_assegnati && fullUser.cantieri_assegnati.includes(cantiere_id)) hasAccess = true;
-
-        // 4. Team Assignment
+        if (fullUser.role === 'admin') hasDashboardAccess = true;
+        else if (fullUser.force_all_cantieri_view || fullUser.cantieri_view === true) hasDashboardAccess = true;
+        else if (fullUser.cantieri_assegnati && fullUser.cantieri_assegnati.includes(cantiere_id)) hasDashboardAccess = true;
         else if (fullUser.team_ids && fullUser.team_ids.length > 0 && cantiere.team_assegnati && cantiere.team_assegnati.length > 0) {
             const userTeams = fullUser.team_ids;
             const cantiereTeams = cantiere.team_assegnati;
-            // Check intersection
-            const hasTeam = userTeams.some(tid => cantiereTeams.includes(tid));
-            if (hasTeam) hasAccess = true;
+            if (userTeams.some(tid => cantiereTeams.includes(tid))) hasDashboardAccess = true;
         }
+        else if (cantiere.created_by === fullUser.email) hasDashboardAccess = true;
 
-        // 5. Creator check
-        else if (cantiere.created_by === fullUser.email) hasAccess = true;
-
-        if (!hasAccess) {
+        if (!hasDashboardAccess) {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        // --- SPECIFIC MODULE PERMISSIONS ---
-        
-        // SAL Permission Check
-        let canViewSAL = false;
-        if (fullUser.role === 'admin' || fullUser.sal_view === true) {
-            canViewSAL = true;
-        } else {
-            // Check override
-            const overrides = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({ 
-                utente_id: authUser.id, 
-                cantiere_id: cantiere_id 
-            });
-            // Check if specific permission exists and is true
-            // Also need to handle complex object path if filter doesn't support deep query well here, 
-            // but we fetch the object so we can check in JS.
-            if (overrides.length > 0) {
+        // --- MODULE SPECIFIC PERMISSIONS (Override Logic) ---
+        // Fetch overrides
+        const overrides = await base44.asServiceRole.entities.PermessoCantiereUtente.filter({ 
+            utente_id: authUser.id, 
+            cantiere_id: cantiere_id 
+        });
+
+        const getEffectivePermission = (moduleName, action) => {
+            if (fullUser.role === 'admin') return true;
+
+            // Check specific override for this cantiere
+            if (overrides && overrides.length > 0) {
                 const override = overrides[0];
-                if (override.permessi && override.permessi.sal && override.permessi.sal.view === true) {
-                    canViewSAL = true;
+                if (override.permessi && override.permessi[moduleName] && override.permessi[moduleName][action] !== undefined) {
+                    return override.permessi[moduleName][action];
                 }
             }
+
+            // Fallback to global user permission
+            const userField = `${moduleName}_${action}`;
+            if (fullUser[userField] !== undefined) {
+                return fullUser[userField];
+            }
+
+            return false; // Default deny
+        };
+
+        const permissions = {
+            sal: { view: getEffectivePermission('sal', 'view') },
+            costi: { view: getEffectivePermission('costi', 'view') },
+            subappalti: { view: getEffectivePermission('subappalti', 'view') },
+            documenti: { view: getEffectivePermission('documenti', 'view') },
+            ordini: { view: getEffectivePermission('ordini_materiale', 'view') },
+            attivita: { view: getEffectivePermission('attivita', 'view') || true }
+        };
+
+        // Parallel Fetch of related data based on permissions
+        const promises = [];
+        
+        // Always fetch these
+        promises.push(base44.asServiceRole.entities.Impresa.list("-created_date", 100));
+        promises.push(base44.asServiceRole.entities.Attivita.filter({ cantiere_id }, "-data_fine"));
+
+        // Conditional fetches
+        if (permissions.subappalti.view) {
+            promises.push(base44.asServiceRole.entities.Subappalto.filter({ cantiere_id }));
+        } else {
+            promises.push(Promise.resolve([]));
         }
 
-        // Parallel Fetch of related data
-        const promises = [
-            base44.asServiceRole.entities.Subappalto.filter({ cantiere_id }),
-            base44.asServiceRole.entities.Documento.filter({
+        if (permissions.documenti.view) {
+            promises.push(base44.asServiceRole.entities.Documento.filter({
                 "$or": [
                     { "entita_collegata_id": cantiere_id },
                     { "entita_collegate.entita_id": cantiere_id }
                 ]
-            }, "-created_date", 50),
-            base44.asServiceRole.entities.Impresa.list("-created_date", 100),
-            base44.asServiceRole.entities.Attivita.filter({ cantiere_id }, "-data_fine")
-        ];
-
-        // Only fetch SAL if allowed
-        let salPromise;
-        if (canViewSAL) {
-            salPromise = base44.asServiceRole.entities.SAL.filter({ cantiere_id }, "-data_sal");
+            }, "-created_date", 50));
         } else {
-            salPromise = Promise.resolve([]);
+            promises.push(Promise.resolve([]));
         }
 
-        const [subappalti, documenti, imprese, attivita] = await Promise.all(promises);
-        const sal = await salPromise;
+        if (permissions.sal.view) {
+            promises.push(base44.asServiceRole.entities.SAL.filter({ cantiere_id }, "-data_sal"));
+        } else {
+            promises.push(Promise.resolve([]));
+        }
+
+        const [imprese, attivita, subappalti, documenti, sal] = await Promise.all(promises);
 
         return Response.json({
             cantiere,
             subappalti,
             documenti,
             imprese,
-            sal, // Will be empty if no permission
-            attivita
+            sal,
+            attivita,
+            permissions
         });
 
     } catch (error) {

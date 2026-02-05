@@ -281,19 +281,6 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (ruolo) {
-      setFormData(ruolo);
-    } else {
-      setFormData({
-        nome: "",
-        descrizione: "",
-        permessi: {},
-        is_system: false
-      });
-    }
-  }, [ruolo]);
-
   // Defined modules with actions structure
   const modules = [
     { 
@@ -422,6 +409,31 @@ function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
         ]
     },
   ];
+
+  useEffect(() => {
+    if (ruolo) {
+      // Normalize permissions: ensure all modules exist in permessi object
+      const normalizedPermessi = ruolo.permessi ? JSON.parse(JSON.stringify(ruolo.permessi)) : {};
+      
+      modules.forEach(module => {
+        if (!normalizedPermessi[module.id]) {
+            normalizedPermessi[module.id] = {};
+        }
+      });
+
+      setFormData({
+        ...ruolo,
+        permessi: normalizedPermessi
+      });
+    } else {
+      setFormData({
+        nome: "",
+        descrizione: "",
+        permessi: {},
+        is_system: false
+      });
+    }
+  }, [ruolo]);
 
   const updateNestedPermission = (permObj, moduleId, path, value) => {
     // Deep clone to safely mutate

@@ -54,12 +54,17 @@ Deno.serve(async (req) => {
             // Check specific override for this cantiere
             if (overrides && overrides.length > 0) {
                 const override = overrides[0];
-                if (override.permessi && override.permessi[moduleName] && override.permessi[moduleName][action] !== undefined) {
-                    return override.permessi[moduleName][action];
+                
+                // CRITICAL FIX: Strict Override Precedence
+                // If the module object exists in the override (e.g. permessi.sal exists),
+                // we treat it as the authoritative source.
+                // If the specific action is NOT true, it is DENIED.
+                if (override.permessi && override.permessi[moduleName]) {
+                    return override.permessi[moduleName][action] === true;
                 }
             }
 
-            // Fallback to global user permission
+            // Fallback to global user permission ONLY if no module override exists
             const userField = `${moduleName}_${action}`;
             if (fullUser[userField] !== undefined) {
                 return fullUser[userField];

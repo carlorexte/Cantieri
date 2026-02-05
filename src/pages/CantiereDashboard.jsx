@@ -65,70 +65,58 @@ export default function CantiereDashboardPage() {
   const loadData = useCallback(async (cantiereId) => {
     setIsLoading(true);
     try {
-      // Use individual fetches or Promise.allSettled to prevent one failure from blocking everything
-      const results = await Promise.allSettled([
-        base44.entities.Cantiere.get(cantiereId),
-        base44.entities.Subappalto.filter({ cantiere_id: cantiereId }),
-        // Punto 17: Cerca documenti collegati a questo cantiere
-        base44.entities.Documento.filter({
-          "$or": [
-            { "entita_collegata_id": cantiereId },
-            { "entita_collegate.entita_id": cantiereId }
-          ]
-        }, "-created_date", 50),
-        base44.entities.Impresa.list("-created_date", 100),
-        base44.entities.SAL.filter({ cantiere_id: cantiereId }, "-data_sal"),
-        base44.entities.Attivita.filter({ cantiere_id: cantiereId }, "-data_fine")
-      ]);
+      // Use backend function to bypass RLS issues and ensure consistent visibility rules
+      const response = await base44.functions.invoke('getCantiereDashboardData', { cantiere_id: cantiereId });
+      
+      if (response.data && !response.data.error) {
+        const { cantiere: cantiereData, subappalti, documenti, imprese, sal, attivita } = response.data;
+        
+        setCantiere(cantiereData);
+        setSubappalti(subappalti || []);
+        setDocumenti(documenti || []);
+        setImprese(imprese || []);
+        setSalList(sal || []);
+        setAttivita(attivita || []);
 
-      const [cantiereRes, subappaltiRes, documentiRes, impreseRes, salRes, attivitaRes] = results;
-
-      if (cantiereRes.status === 'fulfilled') {
-        setCantiere(cantiereRes.value);
+        // Load PersoneEsterne (can still be client-side as they are generally visible to all users or have simple RLS)
+        // Or we could move this to backend function too, but for now let's keep it here to reduce backend function complexity
+        if (cantiereData) {
+          const personaPromises = [];
+          
+          if (cantiereData.responsabile_sicurezza_id) {
+            personaPromises.push(
+              base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id })
+                .then(persone => persone.length > 0 && setResponsabileSicurezza(persone[0]))
+                .catch(err => console.error("Errore caricamento responsabile sicurezza:", err))
+            );
+          }
+          
+          if (cantiereData.direttore_lavori_id) {
+            personaPromises.push(
+              base44.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id })
+                .then(persone => persone.length > 0 && setDirettoreLavori(persone[0]))
+                .catch(err => console.error("Errore caricamento direttore lavori:", err))
+            );
+          }
+          
+          if (cantiereData.responsabile_unico_procedimento_id) {
+            personaPromises.push(
+              base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id })
+                .then(persone => persone.length > 0 && setResponsabileUnico(persone[0]))
+                .catch(err => console.error("Errore caricamento RUP:", err))
+            );
+          }
+          
+          await Promise.all(personaPromises);
+        }
       } else {
-        console.error("Errore caricamento Cantiere:", cantiereRes.reason);
-        // If main cantiere fails, we can't show much, but maybe we can show error
-        toast.error("Errore caricamento dati cantiere");
+        console.error("Errore caricamento dati cantiere:", response.data?.error || "Unknown error");
+        toast.error("Errore caricamento dati cantiere: " + (response.data?.error || ""));
+        setCantiere(null); // Ensure not found state triggers
       }
-
-      setSubappalti(subappaltiRes.status === 'fulfilled' ? subappaltiRes.value : []);
-      setDocumenti(documentiRes.status === 'fulfilled' ? documentiRes.value : []);
-      setImprese(impreseRes.status === 'fulfilled' ? impreseRes.value : []);
-      setSalList(salRes.status === 'fulfilled' ? salRes.value : []);
-      setAttivita(attivitaRes.status === 'fulfilled' ? attivitaRes.value : []);
-
-      const cantiereData = cantiereRes.status === 'fulfilled' ? cantiereRes.value : null;
-
-      // Load PersoneEsterne in parallelo
-      const personaPromises = [];
-      
-      if (cantiereData?.responsabile_sicurezza_id) {
-        personaPromises.push(
-          base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id })
-            .then(persone => persone.length > 0 && setResponsabileSicurezza(persone[0]))
-            .catch(err => console.error("Errore caricamento responsabile sicurezza:", err))
-        );
-      }
-      
-      if (cantiereData?.direttore_lavori_id) {
-        personaPromises.push(
-          base44.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id })
-            .then(persone => persone.length > 0 && setDirettoreLavori(persone[0]))
-            .catch(err => console.error("Errore caricamento direttore lavori:", err))
-        );
-      }
-      
-      if (cantiereData?.responsabile_unico_procedimento_id) {
-        personaPromises.push(
-          base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id })
-            .then(persone => persone.length > 0 && setResponsabileUnico(persone[0]))
-            .catch(err => console.error("Errore caricamento RUP:", err))
-        );
-      }
-      
-      await Promise.all(personaPromises);
     } catch (error) {
       console.error("Errore nel caricamento dei dati del cantiere:", error);
+      toast.error("Errore di connessione");
     }
     setIsLoading(false);
   }, [setCantiere, setSubappalti, setDocumenti, setImprese, setSalList, setResponsabileSicurezza, setDirettoreLavori, setResponsabileUnico]);

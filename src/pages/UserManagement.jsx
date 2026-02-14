@@ -461,7 +461,7 @@ export default function UserManagementPage() {
 
 
 
-function TeamDialog({ open, onOpenChange, team, onSave }) {
+const TeamDialog = React.memo(({ open, onOpenChange, team, onSave }) => {
   const [formData, setFormData] = useState({
     nome: "",
     descrizione: "",
@@ -538,4 +538,4 @@ function TeamDialog({ open, onOpenChange, team, onSave }) {
       </DialogContent>
     </Dialog>
   );
-}
+});

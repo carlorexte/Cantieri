@@ -1,9 +1,24 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Circle, Clock, Calendar } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Calendar, ShieldAlert } from "lucide-react";
+import { usePermissions } from '@/components/shared/PermissionGuard';
 
 export default function RoadmapPage() {
+  const { isAdmin } = usePermissions();
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+        <div className="text-center max-w-md">
+          <ShieldAlert className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Accesso Riservato</h1>
+          <p className="text-slate-600">Questa pagina è visibile solo agli amministratori del sistema.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-5xl mx-auto">

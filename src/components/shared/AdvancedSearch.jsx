@@ -138,30 +138,42 @@ export default function AdvancedSearch({
   };
 
   return (
-    <div className="w-full space-y-2" ref={wrapperRef}>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <div className="w-full space-y-3" ref={wrapperRef}>
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1 group">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+          </div>
           <Input
             ref={inputRef}
-            placeholder={placeholder + " (es. nome:*rossi stato:attivo)"}
+            placeholder={placeholder}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setShowSuggestions(true);
             }}
             onFocus={() => setShowSuggestions(true)}
-            className="pl-9"
+            className="pl-10 h-10 border-slate-200 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 bg-white shadow-sm"
           />
+          {query && (
+            <button 
+              onClick={() => { setQuery(''); inputRef.current?.focus(); }}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+          
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
               <Command>
                 <CommandList>
                   <CommandGroup heading="Suggerimenti">
                     {suggestions.map((s, i) => (
-                      <CommandItem key={i} onSelect={() => handleSuggestionClick(s)} className="cursor-pointer">
-                        <span className="font-medium mr-2">{s.label}</span>
-                        {s.type === 'value' && <span className="text-xs text-slate-400">({s.value})</span>}
+                      <CommandItem key={i} onSelect={() => handleSuggestionClick(s)} className="cursor-pointer hover:bg-slate-50 aria-selected:bg-slate-50">
+                        <Search className="w-3 h-3 mr-2 text-slate-400" />
+                        <span className="font-medium text-slate-700 mr-2">{s.label}</span>
+                        {s.type === 'value' && <span className="text-xs text-slate-400 font-mono bg-slate-100 px-1 rounded">({s.value})</span>}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -173,39 +185,46 @@ export default function AdvancedSearch({
         
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className={`gap-2 h-10 shadow-sm border-slate-200 ${Object.keys(activeFilters).length > 0 ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : 'hover:bg-slate-50'}`}>
               <SlidersHorizontal className="w-4 h-4" />
-              Filtri
+              <span className="hidden sm:inline">Filtri</span>
               {Object.keys(activeFilters).length > 0 && (
-                <Badge variant="secondary" className="ml-1 px-1 h-5">{Object.keys(activeFilters).length}</Badge>
+                <Badge variant="secondary" className="ml-1 px-1.5 h-5 bg-white text-indigo-700 hover:bg-white">{Object.keys(activeFilters).length}</Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-4" align="end">
-            <h4 className="font-medium mb-3">Filtri Avanzati</h4>
-            <div className="space-y-3">
+          <PopoverContent className="w-80 p-0" align="end">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <h4 className="font-medium flex items-center gap-2">
+                <Filter className="w-4 h-4 text-indigo-500" />
+                Filtri Avanzati
+              </h4>
+            </div>
+            <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
               {searchFields.map(field => (
-                <div key={field.key} className="space-y-1">
-                  <Label className="text-xs">{field.label}</Label>
+                <div key={field.key} className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">{field.label}</Label>
                   <Input 
                     value={activeFilters[field.key] || ''}
                     onChange={(e) => setActiveFilters(prev => ({ ...prev, [field.key]: e.target.value }))}
-                    placeholder={`Filtra per ${field.label.toLowerCase()}...`}
-                    className="h-8"
+                    placeholder={`Cerca ${field.label.toLowerCase()}...`}
+                    className="h-9 text-sm"
                   />
                 </div>
               ))}
-              {Object.keys(activeFilters).length > 0 && (
+            </div>
+            {Object.keys(activeFilters).length > 0 && (
+              <div className="p-3 border-t bg-slate-50 flex justify-end">
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="w-full mt-2 text-red-500 hover:text-red-600 hover:bg-red-50"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
                   onClick={() => setActiveFilters({})}
                 >
-                  Rimuovi tutti
+                  Resetta filtri
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </PopoverContent>
         </Popover>
       </div>

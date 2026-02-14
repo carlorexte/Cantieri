@@ -278,64 +278,70 @@ export default function SalPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Importo Contratto (oltre IVA)</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                    <p className="text-sm font-medium text-slate-500 mb-1">Importo Contratto</p>
+                    <p className="text-xl font-bold text-slate-900">
                       € {importoContrattoOltreIva.toLocaleString('it-IT')}
                     </p>
+                    <p className="text-xs text-slate-400 mt-1">Oltre IVA</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-100">
                     <FileText className="w-6 h-6 text-indigo-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Totale Certificato (imponibile)</p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-1">
+                    <p className="text-sm font-medium text-slate-500 mb-1">Certificato</p>
+                    <p className="text-xl font-bold text-emerald-600">
                       € {stats.totaleCertificato.toLocaleString('it-IT')}
                     </p>
+                    <p className="text-xs text-slate-400 mt-1">Imponibile</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
                     <CheckCircle className="w-6 h-6 text-emerald-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Da Certificare</p>
-                    <p className="text-2xl font-bold text-amber-600 mt-1">
+                    <p className="text-sm font-medium text-slate-500 mb-1">Da Certificare</p>
+                    <p className="text-xl font-bold text-amber-600">
                       € {daCertificare.toLocaleString('it-IT')}
                     </p>
+                    <p className="text-xs text-slate-400 mt-1">Residuo</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center border border-amber-100">
                     <Clock className="w-6 h-6 text-amber-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Avanzamento</p>
-                    <p className="text-2xl font-bold text-cyan-600 mt-1">
+                    <p className="text-sm font-medium text-slate-500 mb-1">Avanzamento</p>
+                    <p className="text-xl font-bold text-cyan-600">
                       {percentualeCompletamento}%
                     </p>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 max-w-[100px]">
+                        <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: `${percentualeCompletamento}%` }}></div>
+                    </div>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-cyan-50 flex items-center justify-center border border-cyan-100">
                     <TrendingUp className="w-6 h-6 text-cyan-600" />
                   </div>
                 </div>

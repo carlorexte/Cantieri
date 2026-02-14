@@ -272,23 +272,23 @@ export default function DocumentiPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-slate-900">{stats.totale}</div>
-                <div className="text-xs text-slate-600 mt-1">Totali</div>
+                <div className="text-3xl font-bold text-slate-900">{stats.totale}</div>
+                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Totali</div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-indigo-600">{stats.conOCR}</div>
-                <div className="text-xs text-slate-600 mt-1">Con OCR</div>
+                <div className="text-3xl font-bold text-indigo-600">{stats.conOCR}</div>
+                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Con OCR</div>
               </CardContent>
             </Card>
             {Object.entries(categorieDocumenti).slice(0, 4).map(([key, val]) => (
-              <Card key={key} className="border-0 shadow-sm bg-white">
+              <Card key={key} className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
                 <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-slate-900">{stats.byCategoria[key] || 0}</div>
-                  <div className="text-xs text-slate-600 mt-1">{val.label}</div>
+                  <div className="text-3xl font-bold text-slate-900">{stats.byCategoria[key] || 0}</div>
+                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">{val.label}</div>
                 </CardContent>
               </Card>
             ))}

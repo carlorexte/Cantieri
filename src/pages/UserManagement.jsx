@@ -140,24 +140,28 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Gestione Utenti e Team</h1>
-          <p className="text-slate-600 mt-1">Gestisci utenti, ruoli, permessi e gruppi di lavoro</p>
-        </div>
+    <div className="min-h-screen bg-slate-50">
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Gestione Utenti e Team</h1>
+              <p className="text-slate-600 mt-1">Gestisci utenti, ruoli, permessi e gruppi di lavoro</p>
+            </div>
+          </div>
 
-        <Tabs defaultValue="utenti" className="space-y-6">
-          <TabsList className="bg-white border p-1 rounded-lg">
-            <TabsTrigger value="utenti" className="gap-2">
+          <Tabs defaultValue="utenti" className="space-y-6">
+          <TabsList className="bg-white border p-1 rounded-lg h-auto">
+            <TabsTrigger value="utenti" className="gap-2 px-4 py-2 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
               <Users className="w-4 h-4" />
               Utenti
             </TabsTrigger>
-            <TabsTrigger value="teams" className="gap-2">
+            <TabsTrigger value="teams" className="gap-2 px-4 py-2 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
               <Group className="w-4 h-4" />
               Team
             </TabsTrigger>
-            <TabsTrigger value="ruoli" className="gap-2">
+            <TabsTrigger value="ruoli" className="gap-2 px-4 py-2 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">
               <Shield className="w-4 h-4" />
               Ruoli
             </TabsTrigger>

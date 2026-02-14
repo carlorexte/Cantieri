@@ -305,58 +305,58 @@ export default function Cantieri() {
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Totale</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totale}</p>
+                    <p className="text-sm font-medium text-slate-500 mb-1">Totale</p>
+                    <p className="text-3xl font-bold text-slate-900">{stats.totale}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100">
                     <Building2 className="w-6 h-6 text-slate-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
             
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Attivi</p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.attivi}</p>
+                    <p className="text-sm font-medium text-slate-500 mb-1">Attivi</p>
+                    <p className="text-3xl font-bold text-emerald-600">{stats.attivi}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
                     <Building2 className="w-6 h-6 text-emerald-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Completati</p>
-                    <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completati}</p>
+                    <p className="text-sm font-medium text-slate-500 mb-1">Completati</p>
+                    <p className="text-3xl font-bold text-blue-600">{stats.completati}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100">
                     <Building2 className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm bg-white">
+            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Valore Tot.</p>
-                    <p className="text-2xl font-bold text-indigo-600 mt-1">
+                    <p className="text-sm font-medium text-slate-500 mb-1">Valore Tot.</p>
+                    <p className="text-3xl font-bold text-indigo-600">
                       €{(stats.valoreTotale / 1000000).toFixed(1)}M
                     </p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-100">
                     <Euro className="w-6 h-6 text-indigo-600" />
                   </div>
                 </div>

@@ -65,6 +65,7 @@ function LayoutContent({ children }) {
         { title: "Attività Interne", url: "AttivitaInterne", icon: ClipboardList, module: "attivita_interne", action: "view" },
         { title: "Documenti", url: "Documenti", icon: FileText, module: "documenti", action: "view" },
         { title: "Cronoprogramma", url: "Cronoprogramma", icon: Calendar, module: "cronoprogramma", action: "view" },
+        { title: "Roadmap", url: "Roadmap", icon: GitMerge, module: "all" },
         { title: "Guida all'Uso", url: "Guida", icon: BookOpen, module: "all" },
     ];
 

@@ -71,6 +71,7 @@ import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
+import Roadmap from './pages/Roadmap';
 import __Layout from './Layout.jsx';
 
 
@@ -99,6 +100,7 @@ export const PAGES = {
     "Subappalti": Subappalti,
     "TestData": TestData,
     "UserManagement": UserManagement,
+    "Roadmap": Roadmap,
 }
 
 export const pagesConfig = {

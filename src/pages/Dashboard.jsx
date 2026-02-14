@@ -19,6 +19,7 @@ import AlertCard from "@/components/dashboard/AlertCard";
 import AttivitaInterneCard from "@/components/dashboard/AttivitaInterneCard";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import DashboardWidgetManager from "@/components/dashboard/DashboardWidgetManager";
+import AdvancedSearch from "@/components/shared/AdvancedSearch";
 
 export default function Dashboard() {
   const { currentUser } = useData();
@@ -37,6 +38,8 @@ export default function Dashboard() {
     anno: "tutti",
     valoreMin: ""
   });
+  
+  const [advancedFilteredCantieri, setAdvancedFilteredCantieri] = useState(null);
 
   const [widgets, setWidgets] = useState([
     { id: 'kpi', visible: true, order: 0, label: 'KPI Cards' },
@@ -99,7 +102,8 @@ export default function Dashboard() {
 
   // Filter Logic
   const filteredData = useMemo(() => {
-    let filteredCantieri = data.cantieri;
+    // Start with Advanced Search result if active, otherwise all cantieri
+    let filteredCantieri = advancedFilteredCantieri || data.cantieri;
 
     if (filters.stato !== "tutti") {
       filteredCantieri = filteredCantieri.filter(c => c.stato === filters.stato);
@@ -130,7 +134,14 @@ export default function Dashboard() {
       documenti: data.documenti, // Keep all documents for now or filter if needed
       attivitaInterne: data.attivitaInterne.filter(a => !a.cantiere_id || cantiereIds.has(a.cantiere_id))
     };
-  }, [data, filters]);
+  }, [data, filters, advancedFilteredCantieri]);
+
+  const searchFields = [
+    { key: "denominazione", label: "Cantiere" },
+    { key: "codice_cig", label: "CIG" },
+    { key: "committente_ragione_sociale", label: "Committente" },
+    { key: "oggetto_lavori", label: "Oggetto" }
+  ];
 
   // KPI Calculations
   const stats = useMemo(() => {
@@ -219,7 +230,13 @@ export default function Dashboard() {
         </div>
 
         {/* Filters */}
-        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
+          <AdvancedSearch 
+             data={data.cantieri}
+             searchFields={searchFields}
+             onFilter={setAdvancedFilteredCantieri}
+             placeholder="Cerca cantieri per filtrare la dashboard (es. cig:84*)..."
+          />
           <DashboardFilters 
             filters={filters} 
             onFiltersChange={setFilters} 

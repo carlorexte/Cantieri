@@ -25,6 +25,7 @@ import { PermissionGuard, usePermissions } from "@/components/shared/PermissionG
 import DocumentoFormEnhanced from "../components/documenti/DocumentoFormEnhanced";
 import RicercaAvanzataDocumenti from "../components/documenti/RicercaAvanzataDocumenti";
 import DocumentViewer from "../components/documenti/DocumentViewer";
+import AdvancedSearch from "@/components/shared/AdvancedSearch";
 
 const categorieDocumenti = {
   permessi: { label: "Permessi", color: "bg-purple-100 text-purple-800" },
@@ -49,10 +50,10 @@ export default function DocumentiPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingDocumento, setEditingDocumento] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("");
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
+  const [finalFilteredDocs, setFinalFilteredDocs] = useState([]);
 
   const { hasPermission } = usePermissions();
 
@@ -181,25 +182,26 @@ export default function DocumentiPage() {
     return [...standardDocs, ...cantiereDocs];
   }, [documenti, cantieri]);
 
-  const filteredDocumenti = useMemo(() => {
-    let filtered = allDocuments;
-    
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(doc => 
-        doc.nome_documento?.toLowerCase().includes(term) ||
-        doc.descrizione?.toLowerCase().includes(term) ||
-        doc.numero_documento?.toLowerCase().includes(term) ||
-        doc.testo_estratto?.toLowerCase().includes(term)
-      );
-    }
-
+  const baseFilteredDocs = useMemo(() => {
     if (categoriaFilter) {
-      filtered = filtered.filter(doc => doc.categoria_principale === categoriaFilter);
+      return allDocuments.filter(doc => doc.categoria_principale === categoriaFilter);
     }
+    return allDocuments;
+  }, [allDocuments, categoriaFilter]);
 
-    return filtered;
-  }, [allDocuments, searchTerm, categoriaFilter]);
+  // Init finalFilteredDocs when base changes
+  useEffect(() => {
+    setFinalFilteredDocs(baseFilteredDocs);
+  }, [baseFilteredDocs]);
+
+  const searchFields = [
+    { key: "nome_documento", label: "Nome" },
+    { key: "descrizione", label: "Descrizione" },
+    { key: "numero_documento", label: "Numero" },
+    { key: "categoria_principale", label: "Categoria" },
+    { key: "emittente", label: "Emittente" },
+    { key: "testo_estratto", label: "Contenuto (OCR)" }
+  ];
 
   const stats = useMemo(() => {
     const byCategoria = {};
@@ -307,27 +309,28 @@ export default function DocumentiPage() {
               {/* Filtri Rapidi */}
               <Card className="border-0 shadow-sm bg-white">
                 <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <Input
-                        placeholder="Cerca documenti (anche nel testo estratto)..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1">
+                             <AdvancedSearch 
+                                data={baseFilteredDocs}
+                                searchFields={searchFields}
+                                onFilter={setFinalFilteredDocs}
+                                placeholder="Cerca documenti (es. testo:fattura emittente:rossi*)..."
+                            />
+                        </div>
+                        <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                        <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Tutte le categorie" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={null}>Tutte le categorie</SelectItem>
+                            {Object.entries(categorieDocumenti).map(([key, val]) => (
+                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
                     </div>
-                    <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Tutte le categorie" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={null}>Tutte le categorie</SelectItem>
-                        {Object.entries(categorieDocumenti).map(([key, val]) => (
-                          <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </CardContent>
               </Card>
@@ -344,7 +347,7 @@ export default function DocumentiPage() {
                     </Card>
                   ))
                 ) : (
-                  filteredDocumenti.map(doc => {
+                  finalFilteredDocs.map(doc => {
                     const entitaCollegate = getEntitaCollegate(doc);
                     
                     return (
@@ -490,12 +493,12 @@ export default function DocumentiPage() {
                 )}
               </div>
 
-              {filteredDocumenti.length === 0 && !isLoading && (
+              {finalFilteredDocs.length === 0 && !isLoading && (
                 <Card className="border-0 shadow-sm bg-white">
                   <CardContent className="p-12 text-center">
                     <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">Nessun documento trovato</h3>
-                    <p className="text-slate-600">Inizia caricando il primo documento</p>
+                    <p className="text-slate-600">Prova a modificare i filtri di ricerca</p>
                   </CardContent>
                 </Card>
               )}

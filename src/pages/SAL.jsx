@@ -24,6 +24,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
+import AdvancedSearch from "@/components/shared/AdvancedSearch";
 
 const statoPagamentoColori = {
   da_fatturare: "bg-blue-50 text-blue-700 border-blue-200",
@@ -57,6 +58,7 @@ export default function SalPage() {
   const [viewerUrl, setViewerUrl] = useState(null);
   const [viewerFileName, setViewerFileName] = useState('');
   const [loadingViewer, setLoadingViewer] = useState(false);
+  const [filteredSalList, setFilteredSalList] = useState([]);
 
   const { hasPermission, hasCantierePermission } = usePermissions();
 
@@ -167,13 +169,28 @@ export default function SalPage() {
     [cantieri, selectedCantiereId]
   );
   
-  const filteredSal = useMemo(() => 
+  // Base list filtered by cantiere (if selected)
+  const baseSalList = useMemo(() => 
     selectedCantiereId ? salList.filter(s => s.cantiere_id === selectedCantiereId) : [],
     [salList, selectedCantiereId]
   );
 
+  // Update filtered list when base list changes
+  useEffect(() => {
+    setFilteredSalList(baseSalList);
+  }, [baseSalList]);
+
+  const searchFields = [
+    { key: "numero_sal", label: "Numero" },
+    { key: "descrizione", label: "Descrizione" },
+    { key: "importo", label: "Importo" },
+    { key: "data_sal", label: "Data" },
+    { key: "stato_pagamento", label: "Pagamento" },
+    { key: "tipo_sal_dettaglio", label: "Tipo" }
+  ];
+
   const stats = useMemo(() => {
-    return filteredSal.reduce((acc, sal) => {
+    return filteredSalList.reduce((acc, sal) => {
       if (sal.tipo_sal_dettaglio !== 'anticipazione') {
         acc.totaleCertificato += sal.imponibile || 0;
       }
@@ -246,6 +263,18 @@ export default function SalPage() {
               )}
             </div>
           </div>
+
+          {/* Advanced Search */}
+          {selectedCantiereId && (
+            <div className="mb-6">
+              <AdvancedSearch 
+                data={baseSalList} 
+                searchFields={searchFields} 
+                onFilter={setFilteredSalList}
+                placeholder="Cerca nei SAL..."
+              />
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -342,7 +371,7 @@ export default function SalPage() {
                         <TableCell><div className="h-4 bg-slate-200 rounded w-full"></div></TableCell>
                       </TableRow>
                     ))
-                  ) : filteredSal.map(sal => {
+                  ) : filteredSalList.map(sal => {
                     const isAnticipo = sal.tipo_sal_dettaglio === 'anticipazione';
                     const hasDocument = sal.file_uri || sal.certificato_url;
                     
@@ -398,11 +427,11 @@ export default function SalPage() {
                 </TableBody>
               </Table>
             </div>
-            {filteredSal.length === 0 && !isLoading && (
+            {filteredSalList.length === 0 && !isLoading && (
               <div className="text-center p-12 text-slate-500">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="font-semibold">Nessun SAL registrato</p>
-                <p className="text-sm mt-1">Inizia aggiungendo il primo SAL per questo cantiere</p>
+                <p className="font-semibold">Nessun SAL trovato</p>
+                <p className="text-sm mt-1">Prova a modificare i filtri di ricerca</p>
               </div>
             )}
           </Card>

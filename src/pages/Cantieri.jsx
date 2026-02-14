@@ -24,6 +24,7 @@ import { usePermissions } from "@/components/shared/PermissionGuard";
 
 import CantiereForm from "../components/cantieri/CantiereForm";
 import CantiereDetail from "../components/cantieri/CantiereDetail";
+import AdvancedSearch from "@/components/shared/AdvancedSearch";
 
 const statusColors = {
   attivo: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -153,7 +154,6 @@ CantiereCard.displayName = 'CantiereCard';
 export default function Cantieri() {
   const { cantieri, refreshCantieri } = useData();
   const { user: currentUser, hasPermission } = usePermissions();
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("tutti");
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -161,25 +161,30 @@ export default function Cantieri() {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedCantiere, setSelectedCantiere] = useState(null);
   const [formIsDirty, setFormIsDirty] = useState(false);
+  const [filteredCantieri, setFilteredCantieri] = useState([]);
 
-  const filteredCantieri = useMemo(() => {
-    let filtered = cantieri;
-    
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(cantiere => 
-        cantiere.denominazione?.toLowerCase().includes(term) ||
-        cantiere.codice_cig?.toLowerCase().includes(term) ||
-        cantiere.oggetto_lavori?.toLowerCase().includes(term)
-      );
-    }
+  // Campi per la ricerca avanzata
+  const searchFields = [
+    { key: "denominazione", label: "Denominazione" },
+    { key: "codice_cig", label: "CIG" },
+    { key: "numero_cantiere", label: "Numero" },
+    { key: "committente_ragione_sociale", label: "Committente" },
+    { key: "referente_interno", label: "Referente" },
+    { key: "indirizzo_citta", label: "Città" },
+    { key: "stato", label: "Stato" },
+    { key: "importo_contratto", label: "Importo" }
+  ];
 
-    if (statusFilter !== "tutti") {
-      filtered = filtered.filter(cantiere => cantiere.stato === statusFilter);
-    }
+  // Filtro iniziale basato sullo stato (quick filter)
+  const baseCantieri = useMemo(() => {
+    if (statusFilter === "tutti") return cantieri;
+    return cantieri.filter(c => c.stato === statusFilter);
+  }, [cantieri, statusFilter]);
 
-    return filtered;
-  }, [cantieri, searchTerm, statusFilter]);
+  // Aggiorna la lista quando cambiano i dati base (necessario per il primo render e cambi di stato)
+  useEffect(() => {
+    setFilteredCantieri(baseCantieri);
+  }, [baseCantieri]);
 
   const handleSubmit = useCallback(async (cantiereData) => {
     try {
@@ -273,23 +278,22 @@ export default function Cantieri() {
           {/* Filtri */}
           <Card className="border-0 shadow-sm mb-6 bg-white">
             <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input
-                    placeholder="Cerca per nome, oggetto lavori o CIG..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-11 border-slate-200 focus:border-indigo-300 focus:ring-indigo-200"
-                  />
-                </div>
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                {/* Advanced Search Component */}
+                <AdvancedSearch 
+                  data={baseCantieri}
+                  searchFields={searchFields}
+                  onFilter={setFilteredCantieri}
+                  placeholder="Cerca cantieri (es. cig:84* stato:attivo)..."
+                />
+
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {["tutti", "attivo", "sospeso", "completato", "in_gara"].map((status) => (
                     <Button
                       key={status}
                       variant={statusFilter === status ? "default" : "outline"}
                       onClick={() => setStatusFilter(status)}
-                      className={statusFilter === status ? "bg-indigo-600 hover:bg-indigo-700" : "border-slate-200 hover:bg-slate-50"}
+                      className={statusFilter === status ? "bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap" : "border-slate-200 hover:bg-slate-50 whitespace-nowrap"}
                     >
                       {status === "tutti" ? "Tutti" : status.replace('_', ' ')}
                     </Button>

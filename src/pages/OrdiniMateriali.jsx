@@ -15,7 +15,8 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Building2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from "sonner";
@@ -37,6 +38,8 @@ export default function OrdiniMateriali() {
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterCantiere, setFilterCantiere] = useState("all");
+  const { cantieri } = useData();
   
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -89,11 +92,38 @@ export default function OrdiniMateriali() {
     }
   };
 
-  const filteredOrdini = ordini.filter(o => 
-    o.descrizione?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.numero_ordine?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.fornitore_ragione_sociale?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrdini = ordini.filter(o => {
+      const matchesSearch = 
+          (o.descrizione?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+          (o.numero_ordine?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+          (o.fornitore_ragione_sociale?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+
+      const matchesCantiere = filterCantiere === "all" || o.cantiere_id === filterCantiere;
+
+      return matchesSearch && matchesCantiere;
+  });
+
+  // Grouping logic
+  const groupedOrdini = React.useMemo(() => {
+      const groups = {};
+
+      // Initialize with available cantieri to ensure order/structure
+      // or just group by existing orders' cantiere_id
+
+      filteredOrdini.forEach(order => {
+          const cantiereId = order.cantiere_id || "unknown";
+          if (!groups[cantiereId]) {
+              const cantiere = cantieri.find(c => c.id === cantiereId);
+              groups[cantiereId] = {
+                  name: cantiere ? cantiere.denominazione : (cantiereId === "unknown" ? "Senza Cantiere" : "Cantiere Sconosciuto"),
+                  orders: []
+              };
+          }
+          groups[cantiereId].orders.push(order);
+      });
+
+      return Object.values(groups);
+  }, [filteredOrdini, cantieri]);
 
   return (
     <PermissionGuard module="ordini_materiale" action="view">
@@ -117,7 +147,7 @@ export default function OrdiniMateriali() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex gap-4">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4">
             <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input 
@@ -127,12 +157,21 @@ export default function OrdiniMateriali() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
-            <Button variant="outline" className="border-slate-200 text-slate-600">
-                <Filter className="w-4 h-4 mr-2" /> Filtri
-            </Button>
+            <div className="w-full md:w-64">
+                 <select 
+                    className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={filterCantiere}
+                    onChange={(e) => setFilterCantiere(e.target.value)}
+                >
+                    <option value="all">Tutti i Cantieri</option>
+                    {cantieri.map(c => (
+                        <option key={c.id} value={c.id}>{c.denominazione}</option>
+                    ))}
+                </select>
+            </div>
         </div>
 
-        {/* Grid List */}
+        {/* Grouped Grid List */}
         {loading ? (
             <div className="text-center py-12 text-slate-500">Caricamento ordini...</div>
         ) : filteredOrdini.length === 0 ? (
@@ -142,49 +181,76 @@ export default function OrdiniMateriali() {
                 <p className="text-slate-500">Non ci sono ordini che corrispondono alla ricerca.</p>
             </div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredOrdini.map(ordine => {
-                    const status = statusConfig[ordine.stato] || statusConfig.bozza;
-                    const StatusIcon = status.icon;
+            <div className="space-y-8">
+                {groupedOrdini.map(group => (
+                    <div key={group.name} className="space-y-4">
+                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                            <Building2 className="w-5 h-5 text-indigo-600" />
+                            <h2 className="text-lg font-bold text-slate-800">{group.name}</h2>
+                            <Badge variant="secondary" className="ml-2">{group.orders.length}</Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {group.orders.map(ordine => {
+                                const status = statusConfig[ordine.stato] || statusConfig.bozza;
+                                const StatusIcon = status.icon;
 
-                    return (
-                        <Card 
-                            key={ordine.id} 
-                            className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
-                            onClick={() => { setSelectedOrdine(ordine); setIsDetailOpen(true); }}
-                        >
-                            <CardContent className="p-5">
-                                <div className="flex justify-between items-start mb-3">
-                                    <Badge variant="outline" className="bg-slate-50 text-slate-600 font-mono">
-                                        {ordine.numero_ordine || 'BOZZA'}
-                                    </Badge>
-                                    <Badge className={`${status.color} border-0`}>
-                                        <StatusIcon className="w-3 h-3 mr-1" />
-                                        {status.label}
-                                    </Badge>
-                                </div>
-                                
-                                <h3 className="font-semibold text-lg text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                                    {ordine.descrizione}
-                                </h3>
-                                <p className="text-sm text-slate-500 mb-4 flex items-center gap-2">
-                                    <ShoppingCart className="w-3 h-3" />
-                                    {ordine.fornitore_ragione_sociale || 'Fornitore non spec.'}
-                                </p>
+                                return (
+                                    <Card 
+                                        key={ordine.id} 
+                                        className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                                        onClick={() => { setSelectedOrdine(ordine); setIsDetailOpen(true); }}
+                                    >
+                                        <CardContent className="p-5">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <Badge variant="outline" className="bg-slate-50 text-slate-600 font-mono">
+                                                    {ordine.numero_ordine || 'BOZZA'}
+                                                </Badge>
+                                                <Badge className={`${status.color} border-0`}>
+                                                    <StatusIcon className="w-3 h-3 mr-1" />
+                                                    {status.label}
+                                                </Badge>
+                                            </div>
+                                            
+                                            <h3 className="font-semibold text-lg text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                                {ordine.descrizione}
+                                            </h3>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <p className="text-sm text-slate-500 flex items-center gap-2">
+                                                    <ShoppingCart className="w-3 h-3" />
+                                                    {ordine.fornitore_ragione_sociale || 'Fornitore non spec.'}
+                                                </p>
+                                                {ordine.importo_totale > 0 && (
+                                                    <span className="font-semibold text-slate-700 text-sm">
+                                                        € {Number(ordine.importo_totale).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                <div className="flex items-center justify-between text-xs text-slate-400 border-t pt-3 mt-auto">
-                                    <div className="flex items-center gap-1">
-                                        <Clock className="w-3 h-3" />
-                                        {ordine.data_ordine ? format(new Date(ordine.data_ordine), 'dd MMM yyyy') : '-'}
-                                    </div>
-                                    <div>
-                                        {ordine.dettagli_materiali?.length || 0} articoli
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                                            {ordine.tipo_operazione === 'noleggio' && (
+                                                <div className="mb-3">
+                                                    <Badge variant="secondary" className="text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border-0">
+                                                        Noleggio {ordine.durata_noleggio ? `- ${ordine.durata_noleggio}` : ''}
+                                                    </Badge>
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-center justify-between text-xs text-slate-400 border-t pt-3 mt-auto">
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    {ordine.data_ordine ? format(new Date(ordine.data_ordine), 'dd MMM yyyy') : '-'}
+                                                </div>
+                                                <div>
+                                                    {ordine.dettagli_materiali?.length || 0} articoli
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
         )}
 

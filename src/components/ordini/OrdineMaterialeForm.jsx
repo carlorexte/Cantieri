@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trash2, Plus, Upload, Loader2, Save } from "lucide-react";
@@ -43,6 +44,10 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
       priorita: "media",
       stato: "bozza",
       responsabile_id: "",
+      importo_totale: 0,
+      tipo_operazione: "acquisto",
+      durata_noleggio: "",
+      condizioni_ordine: "",
       dettagli_materiali: [{ descrizione: "", quantita: 1, unita_misura: "pz", note: "" }],
       note: ""
     }
@@ -76,6 +81,10 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
       ...item,
       quantita: Number(item.quantita)
     }));
+    
+    if (data.importo_totale) {
+        data.importo_totale = Number(data.importo_totale);
+    }
 
     // Generate numero_ordine if new (simple timestamp/random based for now, ideally backend logic)
     if (!ordine && !data.numero_ordine) {
@@ -161,6 +170,60 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
           )}
         />
 
+        {/* Tipo Operazione e Durata */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50">
+            <FormField
+                control={form.control}
+                name="tipo_operazione"
+                render={({ field }) => (
+                    <FormItem className="space-y-3">
+                        <FormLabel>Tipo Operazione</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="flex flex-col space-y-1"
+                            >
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <RadioGroupItem value="acquisto" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                        Acquisto
+                                    </FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <RadioGroupItem value="noleggio" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                        Noleggio
+                                    </FormLabel>
+                                </FormItem>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            {form.watch("tipo_operazione") === "noleggio" && (
+                <FormField
+                    control={form.control}
+                    name="durata_noleggio"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Durata Noleggio</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Es. 30 giorni, 2 mesi..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
@@ -201,7 +264,36 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
               </FormItem>
             )}
           />
-        </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+                control={form.control}
+                name="importo_totale"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Valore Totale (€)</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="condizioni_ordine"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Condizioni / Pagamento</FormLabel>
+                        <FormControl>
+                            <Input placeholder="Es. Pagamento 30/60/90 gg..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+          </div>
 
         {/* Lista Materiali */}
         <div className="space-y-3">

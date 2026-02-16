@@ -6,7 +6,7 @@ const randomDate = (start, end) => {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime())).toISOString().split('T')[0];
 };
 
-export const seedData = async (req) => {
+Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         // Usa service role per bypassare RLS durante il seeding
@@ -25,7 +25,7 @@ export const seedData = async (req) => {
             // 1. CREA IMPRESA
             const impresa = await client.entities.Impresa.create({
                 ragione_sociale: faker.company.name(),
-                partita_iva: faker.finance.accountNumber(11), // Fake P.IVA 11 cifre
+                partita_iva: faker.finance.accountNumber(11), 
                 codice_fiscale: faker.finance.accountNumber(11),
                 email: faker.internet.email(),
                 telefono: faker.phone.number(),
@@ -36,14 +36,14 @@ export const seedData = async (req) => {
             });
             results.imprese.push(impresa.ragione_sociale);
 
-            // 2. CREA PERSONA ESTERNA (Direttore Lavori o RUP)
+            // 2. CREA PERSONA ESTERNA
             const persona = await client.entities.PersonaEsterna.create({
                 nome: faker.person.firstName(),
                 cognome: faker.person.lastName(),
                 qualifica: faker.helpers.arrayElement(['Architetto', 'Ingegnere', 'Geometra', 'Perito']),
                 email: faker.internet.email(),
                 telefono: faker.phone.number(),
-                codice_fiscale: faker.finance.accountNumber(16) // Semplificato
+                codice_fiscale: faker.finance.accountNumber(16)
             });
             results.persone.push(`${persona.nome} ${persona.cognome}`);
 
@@ -140,6 +140,10 @@ export const seedData = async (req) => {
             });
 
             // 9. CREA ATTIVITA INTERNA
+            // Assegna all'utente corrente o al primo disponibile
+            const me = await base44.auth.me();
+            const assignee = me ? me.id : (await client.entities.User.list(1))[0]?.id;
+
             await client.entities.AttivitaInterna.create({
                 cantiere_id: cantiere.id,
                 descrizione: "Verifica conformità DURC imprese",
@@ -147,7 +151,8 @@ export const seedData = async (req) => {
                 data_assegnazione: new Date().toISOString().split('T')[0],
                 priorita: "alta",
                 stato: "da_fare",
-                tipo_attivita: "amministrativa"
+                tipo_attivita: "amministrativa",
+                assegnatario_id: assignee
             });
 
             // 10. CREA DOCUMENTO
@@ -155,7 +160,7 @@ export const seedData = async (req) => {
                 nome_documento: "Contratto di Appalto.pdf",
                 tipo_documento: "contratto_appalto",
                 categoria_principale: "contratti",
-                percorso_nas: "/documenti/contratti/contratto_firmato.pdf", // Fake path
+                percorso_nas: "/documenti/contratti/contratto_firmato.pdf", 
                 data_emissione: cantiere.data_inizio,
                 entita_collegate: [{ entita_id: cantiere.id, entita_tipo: 'cantiere' }]
             });

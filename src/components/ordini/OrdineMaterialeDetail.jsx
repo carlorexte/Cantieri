@@ -56,6 +56,7 @@ export default function OrdineMaterialeDetail({ ordine, open, onClose, onStatusC
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="p-6 pb-4 border-b">
@@ -236,33 +237,34 @@ export default function OrdineMaterialeDetail({ ordine, open, onClose, onStatusC
             <Button variant="outline" onClick={onClose}>Chiudi</Button>
         </DialogFooter>
 
-        {/* Dialog Rifiuto */}
-        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Rifiuta Ordine</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-2">
-                    <p className="text-sm text-slate-500">
-                        Inserisci una motivazione per il rifiuto. Sarà visibile al richiedente.
-                    </p>
-                    <div className="space-y-2">
-                        <Label>Motivazione / Note</Label>
-                        <Textarea 
-                            value={noteApprovazione} 
-                            onChange={(e) => setNoteApprovazione(e.target.value)}
-                            placeholder="Es. Manca preventivo, importo errato..."
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Annulla</Button>
-                    <Button variant="destructive" onClick={confirmReject}>Conferma Rifiuto</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
       </DialogContent>
     </Dialog>
+
+    {/* Dialog Rifiuto */}
+    <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Rifiuta Ordine</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+                <p className="text-sm text-slate-500">
+                    Inserisci una motivazione per il rifiuto. Sarà visibile al richiedente.
+                </p>
+                <div className="space-y-2">
+                    <Label>Motivazione / Note</Label>
+                    <Textarea 
+                        value={noteApprovazione} 
+                        onChange={(e) => setNoteApprovazione(e.target.value)}
+                        placeholder="Es. Manca preventivo, importo errato..."
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Annulla</Button>
+                <Button variant="destructive" onClick={confirmReject}>Conferma Rifiuto</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }

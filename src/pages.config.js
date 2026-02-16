@@ -66,12 +66,13 @@ import OrdiniMateriali from './pages/OrdiniMateriali';
 import PersoneEsterne from './pages/PersoneEsterne';
 import ProfiloAzienda from './pages/ProfiloAzienda';
 import RiepilogoCantieri from './pages/RiepilogoCantieri';
+import Roadmap from './pages/Roadmap';
 import SAL from './pages/SAL';
 import SALDashboard from './pages/SALDashboard';
 import Subappalti from './pages/Subappalti';
 import TestData from './pages/TestData';
 import UserManagement from './pages/UserManagement';
-import Roadmap from './pages/Roadmap';
+import AdminData from './pages/AdminData';
 import __Layout from './Layout.jsx';
 
 
@@ -95,12 +96,13 @@ export const PAGES = {
     "PersoneEsterne": PersoneEsterne,
     "ProfiloAzienda": ProfiloAzienda,
     "RiepilogoCantieri": RiepilogoCantieri,
+    "Roadmap": Roadmap,
     "SAL": SAL,
     "SALDashboard": SALDashboard,
     "Subappalti": Subappalti,
     "TestData": TestData,
     "UserManagement": UserManagement,
-    "Roadmap": Roadmap,
+    "AdminData": AdminData,
 }
 
 export const pagesConfig = {

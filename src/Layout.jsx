@@ -74,6 +74,7 @@ function LayoutContent({ children }) {
         { title: "Gestione Utenti", url: "UserManagement", icon: UserCog, module: "user_management", action: "view" },
         { title: "Ruoli e Permessi", url: "GestionePermessi", icon: Shield, module: "user_management", action: "manage_roles" },
         { title: "Permessi Cantieri", url: "GestionePermessiCantieri", icon: Key, module: "user_management", action: "manage_cantiere_permissions" },
+        { title: "Gestione Dati", url: "AdminData", icon: Database, module: "user_management", action: "manage_users" },
         { title: "Il Mio Profilo", url: "MyProfile", icon: User, module: "all" },
     ];
 

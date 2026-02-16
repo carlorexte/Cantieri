@@ -75,15 +75,20 @@ export default function OrdiniMateriali() {
     }
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus, note = null) => {
     try {
-      await base44.entities.OrdineMateriale.update(id, { stato: newStatus });
+      const updateData = { stato: newStatus };
+      if (note !== null) {
+          updateData.note_approvazione = note;
+      }
+
+      await base44.entities.OrdineMateriale.update(id, updateData);
       toast.success(`Stato aggiornato a ${newStatus.replace(/_/g, ' ')}`);
       
       // Update local state immediately
-      setOrdini(prev => prev.map(o => o.id === id ? { ...o, stato: newStatus } : o));
+      setOrdini(prev => prev.map(o => o.id === id ? { ...o, ...updateData } : o));
       if (selectedOrdine && selectedOrdine.id === id) {
-          setSelectedOrdine(prev => ({ ...prev, stato: newStatus }));
+          setSelectedOrdine(prev => ({ ...prev, ...updateData }));
       }
       
     } catch (error) {

@@ -196,7 +196,7 @@ export default function SalPage() {
       }
       return acc;
     }, { totaleCertificato: 0 });
-  }, [filteredSal]);
+  }, [filteredSalList]);
 
   const importoContrattoOltreIva = selectedCantiere?.importo_contrattuale_oltre_iva || 0;
   const daCertificare = importoContrattoOltreIva - stats.totaleCertificato;

@@ -36,7 +36,8 @@ import {
     User,
     LogOut,
     ChevronUp,
-    ShoppingCart
+    ShoppingCart,
+    Database
     } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { DataProvider } from '@/components/shared/DataContext';

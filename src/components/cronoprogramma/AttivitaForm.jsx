@@ -27,6 +27,8 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
     data_fine: "",
     durata_giorni: "",
     percentuale_completamento: 0,
+    importo_previsto: 0,
+    importo_eseguito: 0,
     colore: "#3b82f6",
     categoria: "altro",
     predecessori: [],
@@ -169,6 +171,7 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
           ...formData,
           durata_giorni: parseInt(formData.durata_giorni) || 1,
           percentuale_completamento: parseInt(formData.percentuale_completamento) || 0,
+          importo_previsto: parseFloat(formData.importo_previsto) || 0,
           predecessori: predecessoriValidi
         };
     
@@ -211,6 +214,12 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                     Milestone (Evento significativo)
                   </div>
                 </SelectItem>
+                <SelectItem value="raggruppamento">
+                  <div className="flex items-center gap-2">
+                    <Route className="w-4 h-4" />
+                    Raggruppamento (Fase/WBS)
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
             {formData.tipo_attivita === 'milestone' && (
@@ -222,36 +231,38 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
 
           {/* Selezione Attività Parent */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <Label htmlFor="parent">Attività Parent (opzionale)</Label>
-            <Select value={attivitaParentId || "nessuno"} onValueChange={handleParentChange}>
+            <Label htmlFor="parent_id">Attività Parent (WBS)</Label>
+            <Select 
+              value={formData.parent_id || "nessuno"} 
+              onValueChange={(value) => {
+                const newVal = value === "nessuno" ? null : value;
+                handleChange("parent_id", newVal);
+                // Aggiorna anche il legacy gruppo_fase per compatibilità
+                if (newVal) {
+                  const parent = attivitaDisponibili.find(a => a.id === newVal);
+                  if (parent) handleChange("gruppo_fase", parent.descrizione);
+                } else {
+                  handleChange("gruppo_fase", "");
+                }
+              }}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Seleziona un'attività parent o lascia vuoto" />
+                <SelectValue placeholder="Seleziona livello superiore..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="nessuno">🔹 Nessun parent (attività indipendente)</SelectItem>
-                {attivitaDisponibili.map(att => (
+                <SelectItem value="nessuno">🔹 Radice (Livello 0)</SelectItem>
+                {attivitaDisponibili
+                  .filter(a => a.tipo_attivita === 'raggruppamento' || !a.tipo_attivita || a.tipo_attivita === 'task') // Permetti task come parent temporaneamente se servisse, meglio raggruppamento
+                  .map(att => (
                   <SelectItem key={att.id} value={att.id}>
-                    {att.gruppo_fase && `${att.gruppo_fase} > `}{att.descrizione}
+                    {att.wbs_code ? `${att.wbs_code} - ` : ''}{att.descrizione}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-blue-700 mt-2">
-              💡 Seleziona un'attività parent per raggrupparla sotto la stessa fase. Lascia vuoto per un'attività indipendente.
+              Struttura gerarchica WBS. Seleziona un "Raggruppamento" come padre.
             </p>
-          </div>
-
-          {/* Gruppo/Fase */}
-          <div>
-            <Label htmlFor="gruppo_fase">Gruppo/Fase {attivitaParentId && attivitaParentId !== "nessuno" ? "(automatico dal parent)" : "(opzionale)"}</Label>
-            <Input
-              id="gruppo_fase"
-              value={formData.gruppo_fase}
-              onChange={(e) => handleChange("gruppo_fase", e.target.value)}
-              placeholder="es. Opere Edili, Impiantistica, Finiture..."
-              readOnly={attivitaParentId && attivitaParentId !== "nessuno"}
-              className={attivitaParentId && attivitaParentId !== "nessuno" ? "bg-slate-100" : ""}
-            />
           </div>
 
           <div>
@@ -450,6 +461,18 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                     max="100"
                     value={formData.percentuale_completamento}
                     onChange={(e) => handleChange("percentuale_completamento", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="importo_previsto">Importo Previsto (€)</Label>
+                  <Input
+                    id="importo_previsto"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.importo_previsto}
+                    onChange={(e) => handleChange("importo_previsto", parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
                   />
                 </div>
                 <div>

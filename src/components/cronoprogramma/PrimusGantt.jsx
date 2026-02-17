@@ -228,8 +228,14 @@ export default function PrimusGantt({ attivita, cantiere, onAddAttivita, onEditA
             </h3>
             <div className="flex bg-white rounded-md border border-slate-200 p-0.5">
                 <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setViewMode('day')}>Giornaliero</Button>
-                {/* <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setViewMode('week')}>Settimanale</Button> */}
             </div>
+        </div>
+        
+        {/* Totali Cantiere */}
+        <div className="flex items-center gap-4 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100 mr-4">
+             <div className="text-xs text-indigo-800">
+                <span className="font-semibold">Totale Lavori:</span> € {processedData.reduce((acc, item) => item.level === 0 ? acc + (item._amount || 0) : acc, 0).toLocaleString('it-IT', {maximumFractionDigits: 0})}
+             </div>
         </div>
         <div className="flex items-center gap-2">
             <Button size="sm" onClick={onAddAttivita} className="bg-indigo-600 hover:bg-indigo-700">

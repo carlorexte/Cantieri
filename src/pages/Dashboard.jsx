@@ -194,23 +194,25 @@ export default function Dashboard() {
          let details = [];
          let relatedCantiere = null;
          let relatedEntityName = null;
+         let link = createPageUrl('Documenti');
 
          if (d.entita_collegate) {
-             d.entita_collegate.forEach(link => {
-                 if (link.entita_tipo === 'cantiere') {
-                     const c = data.cantieri.find(x => x.id === link.entita_id);
+             d.entita_collegate.forEach(linkRel => {
+                 if (linkRel.entita_tipo === 'cantiere') {
+                     const c = data.cantieri.find(x => x.id === linkRel.entita_id);
                      if (c) {
                          relatedCantiere = c;
                          details.push(`Cantiere: ${c.denominazione}`);
+                         link = createPageUrl('CantiereDashboard') + `?id=${c.id}`; // Link to Cantiere dashboard documents
                      }
-                 } else if (link.entita_tipo === 'impresa' || link.entita_tipo === 'azienda') {
-                     const i = data.imprese?.find(x => x.id === link.entita_id);
+                 } else if (linkRel.entita_tipo === 'impresa' || linkRel.entita_tipo === 'azienda') {
+                     const i = data.imprese?.find(x => x.id === linkRel.entita_id);
                      if (i) {
                          relatedEntityName = i.ragione_sociale;
                          details.push(`Azienda: ${i.ragione_sociale}`);
                      }
-                 } else if (link.entita_tipo === 'subappalto') {
-                     const s = data.subappalti?.find(x => x.id === link.entita_id);
+                 } else if (linkRel.entita_tipo === 'subappalto') {
+                     const s = data.subappalti?.find(x => x.id === linkRel.entita_id);
                      if (s) {
                          relatedEntityName = s.ragione_sociale;
                          details.push(`Subappalto: ${s.ragione_sociale}`);
@@ -224,8 +226,8 @@ export default function Dashboard() {
            priorita: 'critico',
            messaggio: `${d.nome_documento} - SCADUTO`,
            cantiere: relatedEntityName || (relatedCantiere ? relatedCantiere.denominazione : 'Documento Generico'),
-           details: details.length > 0 ? details.join('\n') : null,
-           link: createPageUrl('Documenti'), // Generic link to documents page
+           details: (details.length > 0 ? details.join('\n') + '\n\n' : '') + "Azione consigliata: Rinnova o archivia il documento.",
+           link: link,
            id: d.id
          });
        }
@@ -238,23 +240,23 @@ export default function Dashboard() {
            tipo: 'scadenza',
            priorita: 'critico',
            messaggio: `Cantiere in ritardo`,
-           cantiere: c.denominazione
+           cantiere: c.denominazione,
+           details: `Data fine prevista: ${new Date(c.data_fine_prevista).toLocaleDateString()}\nAvanzamento: ${c.avanzamento}%\n\nAzione consigliata: Verifica il cronoprogramma o aggiorna la data fine.`,
+           link: createPageUrl('CantiereDashboard') + `?id=${c.id}`
          });
        }
     });
 
-    // Activity Delays
-    // We need to fetch activities or assume they are passed/available. 
-    // Since activities are not in 'data' state yet, we might need to add them or use 'attivitaInterne'
-    // But user asked for project activities. Let's use AttivitaInterne for now or fetch critical ones.
-    // Actually, let's look at 'attivitaInterne' which IS in data.
+    // Activity Delays (AttivitaInterne)
     filteredData.attivitaInterne.forEach(a => {
         if (a.stato !== 'completato' && a.data_scadenza && new Date(a.data_scadenza) < new Date()) {
             list.push({
                 tipo: 'task_scadenza',
                 priorita: 'medio',
                 messaggio: `Attività interna scaduta: ${a.descrizione}`,
-                cantiere: 'Interno'
+                cantiere: 'Interno',
+                details: `Scaduta il: ${new Date(a.data_scadenza).toLocaleDateString()}\nAssegnata a: ${a.assegnatario_id}\n\nAzione consigliata: Completa l'attività o riprogramala.`,
+                link: createPageUrl('AttivitaInterne')
             });
         }
     });
@@ -262,14 +264,15 @@ export default function Dashboard() {
     // Order Alerts
     data.ordini.forEach(o => {
         if (o.stato === 'in_attesa_approvazione') {
-             // Check if older than 3 days
              const daysOld = (new Date() - new Date(o.data_ordine)) / (1000 * 60 * 60 * 24);
              if (daysOld > 3) {
                  list.push({
                      tipo: 'scadenza',
                      priorita: 'medio',
                      messaggio: `Ordine da approvare: ${o.numero_ordine}`,
-                     cantiere: 'Acquisti'
+                     cantiere: 'Acquisti',
+                     details: `Data ordine: ${new Date(o.data_ordine).toLocaleDateString()}\nFornitore: ${o.fornitore_ragione_sociale}\n\nAzione consigliata: Procedi con l'approvazione o il rifiuto.`,
+                     link: createPageUrl('OrdiniMateriali')
                  });
              }
         }
@@ -277,28 +280,36 @@ export default function Dashboard() {
 
     // Project Activity Alerts (from Attivita entity)
     data.attivita.forEach(a => {
+        const cantiere = data.cantieri.find(c => c.id === a.cantiere_id);
+        const cantiereName = cantiere ? cantiere.denominazione : 'Cantiere';
+        
         list.push({
             tipo: 'task_scadenza',
             priorita: 'critico',
             messaggio: `Attività in ritardo: ${a.descrizione}`,
-            cantiere: 'Cantiere' // Could map to actual cantiere name if available
+            cantiere: cantiereName,
+            details: `Scadenza: ${new Date(a.data_fine).toLocaleDateString()}\nRitardo critico sul cronoprogramma.\n\nAzione consigliata: Verifica impatto sui successori.`,
+            link: cantiere ? createPageUrl('Cronoprogramma') + `?cantiereId=${cantiere.id}` : createPageUrl('Cronoprogramma')
         });
     });
     
     // SAL Alerts
     data.sal.forEach(s => {
         if (s.stato_pagamento === 'da_fatturare') {
+             const cantiere = data.cantieri.find(c => c.id === s.cantiere_id);
              list.push({
                  tipo: 'scadenza',
                  priorita: 'basso',
                  messaggio: `SAL da fatturare: ${s.descrizione}`,
-                 cantiere: 'Contabilità'
+                 cantiere: cantiere ? cantiere.denominazione : 'Contabilità',
+                 details: `Importo: € ${s.totale}\nData SAL: ${new Date(s.data_sal).toLocaleDateString()}\n\nAzione consigliata: Emetti fattura.`,
+                 link: createPageUrl('SAL')
              });
         }
     });
 
     return list.slice(0, 8); // Limit alerts
-  }, [filteredData]);
+  }, [filteredData, data]);
 
   const uniqueCommittenti = useMemo(() => {
     const comm = new Set(data.cantieri.map(c => c.committente_ragione_sociale).filter(Boolean));

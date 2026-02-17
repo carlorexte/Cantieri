@@ -1,6 +1,8 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, FileText, Calendar, CheckCircle } from "lucide-react";
+import { AlertTriangle, FileText, Calendar, CheckCircle, ExternalLink } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "react-router-dom";
 
 const alertIcons = {
   scadenza: FileText,
@@ -30,10 +32,10 @@ export default function AlertCard({ alerts }) {
           <div className="space-y-3">
             {alerts.map((alert, idx) => {
               const Icon = alertIcons[alert.tipo] || AlertTriangle;
-              return (
+              
+              const CardContent = (
                 <div 
-                  key={idx} 
-                  className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-sm cursor-pointer ${alertCardClasses[alert.priorita] || alertCardClasses.medio}`}
+                  className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-sm cursor-pointer group relative ${alertCardClasses[alert.priorita] || alertCardClasses.medio}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${alertDotClasses[alert.priorita] || alertDotClasses.medio}`}></div>
@@ -48,8 +50,35 @@ export default function AlertCard({ alerts }) {
                         </p>
                       </div>
                     </div>
+                    {alert.link && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 top-4">
+                            <ExternalLink className="w-4 h-4 text-slate-400" />
+                        </div>
+                    )}
                   </div>
                 </div>
+              );
+
+              // Wrapper for Link if present
+              const LinkWrapper = alert.link ? ({children}) => <Link to={alert.link}>{children}</Link> : ({children}) => <>{children}</>;
+
+              return (
+                <TooltipProvider key={idx}>
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <div> {/* Div needed for tooltip trigger on custom component sometimes */}
+                        <LinkWrapper>
+                            {CardContent}
+                        </LinkWrapper>
+                      </div>
+                    </TooltipTrigger>
+                    {alert.details && (
+                        <TooltipContent side="right" className="max-w-xs bg-slate-900 text-white border-slate-800">
+                          <p className="whitespace-pre-line text-xs font-medium">{alert.details}</p>
+                        </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               );
             })}
           </div>

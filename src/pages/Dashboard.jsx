@@ -31,7 +31,9 @@ export default function Dashboard() {
   documenti: [],
   attivitaInterne: [],
   ordini: [], 
-  attivita: [] // Critical project activities
+  attivita: [],
+  imprese: [],
+  subappalti: []
   });
   
   const [filters, setFilters] = useState({
@@ -68,14 +70,16 @@ export default function Dashboard() {
 
     try {
       // Use Promise.all but wrap individual calls to prevent one failure from breaking all
-      const [cantieri, sal, costi, documenti, attivitaInterne, ordini, attivita] = await Promise.all([
+      const [cantieri, sal, costi, documenti, attivitaInterne, ordini, attivita, imprese, subappalti] = await Promise.all([
         fetchSafe(base44.entities.Cantiere.list()),
         fetchSafe(base44.entities.SAL.list()),
         fetchSafe(base44.entities.Costo.list()),
         fetchSafe(base44.entities.Documento.list()),
         fetchSafe(base44.entities.AttivitaInterna.list()),
         fetchSafe(base44.entities.OrdineMateriale.list()),
-        fetchSafe(base44.entities.Attivita.filter({ stato: 'in_ritardo' })) // Optimization: fetch only delayed
+        fetchSafe(base44.entities.Attivita.filter({ stato: 'in_ritardo' })),
+        fetchSafe(base44.entities.Impresa.list()),
+        fetchSafe(base44.entities.Subappalto.list())
       ]);
 
       // Enrich cantieri with advanced calculation if needed
@@ -97,7 +101,9 @@ export default function Dashboard() {
         documenti,
         attivitaInterne,
         ordini,
-        attivita
+        attivita,
+        imprese,
+        subappalti
       });
     } catch (error) {
       console.error("Critical error in dashboard:", error);
@@ -181,14 +187,45 @@ export default function Dashboard() {
   const alerts = useMemo(() => {
     const list = [];
     
-    // Document alerts
+    // Document alerts (DURC & Others)
     filteredData.documenti.forEach(d => {
        if (d.data_scadenza && new Date(d.data_scadenza) < new Date()) {
+         let details = [];
+         let relatedCantiere = null;
+         let relatedEntityName = null;
+
+         if (d.entita_collegate) {
+             d.entita_collegate.forEach(link => {
+                 if (link.entita_tipo === 'cantiere') {
+                     const c = data.cantieri.find(x => x.id === link.entita_id);
+                     if (c) {
+                         relatedCantiere = c;
+                         details.push(`Cantiere: ${c.denominazione}`);
+                     }
+                 } else if (link.entita_tipo === 'impresa' || link.entita_tipo === 'azienda') {
+                     const i = data.imprese?.find(x => x.id === link.entita_id);
+                     if (i) {
+                         relatedEntityName = i.ragione_sociale;
+                         details.push(`Azienda: ${i.ragione_sociale}`);
+                     }
+                 } else if (link.entita_tipo === 'subappalto') {
+                     const s = data.subappalti?.find(x => x.id === link.entita_id);
+                     if (s) {
+                         relatedEntityName = s.ragione_sociale;
+                         details.push(`Subappalto: ${s.ragione_sociale}`);
+                     }
+                 }
+             });
+         }
+
          list.push({
            tipo: 'scadenza',
            priorita: 'critico',
            messaggio: `${d.nome_documento} - SCADUTO`,
-           cantiere: 'Documento' // Or verify if document is linked to cantiere
+           cantiere: relatedEntityName || (relatedCantiere ? relatedCantiere.denominazione : 'Documento Generico'),
+           details: details.length > 0 ? details.join('\n') : null,
+           link: createPageUrl('Documenti'), // Generic link to documents page
+           id: d.id
          });
        }
     });

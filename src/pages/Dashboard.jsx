@@ -25,11 +25,13 @@ export default function Dashboard() {
   const { currentUser } = useData();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState({
-    cantieri: [],
-    sal: [],
-    costi: [],
-    documenti: [],
-    attivitaInterne: [],
+  cantieri: [],
+  sal: [],
+  costi: [],
+  documenti: [],
+  attivitaInterne: [],
+  ordini: [], 
+  attivita: [] // Critical project activities
   });
   
   const [filters, setFilters] = useState({
@@ -66,12 +68,14 @@ export default function Dashboard() {
 
     try {
       // Use Promise.all but wrap individual calls to prevent one failure from breaking all
-      const [cantieri, sal, costi, documenti, attivitaInterne] = await Promise.all([
+      const [cantieri, sal, costi, documenti, attivitaInterne, ordini, attivita] = await Promise.all([
         fetchSafe(base44.entities.Cantiere.list()),
         fetchSafe(base44.entities.SAL.list()),
         fetchSafe(base44.entities.Costo.list()),
         fetchSafe(base44.entities.Documento.list()),
-        fetchSafe(base44.entities.AttivitaInterna.list())
+        fetchSafe(base44.entities.AttivitaInterna.list()),
+        fetchSafe(base44.entities.OrdineMateriale.list()),
+        fetchSafe(base44.entities.Attivita.filter({ stato: 'in_ritardo' })) // Optimization: fetch only delayed
       ]);
 
       // Enrich cantieri with advanced calculation if needed
@@ -91,7 +95,9 @@ export default function Dashboard() {
         sal,
         costi,
         documenti,
-        attivitaInterne
+        attivitaInterne,
+        ordini,
+        attivita
       });
     } catch (error) {
       console.error("Critical error in dashboard:", error);
@@ -192,14 +198,68 @@ export default function Dashboard() {
        if (c.stato === 'attivo' && c.data_fine_prevista && new Date(c.data_fine_prevista) < new Date() && (c.avanzamento || 0) < 100) {
          list.push({
            tipo: 'scadenza',
-           priorita: 'medio',
+           priorita: 'critico',
            messaggio: `Cantiere in ritardo`,
            cantiere: c.denominazione
          });
        }
     });
 
-    return list.slice(0, 5); // Limit alerts
+    // Activity Delays
+    // We need to fetch activities or assume they are passed/available. 
+    // Since activities are not in 'data' state yet, we might need to add them or use 'attivitaInterne'
+    // But user asked for project activities. Let's use AttivitaInterne for now or fetch critical ones.
+    // Actually, let's look at 'attivitaInterne' which IS in data.
+    filteredData.attivitaInterne.forEach(a => {
+        if (a.stato !== 'completato' && a.data_scadenza && new Date(a.data_scadenza) < new Date()) {
+            list.push({
+                tipo: 'task_scadenza',
+                priorita: 'medio',
+                messaggio: `Attività interna scaduta: ${a.descrizione}`,
+                cantiere: 'Interno'
+            });
+        }
+    });
+
+    // Order Alerts
+    data.ordini.forEach(o => {
+        if (o.stato === 'in_attesa_approvazione') {
+             // Check if older than 3 days
+             const daysOld = (new Date() - new Date(o.data_ordine)) / (1000 * 60 * 60 * 24);
+             if (daysOld > 3) {
+                 list.push({
+                     tipo: 'scadenza',
+                     priorita: 'medio',
+                     messaggio: `Ordine da approvare: ${o.numero_ordine}`,
+                     cantiere: 'Acquisti'
+                 });
+             }
+        }
+    });
+
+    // Project Activity Alerts (from Attivita entity)
+    data.attivita.forEach(a => {
+        list.push({
+            tipo: 'task_scadenza',
+            priorita: 'critico',
+            messaggio: `Attività in ritardo: ${a.descrizione}`,
+            cantiere: 'Cantiere' // Could map to actual cantiere name if available
+        });
+    });
+    
+    // SAL Alerts
+    data.sal.forEach(s => {
+        if (s.stato_pagamento === 'da_fatturare') {
+             list.push({
+                 tipo: 'scadenza',
+                 priorita: 'basso',
+                 messaggio: `SAL da fatturare: ${s.descrizione}`,
+                 cantiere: 'Contabilità'
+             });
+        }
+    });
+
+    return list.slice(0, 8); // Limit alerts
   }, [filteredData]);
 
   const uniqueCommittenti = useMemo(() => {

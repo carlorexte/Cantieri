@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Calendar, Plus, Search, ChevronDown, ChevronRight as ChevronRightIcon, DollarSign, Layers } from "lucide-react";
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getDaysInMonth } from "date-fns";
+import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getDaysInMonth, getWeek } from "date-fns";
 import { it } from "date-fns/locale";
 
 // Costanti di stile
@@ -19,6 +19,14 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
   const scrollContainerRef = useRef(null);
   const sidebarRef = useRef(null);
   const [hoveredRow, setHoveredRow] = useState(null);
+
+  const config = useMemo(() => {
+    switch(viewMode) {
+      case 'week': return { colWidth: 40, daysPerCol: 7 };
+      case 'month': return { colWidth: 60, daysPerCol: 30.44 };
+      case 'day': default: return { colWidth: 40, daysPerCol: 1 };
+    }
+  }, [viewMode]);
 
   // Elaborazione dati gerarchici (WBS)
   const processedData = useMemo(() => {
@@ -156,8 +164,16 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
   // Generazione colonne temporali
   const timeColumns = useMemo(() => {
     if (!timeRange.start || !timeRange.end) return [];
-    return eachDayOfInterval({ start: timeRange.start, end: timeRange.end });
-  }, [timeRange]);
+    
+    if (viewMode === 'day') {
+       return eachDayOfInterval({ start: timeRange.start, end: timeRange.end });
+    } else if (viewMode === 'week') {
+       return eachWeekOfInterval({ start: timeRange.start, end: timeRange.end }, { weekStartsOn: 1 });
+    } else if (viewMode === 'month') {
+       return eachMonthOfInterval({ start: timeRange.start, end: timeRange.end });
+    }
+    return [];
+  }, [timeRange, viewMode]);
 
   // Scroll Sync
   const handleScroll = (e) => {
@@ -176,12 +192,15 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
   // Funzione per calcolare posizione barra
   const getBarPosition = (start, end) => {
     if (!start || !end || !timeRange.start) return null;
+    
     const offsetDays = differenceInDays(start, timeRange.start);
     const durationDays = differenceInDays(end, start) + 1;
     
+    const pxPerDay = config.colWidth / config.daysPerCol;
+    
     return {
-      left: offsetDays * DAY_WIDTH,
-      width: durationDays * DAY_WIDTH
+      left: offsetDays * pxPerDay,
+      width: durationDays * pxPerDay
     };
   };
 
@@ -239,7 +258,30 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
                 Cronoprogramma Lavori
             </h3>
             <div className="flex bg-white rounded-md border border-slate-200 p-0.5">
-                <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setViewMode('day')}>Giornaliero</Button>
+                <Button 
+                    variant={viewMode === 'day' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    className={`h-7 text-xs px-2 ${viewMode === 'day' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`} 
+                    onClick={() => setViewMode('day')}
+                >
+                    Giornaliero
+                </Button>
+                <Button 
+                    variant={viewMode === 'week' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    className={`h-7 text-xs px-2 ${viewMode === 'week' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`} 
+                    onClick={() => setViewMode('week')}
+                >
+                    Settimanale
+                </Button>
+                <Button 
+                    variant={viewMode === 'month' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    className={`h-7 text-xs px-2 ${viewMode === 'month' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`} 
+                    onClick={() => setViewMode('month')}
+                >
+                    Mensile
+                </Button>
             </div>
         </div>
         
@@ -325,50 +367,63 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
             ref={scrollContainerRef}
             onScroll={handleScroll}
         >
-            <div style={{ width: timeColumns.length * DAY_WIDTH }}>
+            <div style={{ width: timeColumns.length * config.colWidth }}>
                 {/* Timeline Header */}
                 <div className="sticky top-0 z-10 bg-white" style={{ height: HEADER_HEIGHT }}>
-                    {/* Months Row */}
+                    {/* First Header Row (Month or Year) */}
                     <div className="flex h-8 border-b border-slate-200">
                         {(() => {
-                            const months = [];
-                            let currentMonth = null;
+                            const blocks = [];
+                            let currentBlock = null;
                             let count = 0;
                             
-                            timeColumns.forEach((day, i) => {
-                                const m = format(day, 'MMM yyyy', { locale: it });
-                                if (m !== currentMonth) {
-                                    if (currentMonth) {
-                                        months.push({ name: currentMonth, width: count * DAY_WIDTH });
+                            timeColumns.forEach((colDate, i) => {
+                                let label = '';
+                                if (viewMode === 'day' || viewMode === 'week') {
+                                    label = format(colDate, 'MMM yyyy', { locale: it });
+                                } else {
+                                    label = format(colDate, 'yyyy', { locale: it });
+                                }
+
+                                if (label !== currentBlock) {
+                                    if (currentBlock) {
+                                        blocks.push({ name: currentBlock, width: count * config.colWidth });
                                     }
-                                    currentMonth = m;
+                                    currentBlock = label;
                                     count = 1;
                                 } else {
                                     count++;
                                 }
                                 if (i === timeColumns.length - 1) {
-                                    months.push({ name: currentMonth, width: count * DAY_WIDTH });
+                                    blocks.push({ name: currentBlock, width: count * config.colWidth });
                                 }
                             });
                             
-                            return months.map((m, i) => (
-                                <div key={i} className="border-r border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-bold text-slate-600 uppercase" style={{ width: m.width }}>
-                                    {m.name}
+                            return blocks.map((b, i) => (
+                                <div key={i} className="border-r border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-bold text-slate-600 uppercase" style={{ width: b.width }}>
+                                    {b.name}
                                 </div>
                             ));
                         })()}
                     </div>
-                    {/* Days Row */}
+                    {/* Second Header Row (Days, Weeks, or Months) */}
                     <div className="flex h-7 border-b border-slate-200">
-                        {timeColumns.map((day, i) => (
-                            <div 
-                                key={i} 
-                                className={`flex items-center justify-center text-[10px] border-r border-slate-100 ${isWithinInterval(day, {start: startOfWeek(day), end: addDays(startOfWeek(day), 1)}) ? 'bg-slate-50 text-slate-400' : 'text-slate-600'}`}
-                                style={{ width: DAY_WIDTH }}
-                            >
-                                {format(day, 'dd')}
-                            </div>
-                        ))}
+                        {timeColumns.map((colDate, i) => {
+                             let label = '';
+                             if (viewMode === 'day') label = format(colDate, 'dd');
+                             else if (viewMode === 'week') label = `Set ${getWeek(colDate)}`;
+                             else if (viewMode === 'month') label = format(colDate, 'MMM', { locale: it });
+
+                             return (
+                                <div 
+                                    key={i} 
+                                    className={`flex items-center justify-center text-[10px] border-r border-slate-100 text-slate-600`}
+                                    style={{ width: config.colWidth }}
+                                >
+                                    {label}
+                                </div>
+                             );
+                        })}
                     </div>
                 </div>
 
@@ -376,18 +431,19 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
                 <div className="relative">
                     {/* Background Grid */}
                     <div className="absolute inset-0 flex pointer-events-none">
-                        {timeColumns.map((day, i) => (
+                        {timeColumns.map((colDate, i) => (
                             <div 
                                 key={i} 
-                                className={`border-r border-slate-100 h-full ${isWithinInterval(day, {start: startOfWeek(day), end: addDays(startOfWeek(day), 1)}) ? 'bg-slate-50/50' : ''}`}
-                                style={{ width: DAY_WIDTH }}
+                                className={`border-r border-slate-100 h-full`}
+                                style={{ width: config.colWidth }}
                             />
                         ))}
                         {/* Linea Oggi */}
                         {(() => {
                             const today = new Date();
                             if (isWithinInterval(today, {start: timeRange.start, end: timeRange.end})) {
-                                const offset = differenceInDays(today, timeRange.start) * DAY_WIDTH + (DAY_WIDTH/2);
+                                const pxPerDay = config.colWidth / config.daysPerCol;
+                                const offset = differenceInDays(today, timeRange.start) * pxPerDay + (pxPerDay/2);
                                 return (
                                     <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: offset }}>
                                         <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
@@ -453,13 +509,14 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
                         {/* Background Grid for this row too */}
                         <div className="absolute inset-0 flex pointer-events-none">
                             {timeColumns.map((day, i) => (
-                                <div key={i} className="border-r border-slate-100 h-full" style={{ width: DAY_WIDTH }} />
+                                <div key={i} className="border-r border-slate-100 h-full" style={{ width: config.colWidth }} />
                             ))}
                         </div>
 
                         {/* SAL Markers */}
                         {salMarkers.map(sal => {
-                            const offset = differenceInDays(sal.date, timeRange.start) * DAY_WIDTH + (DAY_WIDTH/2);
+                            const pxPerDay = config.colWidth / config.daysPerCol;
+                            const offset = differenceInDays(sal.date, timeRange.start) * pxPerDay + (pxPerDay/2);
                             return (
                                 <div 
                                     key={sal.id}

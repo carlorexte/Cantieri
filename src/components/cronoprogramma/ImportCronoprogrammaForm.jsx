@@ -136,9 +136,9 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
             <div>
               <h4 className="font-semibold text-blue-900 mb-2">🤖 Importazione Intelligente con AI</h4>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• <strong>Supporta XLSX e PDF</strong> con layout variabili</li>
-                <li>• L'AI analizza automaticamente la struttura del file</li>
-                <li>• Per i PDF senza date: calcola automaticamente le date in sequenza</li>
+                <li>• <strong>Supporta XLSX, PDF e IMMAGINI</strong> (foto del cronoprogramma)</li>
+                <li>• L'AI analizza visivamente la struttura del file (colonne, date)</li>
+                <li>• Per i PDF/Foto: cerca di mantenere le date reali e il parallelismo</li>
                 <li>• Puoi modificare le date nel Gantt dopo l'importazione</li>
               </ul>
               <p className="text-xs text-blue-700 mt-3">
@@ -182,16 +182,16 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Carica File (XLSX o PDF)</label>
+          <label className="text-sm font-medium">Carica File (XLSX, PDF o Immagine)</label>
           <div className="flex items-center gap-3">
             <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors">
               <Upload className="w-5 h-5 text-gray-500" />
               <span className="text-sm text-gray-600">
-                {selectedFile ? selectedFile.name : 'Clicca per scegliere un file'}
+                {selectedFile ? selectedFile.name : 'Clicca per scegliere un file (PDF, Excel, JPG, PNG)'}
               </span>
               <input
                 type="file"
-                accept=".xlsx,.xls,.pdf"
+                accept=".xlsx,.xls,.pdf,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
                 className="hidden"
               />

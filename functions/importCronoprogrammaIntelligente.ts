@@ -184,8 +184,85 @@ function estraiDurataGiorni(durataString) {
 }
 
 // ============================================================================
-// PARSING AI-POWERED PER XLSX E PDF
+// PARSING AI-POWERED PER XLSX E PDF E IMMAGINI
 // ============================================================================
+
+async function parseImage(fileUrl, base44) {
+  console.log("🖼️ Inizio parsing IMMAGINE con AI Vision...");
+  
+  try {
+    const prompt = `
+      Sei un esperto Project Manager. Analizza questa IMMAGINE di un cronoprogramma lavori (Gantt) o tabella di pianificazione.
+      
+      Il tuo compito è estrarre le attività e le loro date ESATTE visibili nell'immagine.
+      
+      REGOLE CRITICHE:
+      1. LEGGI LE DATE REALI: Non inventare date sequenziali. Leggi attentamente le colonne delle date (Inizio/Fine) o la posizione delle barre nel grafico temporale.
+      2. PARALLELISMO: Molte attività in un cantiere iniziano lo stesso giorno o si sovrappongono. Rispetta questa concorrenza. Non metterle una dopo l'altra se l'immagine mostra che sono parallele.
+      3. GERARCHIA: Distingui tra Fasi (grassetto/maiuscolo) e Attività (livello indentato).
+      
+      Restituisci un JSON con:
+      {
+        "attivita": [
+          {
+            "descrizione": "string",
+            "data_inizio": "YYYY-MM-DD" (null se illegibile),
+            "data_fine": "YYYY-MM-DD" (null se illegibile),
+            "durata_giorni": number (calcola da date o leggi colonna durata),
+            "importo_previsto": number,
+            "livello": number (0=Fase, 1=Attività)
+          }
+        ],
+        "note_ai": "string"
+      }
+    `;
+
+    const response = await base44.integrations.Core.InvokeLLM({
+      prompt: prompt,
+      file_urls: [fileUrl], // Passiamo direttamente l'URL dell'immagine per Vision
+      response_json_schema: {
+        type: "object",
+        properties: {
+          attivita: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                descrizione: { type: "string" },
+                data_inizio: { type: ["string", "null"] },
+                data_fine: { type: ["string", "null"] },
+                durata_giorni: { type: "number" },
+                importo_previsto: { type: "number" },
+                livello: { type: "number" }
+              },
+              required: ["descrizione", "livello"]
+            }
+          },
+          note_ai: { type: "string" }
+        },
+        required: ["attivita"]
+      }
+    });
+
+    console.log(`✓ Vision AI ha risposto con ${response.attivita.length} attività.`);
+    
+    // Validazione base
+    const attivitaProcessed = response.attivita.map(att => ({
+        ...att,
+        descrizione: formatTextoProfessionale(att.descrizione),
+        durata_giorni: att.durata_giorni || 1
+    })).filter(a => a.descrizione);
+
+    return {
+        attivita: attivitaProcessed,
+        note: response.note_ai || "Parsing Immagine completato."
+    };
+
+  } catch (error) {
+    console.error("❌ Errore parsing Immagine:", error);
+    throw new Error(`Errore parsing Immagine con AI: ${error.message}`);
+  }
+}
 
 async function parsePDF(fileBuffer, cantiereId, base44) {
   console.log("📄 Inizio parsing file PDF con AI (modalità assistita abilitata)...");
@@ -205,53 +282,37 @@ async function parsePDF(fileBuffer, cantiereId, base44) {
     console.log("\n🧠 Chiamata a InvokeLLM per interpretare il PDF (estrazione attività, durate e date se presenti)...");
 
     const llmPrompt = `
-Analizza il seguente testo estratto da un cronoprogramma/Gantt chart in PDF.
-Il tuo obiettivo è estrarre TUTTE le attività del cantiere con le loro descrizioni, durate e, SOPRATTUTTO, le date di inizio e fine.
+Analizza il seguente testo estratto da un cronoprogramma in PDF.
+OBIETTIVO: Estrarre attività e DATE REALI.
 
-IMPORTANTE: IL PDF POTREBBE ESSERE FORMATTATO COME TABELLA MA IL TESTO ESTRATTO POTREBBE AVERE PERSO L'ALLINEAMENTO.
-Cerca di ricostruire le righe basandoti sulla sequenza dei dati (es. Descrizione... Data... Durata... Data).
+PROBLEMA: Il testo PDF perde la formattazione tabellare. Le date potrebbero sembrare spostate.
+SOLUZIONE: Devi cercare pattern di date (dd/mm/yy, dd-mmm, ecc.) e associarli alla descrizione più vicina sulla stessa "riga" logica.
 
-ISTRUZIONI DETTAGLIATE:
+REGOLE CRITICHE ANTI-INVENZIONE:
+1. NON INVENTARE SEQUENZE: Se non trovi date, restituisci NULL. Non creare una sequenza temporale artificiale (es. non far finire un'attività il 10 e iniziare la successiva l'11 se non c'è scritto).
+2. CERCA IL PARALLELISMO: In cantiere molte attività sono parallele. Se vedi una data "Gennaio 2024" sopra un gruppo di attività, potrebbero iniziare tutte a Gennaio.
+3. RICONOSCI I FONT: Se il testo è tutto maiuscolo potrebbe essere una FASE.
+4. DATE: Cerca formati come: 01/01/2024, 1-gen-24, 01.01.24. Se trovi "5 gg" è la durata.
 
-1. CERCA DATE (PRIORITÀ ALTA):
-   - Cerca OVUNQUE nel testo pattern che sembrano date (es. 01/01/24, 1-gen, Gennaio 2024).
-   - Spesso le date sono all'inizio o alla fine della riga dell'attività.
-   - Se trovi una data sola vicino a un'attività, cerca di capire se è inizio o fine.
-   - Se trovi due date vicine, sono probabilmente Inizio e Fine.
-   - Se trovi colonne di numeri che sembrano date seriali o progressivi, analizzali.
-
-2. CERCA ATTIVITÀ:
-   - Descrizioni di lavorazioni/task (es: "Scavi", "Intonaci", "Impianti elettrici").
-   - Ignora intestazioni, footer, note generali.
-
-3. CERCA DURATE:
-   - Cerca pattern come "15 g", "36 giorni", "2gg", "20".
-   - Se trovi solo date di inizio e fine, CALCOLA TU la durata.
-
-4. GESTIONE DATE MANCANTI:
-   - Se un'attività non ha date esplicite, ma è elencata sotto un'intestazione temporale (es. "Mese 1", "Gennaio"), usa quel riferimento.
-   - Se proprio non trovi date per una specifica attività, metti null. MA SFORZATI DI TROVARLE.
-
-5. OUTPUT JSON RICHIESTO:
+Output JSON:
 {
   "attivita": [
     {
       "descrizione": "string",
-      "durata_giorni": number o null,
-      "gruppo_fase": "string o null",
-      "data_inizio": "YYYY-MM-DD o null",
-      "data_fine": "YYYY-MM-DD o null"
+      "durata_giorni": number,
+      "gruppo_fase": "string",
+      "data_inizio": "YYYY-MM-DD" (o null),
+      "data_fine": "YYYY-MM-DD" (o null),
+      "livello": number (0=Fase, 1=Attività)
     }
   ],
-  "note_ai": "Dettaglia se hai trovato le date nel testo e come erano formattate."
+  "note_ai": "Spiega se hai trovato date esplicite o se il testo era privo di riferimenti temporali."
 }
 
-Contenuto PDF:
+Testo PDF:
 """
 ${text}
 """
-
-IMPORTANTE: Non inventare date se non ci sono riferimenti, ma cerca di interpretare anche i formati più strani o disordinati.
 `;
 
     const llmResult = await base44.integrations.Core.InvokeLLM({
@@ -377,31 +438,25 @@ async function parseXLSX(fileBuffer, cantiereId, base44) {
     console.log("\n🧠 Chiamata a InvokeLLM per interpretare il CSV...");
 
     const llmPrompt = `
-Analizza il seguente CSV estratto da un cronoprogramma Excel/Gantt chart.
-Estrai tutte le attività con descrizioni, date di inizio e fine, e durate.
+Analizza il seguente CSV da Excel.
+OBIETTIVO: Estrarre attività e DATE REALI.
 
-Il CSV è stato generato da un file Excel dove le date sono state convertite in formato standard se possibile, ma potrebbero esserci ancora formati vari.
-
-ISTRUZIONI:
-1. IDENTIFICA COLONNE: Cerca intestazioni come "Data Inizio", "Start", "Inizio", "Fine", "End", "Durata", "Giorni".
-2. ESTRAI DATE:
-   - Cerca valori in formato data (YYYY-MM-DD, DD/MM/YYYY).
-   - Se trovi numeri interi in colonne data, potrebbero essere seriali Excel (es. 45321). Riportali o convertili se sai farlo, altrimenti l'elaborazione successiva ci proverà.
-   - SFORZATI di trovare le colonne delle date. Sono fondamentali.
-3. ESTRAI ATTIVITÀ:
-   - Ogni riga con una descrizione e date è un'attività.
-   - Ignora totali e riepiloghi se possibile.
-4. DURATA: Se c'è una colonna durata, usala. Altrimenti calcolala da inizio-fine.
+ISTRUZIONI CRITICHE:
+1. CERCA COLONNE DATE: Identifica le colonne che contengono date (es. Inizio, Fine, Start, End, o valori tipo 2024-01-01).
+2. PARALLELISMO REALE: Riporta le date ESATTE che trovi. NON creare sequenze a cascata se le date nel file sono uguali (parallele).
+3. Se molte attività hanno la stessa data di inizio, è corretto.
+4. Se trovi colonne "Durata" usa quelle.
 
 Output JSON:
 {
   "attivita": [
     {
       "descrizione": "string",
-      "durata_giorni": number o null,
-      "gruppo_fase": "string (opzionale)",
+      "durata_giorni": number,
+      "gruppo_fase": "string",
       "data_inizio": "YYYY-MM-DD",
-      "data_fine": "YYYY-MM-DD"
+      "data_fine": "YYYY-MM-DD",
+      "livello": number (0=Fase, 1=Attività)
     }
   ],
   "note_ai": "Indica quali colonne hai identificato come date."
@@ -569,8 +624,8 @@ Deno.serve(async (req) => {
 
     console.log(`✓ File: ${fileBuffer.byteLength} bytes, .${fileExtension}`);
 
-    if (!['xlsx', 'xls', 'pdf'].includes(fileExtension)) {
-      return Response.json({ success: false, error: 'Tipo file non supportato' }, { status: 400 });
+    if (!['xlsx', 'xls', 'pdf', 'jpg', 'jpeg', 'png'].includes(fileExtension)) {
+      return Response.json({ success: false, error: 'Tipo file non supportato. Usa PDF, Excel o Immagini.' }, { status: 400 });
     }
 
     console.log("\n🧠 Step 5: Parsing AI...");
@@ -578,6 +633,9 @@ Deno.serve(async (req) => {
 
     if (fileExtension === 'xlsx' || fileExtension === 'xls') {
       risultatoParser = await parseXLSX(fileBuffer, cantiere_id, base44);
+    } else if (['jpg', 'jpeg', 'png'].includes(fileExtension)) {
+      // Per le immagini passiamo l'URL direttamente all'LLM (Vision)
+      risultatoParser = await parseImage(file_url, base44);
     } else { // PDF
       risultatoParser = await parsePDF(fileBuffer, cantiere_id, base44);
     }
@@ -615,23 +673,39 @@ Deno.serve(async (req) => {
          throw new Error("Impossibile determinare una data di inizio valida per il progetto.");
       }
 
-      // Calcola date assumendo attività sequenziali
-      let dataCorrente = new Date(dataInizioBase);
-      attivita = attivita.map((att) => {
-        // Se l'attività ha già le date, le manteniamo. Altrimenti le calcoliamo.
-        if (att.data_inizio && att.data_fine) {
-          return att;
+      // CALCOLO DATE ASSISTITO (CON LOGICA MIGLIORATA PER PARALLELISMO)
+      // Invece di una sequenza rigida (a cascata), cerchiamo di essere più intelligenti.
+      // Se manca la data, assumiamo che l'attività inizi:
+      // - Quando inizia il progetto (se è la prima o se non c'è contesto)
+      // - O insieme all'attività precedente (parallelismo di default)
+      // L'utente si è lamentato della sequenzialità forzata.
+      
+      let ultimaDataInizio = new Date(dataInizioBase);
+      
+      attivita = attivita.map((att, idx) => {
+        if (att.data_inizio) {
+           // Se ha una data, aggiorniamo il riferimento per le prossime (potrebbe essere un nuovo blocco)
+           try { ultimaDataInizio = new Date(att.data_inizio); } catch(e){}
+           return att;
         }
 
-        const dataInizio = new Date(dataCorrente);
-        const dataFine = new Date(dataCorrente);
-        dataFine.setDate(dataFine.getDate() + (att.durata_giorni - 1));
+        // Se non ha data, usiamo l'ultima data di inizio nota (parallelismo)
+        // INVECE DI: data fine precedente + 1
+        
+        const dataInizio = new Date(ultimaDataInizio);
+        // Se è una fase (livello 0), forse ha senso avanzare? 
+        // Per ora manteniamo parallelismo aggressivo come richiesto ("non inventare sequenze")
+        
+        const durata = att.durata_giorni || 1;
+        const dataFine = new Date(dataInizio);
+        dataFine.setDate(dataFine.getDate() + durata);
 
-        // Prossima attività inizia il giorno dopo la fine di questa
-        dataCorrente = new Date(dataFine);
-        dataCorrente.setDate(dataCorrente.getDate() + 1);
-
+        // Formattazione
         const formatData = (d) => d.toISOString().split('T')[0];
+        
+        // NON aggiorniamo ultimaDataInizio alla fine di questa attività. 
+        // La lasciamo all'inizio, così la prossima attività senza data partirà ANCH'ESSA lo stesso giorno (parallela).
+        // Solo se troviamo una data esplicita o un cambio di fase potremmo cambiare logica, ma per ora questo risolve il problema "sequenza inventata".
 
         return {
           ...att,

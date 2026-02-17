@@ -12,7 +12,7 @@ const HEADER_HEIGHT = 60;
 const DAY_WIDTH = 40;
 const SIDEBAR_WIDTH = 500; // Larghezza pannello sinistro
 
-export default function PrimusGantt({ attivita, cantiere, onAddAttivita, onEditAttivita }) {
+export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, onEditAttivita }) {
   const [timeRange, setTimeRange] = useState({ start: new Date(), end: new Date() });
   const [expandedGroups, setExpandedGroups] = useState({});
   const [viewMode, setViewMode] = useState('day'); // 'day', 'week', 'month'
@@ -215,6 +215,18 @@ export default function PrimusGantt({ attivita, cantiere, onAddAttivita, onEditA
 
       return months;
   }, [processedData, timeRange]);
+
+  // SAL Markers
+  const salMarkers = useMemo(() => {
+    if (!sals) return [];
+    return sals.map(sal => ({
+      id: sal.id,
+      date: parseISO(sal.data_sal),
+      amount: sal.imponibile || 0,
+      description: sal.descrizione || `SAL ${sal.numero_sal || ''}`,
+      type: sal.tipo_sal_dettaglio
+    })).filter(s => isValid(s.date) && isWithinInterval(s.date, {start: timeRange.start, end: timeRange.end}));
+  }, [sals, timeRange]);
 
 
   return (
@@ -436,13 +448,39 @@ export default function PrimusGantt({ attivita, cantiere, onAddAttivita, onEditA
                         );
                     })}
 
-                    {/* Cash Flow Row */}
-                    <div className="border-t-2 border-slate-300 bg-slate-50 relative" style={{ height: 100 }}>
+                    {/* SAL Markers & Cash Flow Row */}
+                    <div className="border-t-2 border-slate-300 bg-slate-50 relative" style={{ height: 120 }}>
+                        {/* Background Grid for this row too */}
+                        <div className="absolute inset-0 flex pointer-events-none">
+                            {timeColumns.map((day, i) => (
+                                <div key={i} className="border-r border-slate-100 h-full" style={{ width: DAY_WIDTH }} />
+                            ))}
+                        </div>
+
+                        {/* SAL Markers */}
+                        {salMarkers.map(sal => {
+                            const offset = differenceInDays(sal.date, timeRange.start) * DAY_WIDTH + (DAY_WIDTH/2);
+                            return (
+                                <div 
+                                    key={sal.id}
+                                    className="absolute top-0 bottom-0 z-10 flex flex-col items-center group"
+                                    style={{ left: offset }}
+                                >
+                                    <div className="h-full w-0.5 bg-red-400 border-l border-dashed border-red-400"></div>
+                                    <div className="absolute top-2 bg-red-100 border border-red-300 text-red-800 text-[10px] px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-20 hover:scale-110 transition-transform cursor-pointer">
+                                        <div className="font-bold">SAL {sal.date.getDate()}/{sal.date.getMonth()+1}</div>
+                                        <div>€ {(sal.amount/1000).toFixed(1)}k</div>
+                                    </div>
+                                    <div className="absolute bottom-0 w-3 h-3 bg-red-500 rotate-45 translate-y-1.5"></div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Planned Cash Flow Bars */}
                         {Object.entries(cashFlow).map(([monthStr, amount]) => {
                              const monthDate = parseISO(monthStr + '-01');
                              if (amount <= 0 || !isValid(monthDate)) return null;
                              
-                             // Trova la posizione nel gantt
                              if (!isWithinInterval(monthDate, {start: startOfMonth(timeRange.start), end: endOfMonth(timeRange.end)})) return null;
 
                              const startPos = getBarPosition(monthDate, endOfMonth(monthDate));
@@ -451,13 +489,13 @@ export default function PrimusGantt({ attivita, cantiere, onAddAttivita, onEditA
                              return (
                                  <div 
                                     key={monthStr}
-                                    className="absolute top-2 bottom-2 border-l border-slate-200 flex flex-col justify-end pb-2 px-1"
-                                    style={{ left: startPos.left, width: startPos.width }}
+                                    className="absolute bottom-0 border-l border-slate-200 flex flex-col justify-end pb-0 px-1 pointer-events-none"
+                                    style={{ left: startPos.left, width: startPos.width, height: '60%' }}
                                  >
-                                     <div className="text-center">
-                                         <div className="text-[10px] text-slate-500 font-bold mb-1">CASH FLOW</div>
-                                         <div className="h-10 bg-green-100 w-full mx-auto rounded-t flex items-end justify-center relative group cursor-help border-b-2 border-green-500">
-                                            <div className="text-xs font-bold text-green-700 mb-1">
+                                     <div className="text-center w-full h-full flex flex-col justify-end">
+                                         <div className="text-[9px] text-slate-400 font-bold mb-0.5 uppercase tracking-tighter">Budget</div>
+                                         <div className="flex-1 bg-indigo-100 w-full mx-auto rounded-t flex items-end justify-center border-b-2 border-indigo-400 opacity-80">
+                                            <div className="text-[10px] font-bold text-indigo-700 mb-1">
                                                 € {(amount/1000).toFixed(0)}k
                                             </div>
                                          </div>

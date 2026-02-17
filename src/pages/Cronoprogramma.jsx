@@ -33,6 +33,7 @@ const statoStats = {
 export default function CronoprogrammaPage() {
   const [cantieri, setCantieri] = useState([]);
   const [cantieriAttivita, setCantieriAttivita] = useState({});
+  const [cantieriSals, setCantieriSals] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [showAttivitaForm, setShowAttivitaForm] = useState(false);
   const [editingAttivita, setEditingAttivita] = useState(null);
@@ -82,16 +83,17 @@ export default function CronoprogrammaPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [cantieriData, user] = await Promise.all([
+      const [cantieriData, user, salList] = await Promise.all([
           base44.functions.invoke('getMyCantieri').then(res => res.data?.items || res.items || []),
-          base44.auth.me()
+          base44.auth.me(),
+          base44.entities.SAL.list("data_sal")
       ]);
       // Filter only active cantieri for cronoprogramma view
       const activeCantieri = cantieriData.filter(c => c.stato === "attivo");
       setCantieri(activeCantieri);
       setCurrentUser(user);
       
-      console.log('Caricamento tutte le attività...');
+      console.log('Caricamento attività e SAL...');
       const tutteLeAttivita = await base44.entities.Attivita.list("data_inizio");
       
       const cantieriAttivitaMap = activeCantieri.reduce((acc, cantiere) => {
@@ -99,7 +101,13 @@ export default function CronoprogrammaPage() {
         return acc;
       }, {});
       
+      const cantieriSalsMap = activeCantieri.reduce((acc, cantiere) => {
+        acc[cantiere.id] = salList.filter(s => s.cantiere_id === cantiere.id);
+        return acc;
+      }, {});
+
       setCantieriAttivita(cantieriAttivitaMap);
+      setCantieriSals(cantieriSalsMap);
 
       const urlParams = new URLSearchParams(window.location.search);
       const cantiereIdFromUrl = urlParams.get('cantiere_id');
@@ -601,6 +609,7 @@ export default function CronoprogrammaPage() {
                 {selectedCantiereId && cantieri.length > 0 && currentCantiere && (
                   <PrimusGantt
                     attivita={filteredAttivita(cantieriAttivita[selectedCantiereId] || [])}
+                    sals={cantieriSals[selectedCantiereId] || []}
                     cantiere={currentCantiere}
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
                     onEditAttivita={handleEditAttivita}
@@ -660,6 +669,7 @@ export default function CronoprogrammaPage() {
                 {selectedCantiereId && currentCantiere && (
                   <PrimusGantt
                     attivita={filteredAttivita(cantieriAttivita[selectedCantiereId] || [])}
+                    sals={cantieriSals[selectedCantiereId] || []}
                     cantiere={currentCantiere}
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
                     onEditAttivita={handleEditAttivita}

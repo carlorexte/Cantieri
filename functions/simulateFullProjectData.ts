@@ -208,6 +208,61 @@ export const handler = async (req) => {
         });
         logs.push("Generati SAL (Incassati e Da Fatturare).");
 
+        // 7. Create Attivita Interne (Tasks for Office/Admin)
+        const internalTasks = [
+            {
+                descrizione: "Controllo mail e PEC non lette",
+                dettagli: "Verificare la casella PEC per comunicazioni ufficiali dal comune o enti.",
+                priorita: "alta",
+                stato: "da_fare",
+                tipo_attivita: "amministrativa",
+                data_scadenza: format(today, 'yyyy-MM-dd') // Due today
+            },
+            {
+                descrizione: "Verifica DURC subappaltatori",
+                dettagli: "Controllare validità DURC per Edilizia Rapida e Impianti Sicuri.",
+                priorita: "critica",
+                stato: "in_corso",
+                tipo_attivita: "documentale",
+                data_scadenza: format(subDays(today, 2), 'yyyy-MM-dd') // Overdue!
+            },
+            {
+                descrizione: "Aggiornamento SAL gestionale",
+                dettagli: "Inserire i dati del SAL 2 nel sistema di contabilità generale.",
+                priorita: "media",
+                stato: "da_fare",
+                tipo_attivita: "contabile",
+                data_scadenza: format(addDays(today, 2), 'yyyy-MM-dd')
+            },
+            {
+                descrizione: "Archiviazione foto cantiere",
+                dettagli: "Scaricare e catalogare le foto dello stato avanzamento lavori settimana scorsa.",
+                priorita: "bassa",
+                stato: "da_fare",
+                tipo_attivita: "tecnica",
+                data_scadenza: format(addDays(today, 5), 'yyyy-MM-dd')
+            },
+            {
+                descrizione: "Verifica presenze operai",
+                dettagli: "Controllare i report giornalieri di presenza inviati dal capocantiere.",
+                priorita: "media",
+                stato: "completato",
+                tipo_attivita: "tecnica",
+                data_scadenza: format(subDays(today, 1), 'yyyy-MM-dd'),
+                data_completamento: format(subDays(today, 1), 'yyyy-MM-dd')
+            }
+        ];
+
+        for (const task of internalTasks) {
+            await base44.entities.AttivitaInterna.create({
+                ...task,
+                cantiere_id: cantiere.id,
+                assegnatario_id: user.id, // Assign to current user (admin)
+                data_assegnazione: format(today, 'yyyy-MM-dd')
+            });
+        }
+        logs.push("Generate Attività Interne (PEC, DURC, SAL, Foto, ecc.).");
+
         return new Response(JSON.stringify({ 
             success: true, 
             logs,

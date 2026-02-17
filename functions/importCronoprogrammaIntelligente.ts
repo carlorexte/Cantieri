@@ -192,23 +192,21 @@ async function parseImage(fileUrl, base44) {
   
   try {
     const prompt = `
-      Sei un esperto Project Manager. Analizza questa IMMAGINE di un cronoprogramma lavori (Gantt) o tabella di pianificazione.
+      Analizza questa IMMAGINE di un cronoprogramma.
       
-      Il tuo compito è estrarre le attività e le loro date ESATTE visibili nell'immagine.
+      REGOLE TASSATIVE:
+      1. ESTRAI SOLO DATE VISIBILI. Se non leggi chiaramente una data di inizio/fine, RESTITUISCI NULL.
+      2. STOP ALLE SEQUENZE INVENTATE. Non assumere che le attività siano una dopo l'altra. Se non vedi date diverse, assumi che siano parallele (stessa data o null).
+      3. GUARDA LE BARRE DEL GANTT: Se le barre sono sovrapposte verticalmente, le attività sono PARALLELE.
       
-      REGOLE CRITICHE:
-      1. LEGGI LE DATE REALI: Non inventare date sequenziali. Leggi attentamente le colonne delle date (Inizio/Fine) o la posizione delle barre nel grafico temporale.
-      2. PARALLELISMO: Molte attività in un cantiere iniziano lo stesso giorno o si sovrappongono. Rispetta questa concorrenza. Non metterle una dopo l'altra se l'immagine mostra che sono parallele.
-      3. GERARCHIA: Distingui tra Fasi (grassetto/maiuscolo) e Attività (livello indentato).
-      
-      Restituisci un JSON con:
+      Restituisci JSON:
       {
         "attivita": [
           {
             "descrizione": "string",
-            "data_inizio": "YYYY-MM-DD" (null se illegibile),
-            "data_fine": "YYYY-MM-DD" (null se illegibile),
-            "durata_giorni": number (calcola da date o leggi colonna durata),
+            "data_inizio": "YYYY-MM-DD" (o null),
+            "data_fine": "YYYY-MM-DD" (o null),
+            "durata_giorni": number,
             "importo_previsto": number,
             "livello": number (0=Fase, 1=Attività)
           }
@@ -219,7 +217,7 @@ async function parseImage(fileUrl, base44) {
 
     const response = await base44.integrations.Core.InvokeLLM({
       prompt: prompt,
-      file_urls: [fileUrl], // Passiamo direttamente l'URL dell'immagine per Vision
+      file_urls: [fileUrl], 
       response_json_schema: {
         type: "object",
         properties: {
@@ -246,12 +244,40 @@ async function parseImage(fileUrl, base44) {
 
     console.log(`✓ Vision AI ha risposto con ${response.attivita.length} attività.`);
     
-    // Validazione base
-    const attivitaProcessed = response.attivita.map(att => ({
-        ...att,
-        descrizione: formatTextoProfessionale(att.descrizione),
-        durata_giorni: att.durata_giorni || 1
-    })).filter(a => a.descrizione);
+    // STAIRCASE DETECTION per Immagini
+    let sequentialCount = 0;
+    const SUSPICIOUS_SEQUENCE_THRESHOLD = 3; 
+
+    const attivitaProcessed = response.attivita.map((att, idx, arr) => {
+        let dataInizio = parseDate(att.data_inizio);
+        let dataFine = parseDate(att.data_fine);
+        
+        // Check sequenzialità
+        if (idx > 0 && dataInizio && arr[idx-1].data_fine) {
+            const prevEnd = parseDate(arr[idx-1].data_fine);
+            if (prevEnd) {
+                const d1 = new Date(dataInizio);
+                const dPrev = new Date(prevEnd);
+                const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
+                if (diff >= 0 && diff <= 1) sequentialCount++;
+                else sequentialCount = 0;
+            }
+        }
+        
+        if (sequentialCount >= SUSPICIOUS_SEQUENCE_THRESHOLD) {
+             console.log(`⚠️ Vision AI: Sequenza sospetta all'indice ${idx}. Reset date.`);
+             dataInizio = null;
+             dataFine = null;
+        }
+
+        return {
+            ...att,
+            descrizione: formatTextoProfessionale(att.descrizione),
+            durata_giorni: att.durata_giorni || 1,
+            data_inizio: dataInizio,
+            data_fine: dataFine
+        };
+    }).filter(a => a.descrizione);
 
     return {
         attivita: attivitaProcessed,
@@ -539,9 +565,32 @@ ${csvText}
     });
 
     console.log("\n🔄 Validazione e parsing date/durate...");
-    const attivitaProcessed = llmResult.attivita.map((att, idx) => {
-        const dataInizio = parseDate(att.data_inizio);
-        const dataFine = parseDate(att.data_fine);
+    
+    // STAIRCASE DETECTION per XLSX
+    let sequentialCount = 0;
+    const SUSPICIOUS_SEQUENCE_THRESHOLD = 3;
+
+    const attivitaProcessed = llmResult.attivita.map((att, idx, arr) => {
+        let dataInizio = parseDate(att.data_inizio);
+        let dataFine = parseDate(att.data_fine);
+
+        // Check sequenzialità
+        if (idx > 0 && dataInizio && arr[idx-1].data_fine) {
+            const prevEnd = parseDate(arr[idx-1].data_fine);
+            if (prevEnd) {
+                const d1 = new Date(dataInizio);
+                const dPrev = new Date(prevEnd);
+                const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
+                if (diff >= 0 && diff <= 1) sequentialCount++;
+                else sequentialCount = 0;
+            }
+        }
+
+        if (sequentialCount >= SUSPICIOUS_SEQUENCE_THRESHOLD) {
+             console.log(`⚠️ XLSX AI: Sequenza sospetta all'indice ${idx}. Reset date.`);
+             dataInizio = null;
+             dataFine = null;
+        }
 
         let durataGiorniCalculated = att.durata_giorni;
         if (!durataGiorniCalculated && dataInizio && dataFine) {

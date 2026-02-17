@@ -18,7 +18,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
-import TeamsystemGantt from "../components/cronoprogramma/TeamsystemGantt";
+import PrimusGantt from "../components/cronoprogramma/PrimusGantt";
 import AttivitaForm from "../components/cronoprogramma/AttivitaForm";
 import ImportCronoprogrammaForm from "../components/cronoprogramma/ImportCronoprogrammaForm";
 
@@ -597,9 +597,9 @@ export default function CronoprogrammaPage() {
               )}
               
               {/* Gantt Chart */}
-              <div className="flex-1" style={{ height: 'calc(100vh - 26rem)' }}>
+              <div className="flex-1" style={{ height: 'calc(100vh - 20rem)' }}>
                 {selectedCantiereId && cantieri.length > 0 && currentCantiere && (
-                  <TeamsystemGantt
+                  <PrimusGantt
                     attivita={filteredAttivita(cantieriAttivita[selectedCantiereId] || [])}
                     cantiere={currentCantiere}
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}
@@ -658,7 +658,7 @@ export default function CronoprogrammaPage() {
               </DialogHeader>
               <div className="flex-1 overflow-hidden">
                 {selectedCantiereId && currentCantiere && (
-                  <TeamsystemGantt
+                  <PrimusGantt
                     attivita={filteredAttivita(cantieriAttivita[selectedCantiereId] || [])}
                     cantiere={currentCantiere}
                     onAddAttivita={() => handleAddAttivita(selectedCantiereId)}

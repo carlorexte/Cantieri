@@ -33,7 +33,7 @@ export default function AlertCard({ alerts }) {
             {alerts.map((alert, idx) => {
               const Icon = alertIcons[alert.tipo] || AlertTriangle;
               
-              const CardContent = (
+              const alertContent = (
                 <div 
                   className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-sm cursor-pointer group relative ${alertCardClasses[alert.priorita] || alertCardClasses.medio}`}
                 >
@@ -59,17 +59,16 @@ export default function AlertCard({ alerts }) {
                 </div>
               );
 
-              // Wrapper for Link if present
-              const LinkWrapper = alert.link ? ({children}) => <Link to={alert.link}>{children}</Link> : ({children}) => <>{children}</>;
-
               return (
                 <TooltipProvider key={idx}>
                   <Tooltip delayDuration={300}>
                     <TooltipTrigger asChild>
-                      <div> {/* Div needed for tooltip trigger on custom component sometimes */}
-                        <LinkWrapper>
-                            {CardContent}
-                        </LinkWrapper>
+                      <div>
+                        {alert.link ? (
+                            <Link to={alert.link}>{alertContent}</Link>
+                        ) : (
+                            alertContent
+                        )}
                       </div>
                     </TooltipTrigger>
                     {alert.details && (

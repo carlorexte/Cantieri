@@ -282,31 +282,29 @@ async function parsePDF(fileBuffer, cantiereId, base44) {
     console.log("\n🧠 Chiamata a InvokeLLM per interpretare il PDF (estrazione attività, durate e date se presenti)...");
 
     const llmPrompt = `
-Analizza il seguente testo estratto da un cronoprogramma in PDF.
+Analizza il testo estratto da un cronoprogramma (PDF/OCR).
 OBIETTIVO: Estrarre attività e DATE REALI.
 
-PROBLEMA: Il testo PDF perde la formattazione tabellare. Le date potrebbero sembrare spostate.
-SOLUZIONE: Devi cercare pattern di date (dd/mm/yy, dd-mmm, ecc.) e associarli alla descrizione più vicina sulla stessa "riga" logica.
-
-REGOLE CRITICHE ANTI-INVENZIONE:
-1. NON INVENTARE SEQUENZE: Se non trovi date, restituisci NULL. Non creare una sequenza temporale artificiale (es. non far finire un'attività il 10 e iniziare la successiva l'11 se non c'è scritto).
-2. CERCA IL PARALLELISMO: In cantiere molte attività sono parallele. Se vedi una data "Gennaio 2024" sopra un gruppo di attività, potrebbero iniziare tutte a Gennaio.
-3. RICONOSCI I FONT: Se il testo è tutto maiuscolo potrebbe essere una FASE.
-4. DATE: Cerca formati come: 01/01/2024, 1-gen-24, 01.01.24. Se trovi "5 gg" è la durata.
+REGOLE TASSATIVE (pena fallimento):
+1. SE NON VEDI UNA DATA ESPLICITA (es. 12/05/2024, Gennaio 2025) ACCANTO ALL'ATTIVITÀ, RESTITUISCI NULL nei campi data. 
+   - È VIETATO inventare date sequenziali.
+   - È VIETATO assumere che l'attività N inizi quando finisce la N-1.
+2. Se un gruppo di attività è sotto un'intestazione temporale (es. "Fase 1 - Marzo 2024"), usa quella data per tutte (PARALLELISMO).
+3. Riporta SOLO ciò che leggi. Se leggi solo "Scavi" e "5 giorni", restituisci date=null. Ci penserà il sistema a posizionarla.
 
 Output JSON:
 {
   "attivita": [
     {
       "descrizione": "string",
-      "durata_giorni": number,
+      "durata_giorni": number (default 1 se non trovato),
       "gruppo_fase": "string",
       "data_inizio": "YYYY-MM-DD" (o null),
       "data_fine": "YYYY-MM-DD" (o null),
       "livello": number (0=Fase, 1=Attività)
     }
   ],
-  "note_ai": "Spiega se hai trovato date esplicite o se il testo era privo di riferimenti temporali."
+  "note_ai": "Dichiara esplicitamente se hai trovato date nel testo o no."
 }
 
 Testo PDF:
@@ -355,12 +353,45 @@ ${text}
 
     // Validazione e parsing date e durate
     console.log("\n🔄 Validazione e parsing date/durate...");
-    const attivitaProcessed = llmResult.attivita.map((att, idx) => {
+
+    // STAIRCASE DETECTION (Rilevamento Sequenze Inventate)
+    // Se l'AI restituisce una sequenza perfetta (Fine A = Inizio B) per troppe attività consecutive,
+    // è probabile che stia inventando le date.
+    let sequentialCount = 0;
+    const SUSPICIOUS_SEQUENCE_THRESHOLD = 3; // Se 3 attività sono perfettamente sequenziali, sospettiamo
+
+    const attivitaProcessed = llmResult.attivita.map((att, idx, arr) => {
         // Usa la durata fornita dall'AI, altrimenti cerca nel testo o default a 1
         const durata = att.durata_giorni && att.durata_giorni > 0 ? att.durata_giorni : estraiDurataGiorni(att.descrizione) || 1;
 
-        const dataInizio = parseDate(att.data_inizio);
-        const dataFine = parseDate(att.data_fine);
+        let dataInizio = parseDate(att.data_inizio);
+        let dataFine = parseDate(att.data_fine);
+
+        // CONTROLLO SEQUENZIALITÀ SOSPITTA
+        if (idx > 0 && dataInizio && arr[idx-1].data_fine) {
+            const prevEnd = parseDate(arr[idx-1].data_fine);
+            if (prevEnd) {
+                const d1 = new Date(dataInizio);
+                const dPrev = new Date(prevEnd);
+                const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
+                
+                // Se inizia esattamente il giorno dopo o lo stesso giorno della fine precedente
+                if (diff >= 0 && diff <= 1) {
+                    sequentialCount++;
+                } else {
+                    sequentialCount = 0;
+                }
+            }
+        }
+
+        // Se abbiamo rilevato una sequenza sospetta lunga, invalidiamo le date per costringere il ricalcolo parallelo
+        // Ma solo se non ci sono "prove" nel testo (difficile da dire qui, ma assumiamo l'inventiva dell'AI)
+        // Per ora siamo conservativi: se l'AI è troppo "pulita", probabilmente mente.
+        if (sequentialCount >= SUSPICIOUS_SEQUENCE_THRESHOLD) {
+             console.log(`⚠️ Rilevata sequenza artificiale all'indice ${idx}. Invalidazione date per "${att.descrizione}"`);
+             dataInizio = null;
+             dataFine = null;
+        }
 
         // Se la durata è 0 o negativa, la imposto a 1 per evitare problemi nel calcolo delle date
         const finalDurata = Math.max(1, durata);
@@ -673,40 +704,32 @@ Deno.serve(async (req) => {
          throw new Error("Impossibile determinare una data di inizio valida per il progetto.");
       }
 
-      // CALCOLO DATE ASSISTITO (CON LOGICA MIGLIORATA PER PARALLELISMO)
-      // Invece di una sequenza rigida (a cascata), cerchiamo di essere più intelligenti.
-      // Se manca la data, assumiamo che l'attività inizi:
-      // - Quando inizia il progetto (se è la prima o se non c'è contesto)
-      // - O insieme all'attività precedente (parallelismo di default)
-      // L'utente si è lamentato della sequenzialità forzata.
+      // CALCOLO DATE ASSISTITO (CON LOGICA DI PARALLELISMO AGGRESSIVO)
+      // Se l'AI non ha trovato date (o le abbiamo invalidate perché sospette),
+      // raggruppiamo le attività in "blocchi" paralleli.
       
       let ultimaDataInizio = new Date(dataInizioBase);
       
       attivita = attivita.map((att, idx) => {
+        // Se l'attività ha date valide, usale e aggiorna il cursore temporale
         if (att.data_inizio) {
-           // Se ha una data, aggiorniamo il riferimento per le prossime (potrebbe essere un nuovo blocco)
-           try { ultimaDataInizio = new Date(att.data_inizio); } catch(e){}
+           try { 
+               ultimaDataInizio = new Date(att.data_inizio); 
+           } catch(e){}
            return att;
         }
 
-        // Se non ha data, usiamo l'ultima data di inizio nota (parallelismo)
-        // INVECE DI: data fine precedente + 1
+        // SE NON HA DATE:
+        // Usa l'ultima data di inizio conosciuta (quindi inizia INSIEME all'attività precedente che aveva una data, o all'inizio del progetto)
+        // Questo crea un effetto "a grappolo": tutte le attività senza data iniziano allo stesso punto dell'ultima data nota.
         
         const dataInizio = new Date(ultimaDataInizio);
-        // Se è una fase (livello 0), forse ha senso avanzare? 
-        // Per ora manteniamo parallelismo aggressivo come richiesto ("non inventare sequenze")
-        
         const durata = att.durata_giorni || 1;
         const dataFine = new Date(dataInizio);
         dataFine.setDate(dataFine.getDate() + durata);
 
-        // Formattazione
         const formatData = (d) => d.toISOString().split('T')[0];
         
-        // NON aggiorniamo ultimaDataInizio alla fine di questa attività. 
-        // La lasciamo all'inizio, così la prossima attività senza data partirà ANCH'ESSA lo stesso giorno (parallela).
-        // Solo se troviamo una data esplicita o un cambio di fase potremmo cambiare logica, ma per ora questo risolve il problema "sequenza inventata".
-
         return {
           ...att,
           data_inizio: formatData(dataInizio),

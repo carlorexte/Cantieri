@@ -98,13 +98,20 @@ function parseDate(value) {
       return trimmed;
     }
 
-    // Formato DD/MM/YYYY o DD-MM-YYYY (ITALIANO - priorità)
-    const ddmmyyyy = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    // Formato DD/MM/YYYY o DD-MM-YYYY o DD.MM.YY (ITALIANO - priorità)
+    // Supporta separatori / - . e anni a 2 o 4 cifre
+    const ddmmyyyy = trimmed.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
     if (ddmmyyyy) {
-      const [, part1, part2, year] = ddmmyyyy;
+      let [, part1, part2, yearStr] = ddmmyyyy;
       
+      // Gestione anno a 2 cifre (es. 26 -> 2026)
+      let year = parseInt(yearStr);
+      if (year < 100) {
+        year += 2000;
+      }
+
       // Validazione anno
-      if (parseInt(year) < 2020 || parseInt(year) > 2030) {
+      if (year < 2020 || year > 2030) {
         console.warn(`⚠️ Anno sospetto: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -308,29 +315,33 @@ async function parsePDF(fileBuffer, cantiereId, base44) {
     console.log("\n🧠 Chiamata a InvokeLLM per interpretare il PDF (estrazione attività, durate e date se presenti)...");
 
     const llmPrompt = `
-Analizza il testo estratto da un cronoprogramma (PDF/OCR).
-OBIETTIVO: Estrarre attività e DATE REALI.
+Analizza il testo estratto da un cronoprogramma lavori (probabilmente una tabella).
+OBIETTIVO: Estrarre attività, durate e DATE REALI (Inizio/Fine).
 
-REGOLE TASSATIVE (pena fallimento):
-1. SE NON VEDI UNA DATA ESPLICITA (es. 12/05/2024, Gennaio 2025) ACCANTO ALL'ATTIVITÀ, RESTITUISCI NULL nei campi data. 
-   - È VIETATO inventare date sequenziali.
-   - È VIETATO assumere che l'attività N inizi quando finisce la N-1.
-2. Se un gruppo di attività è sotto un'intestazione temporale (es. "Fase 1 - Marzo 2024"), usa quella data per tutte (PARALLELISMO).
-3. Riporta SOLO ciò che leggi. Se leggi solo "Scavi" e "5 giorni", restituisci date=null. Ci penserà il sistema a posizionarla.
+👀 CERCA COLONNE SPECIFICHE (viste negli screenshot utente):
+- "Inizio" / "Start" (es. 2.2.26, 12.02.2026)
+- "Fine" / "End" (es. 19.2.26)
+- "Durata gg" / "Days" (es. 18, 148, 5)
+
+⚠️ GESTIONE DATE (CRITICO):
+1. FORMATO: Le date nel file sono spesso in formato "d.m.yy" (es. 2.2.26 = 2 Febbraio 2026). Riconoscile!
+2. NO INVENZIONI: Se NON trovi una data specifica per una riga, restituisci NULL. NON inventare una sequenza temporale.
+3. SEQUENZIALITÀ: Molte attività hanno la STESSA data di inizio (es. 2.2.26). È CORRETTO. Non metterle in sequenza artificiale.
+4. FASI: Le righe in MAIUSCOLO o GRASSETTO (es. "FASI DI LAVORO") sono Fasi (livello 0). Le altre sono Attività (livello 1).
 
 Output JSON:
 {
   "attivita": [
     {
       "descrizione": "string",
-      "durata_giorni": number (default 1 se non trovato),
+      "durata_giorni": number (CERCA colonna "Durata gg" o calcola da date),
       "gruppo_fase": "string",
-      "data_inizio": "YYYY-MM-DD" (o null),
-      "data_fine": "YYYY-MM-DD" (o null),
+      "data_inizio": "DD.MM.YY" o "YYYY-MM-DD" (riporta esattamente ciò che leggi, o null),
+      "data_fine": "DD.MM.YY" o "YYYY-MM-DD" (riporta esattamente ciò che leggi, o null),
       "livello": number (0=Fase, 1=Attività)
     }
   ],
-  "note_ai": "Dichiara esplicitamente se hai trovato date nel testo o no."
+  "note_ai": "Quali colonne hai trovato? Hai visto date tipo 2.2.26?"
 }
 
 Testo PDF:
@@ -401,8 +412,11 @@ ${text}
                 const dPrev = new Date(prevEnd);
                 const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
                 
-                // Se inizia esattamente il giorno dopo o lo stesso giorno della fine precedente
-                if (diff >= 0 && diff <= 1) {
+                // RILEVAMENTO "SCALETTA" (STAIRCASE)
+                // Se l'attività corrente inizia poco dopo la fine della precedente (0-7 giorni),
+                // potrebbe essere una sequenza inventata dall'AI se si ripete troppe volte.
+                // In un cantiere reale, molte attività sono parallele (diff < 0, sovrapposte).
+                if (diff >= 0 && diff <= 7) { 
                     sequentialCount++;
                 } else {
                     sequentialCount = 0;

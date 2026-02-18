@@ -136,13 +136,18 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
             <div>
               <h4 className="font-semibold text-blue-900 mb-2">🤖 Importazione Intelligente con AI</h4>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• <strong>Supporta XLSX, PDF e IMMAGINI</strong> (foto del cronoprogramma)</li>
-                <li>• L'AI analizza visivamente la struttura del file (colonne, date)</li>
-                <li>• Per i PDF/Foto: cerca di mantenere le date reali e il parallelismo</li>
-                <li>• Puoi modificare le date nel Gantt dopo l'importazione</li>
+                <li>• <strong>Supporta XLSX, PDF e IMMAGINI</strong> (foto/screenshot del cronoprogramma)</li>
+                <li>• L'AI legge la struttura del file: colonne, date, durate, fasi</li>
+                <li>• Riconosce date in tutti i formati (DD/MM/YYYY, GG.MM.AA, testo italiano...)</li>
+                <li>• Mantiene il parallelismo reale: attività che iniziano insieme restano parallele</li>
+                <li>• Se il file <strong>non ha date</strong>, le calcola automaticamente in sequenza dalla data inizio progetto</li>
               </ul>
-              <p className="text-xs text-blue-700 mt-3">
-                ⏱️ L'importazione richiede 10-60 secondi (dipende dalla complessità del file)
+              <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                <strong>Consiglio:</strong> Per risultati migliori usa XLSX con colonne "Inizio" e "Fine" esplicite.
+                Le immagini di Gantt funzionano bene se le date sull'asse sono leggibili.
+              </div>
+              <p className="text-xs text-blue-700 mt-2">
+                ⏱️ L'importazione richiede 15-60 secondi (dipende dalla complessità del file)
               </p>
             </div>
           </div>
@@ -176,7 +181,7 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
             className="border-slate-200"
           />
           <p className="text-xs text-slate-500">
-            Per PDF senza date esplicite, le attività saranno calcolate in sequenza da questa data. 
+            Usata come punto di partenza se il file non contiene date esplicite o per attività senza data.
             Se non fornita, si usa la data inizio del cantiere o la data odierna.
           </p>
         </div>

@@ -91,7 +91,7 @@ function parseDate(value) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       const [year, month, day] = trimmed.split('-').map(Number);
       // Validazione: anno ragionevole
-      if (year < 2020 || year > 2030) {
+      if (year < 2020 || year > 2035) {
         console.warn(`⚠️ Anno sospetto in formato ISO: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -111,7 +111,7 @@ function parseDate(value) {
       }
 
       // Validazione anno
-      if (year < 2020 || year > 2030) {
+      if (year < 2020 || year > 2035) {
         console.warn(`⚠️ Anno sospetto: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -149,7 +149,7 @@ function parseDate(value) {
     if (yyyymmdd) {
       const [, year, month, day] = yyyymmdd;
       
-      if (parseInt(year) < 2020 || parseInt(year) > 2030) {
+      if (parseInt(year) < 2020 || parseInt(year) > 2035) {
         console.warn(`⚠️ Anno sospetto in formato YYYY: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -199,27 +199,33 @@ async function parseImage(fileUrl, base44) {
   
   try {
     const prompt = `
-      Analizza questa IMMAGINE di un cronoprogramma.
-      
-      REGOLE TASSATIVE:
-      1. ESTRAI SOLO DATE VISIBILI. Se non leggi chiaramente una data di inizio/fine, RESTITUISCI NULL.
-      2. STOP ALLE SEQUENZE INVENTATE. Non assumere che le attività siano una dopo l'altra. Se non vedi date diverse, assumi che siano parallele (stessa data o null).
-      3. GUARDA LE BARRE DEL GANTT: Se le barre sono sovrapposte verticalmente, le attività sono PARALLELE.
-      
-      Restituisci JSON:
-      {
-        "attivita": [
-          {
-            "descrizione": "string",
-            "data_inizio": "YYYY-MM-DD" (o null),
-            "data_fine": "YYYY-MM-DD" (o null),
-            "durata_giorni": number,
-            "importo_previsto": number,
-            "livello": number (0=Fase, 1=Attività)
-          }
-        ],
-        "note_ai": "string"
-      }
+Analizza questa IMMAGINE di un cronoprogramma lavori (può essere un Gantt, una tabella, un foglio Excel fotografato).
+
+OBIETTIVO: Estrarre TUTTE le righe/attività visibili con le loro date e durate.
+
+REGOLE FONDAMENTALI:
+1. LEGGI LE DATE DAL FILE: Cerca colonne "Inizio", "Fine", "Start", "End", "Data inizio", "Data fine" oppure leggi le intestazioni del Gantt.
+2. CONVERTI IN YYYY-MM-DD: Qualunque formato di data trovi (2.2.26, 02/02/2026, "2 feb 2026"), convertila SEMPRE in YYYY-MM-DD.
+3. NULL SE NON VISIBILE: Se per una riga non vedi una data leggibile, usa null. NON inventare date.
+4. DATE UGUALI OK: Se più attività iniziano lo stesso giorno (parallele), riportale con la stessa data. È corretto.
+5. BARRE GANTT: La posizione e lunghezza delle barre indica le date. Cerca le date sulle intestazioni dell'asse temporale.
+6. FASI: Righe in grassetto/maiuscolo o con rientro maggiore sono Fasi (livello 0). Le altre sono Attività (livello 1).
+7. IMPORTO: Se vedi colonne con valori in € o prezzi, estraili come importo_previsto (numero intero, 0 se non presente).
+
+Restituisci JSON:
+{
+  "attivita": [
+    {
+      "descrizione": "Nome attività (esattamente come nel file)",
+      "data_inizio": "YYYY-MM-DD (null se non leggibile)",
+      "data_fine": "YYYY-MM-DD (null se non leggibile)",
+      "durata_giorni": 10,
+      "importo_previsto": 0,
+      "livello": 1
+    }
+  ],
+  "note_ai": "Descrivi la struttura dell'immagine e come hai interpretato le date."
+}
     `;
 
     const response = await base44.integrations.Core.InvokeLLM({
@@ -250,32 +256,10 @@ async function parseImage(fileUrl, base44) {
     });
 
     console.log(`✓ Vision AI ha risposto con ${response.attivita.length} attività.`);
-    
-    // STAIRCASE DETECTION per Immagini
-    let sequentialCount = 0;
-    const SUSPICIOUS_SEQUENCE_THRESHOLD = 3; 
 
-    const attivitaProcessed = response.attivita.map((att, idx, arr) => {
-        let dataInizio = parseDate(att.data_inizio);
-        let dataFine = parseDate(att.data_fine);
-        
-        // Check sequenzialità
-        if (idx > 0 && dataInizio && arr[idx-1].data_fine) {
-            const prevEnd = parseDate(arr[idx-1].data_fine);
-            if (prevEnd) {
-                const d1 = new Date(dataInizio);
-                const dPrev = new Date(prevEnd);
-                const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
-                if (diff >= 0 && diff <= 1) sequentialCount++;
-                else sequentialCount = 0;
-            }
-        }
-        
-        if (sequentialCount >= SUSPICIOUS_SEQUENCE_THRESHOLD) {
-             console.log(`⚠️ Vision AI: Sequenza sospetta all'indice ${idx}. Reset date.`);
-             dataInizio = null;
-             dataFine = null;
-        }
+    const attivitaProcessed = response.attivita.map((att) => {
+        const dataInizio = parseDate(att.data_inizio);
+        const dataFine = parseDate(att.data_fine);
 
         return {
             ...att,
@@ -315,36 +299,39 @@ async function parsePDF(fileBuffer, cantiereId, base44) {
     console.log("\n🧠 Chiamata a InvokeLLM per interpretare il PDF (estrazione attività, durate e date se presenti)...");
 
     const llmPrompt = `
-Analizza il testo estratto da un cronoprogramma lavori (probabilmente una tabella).
-OBIETTIVO: Estrarre attività, durate e DATE REALI (Inizio/Fine).
+Analizza il testo estratto da un cronoprogramma lavori (probabilmente una tabella con colonne allineate).
+OBIETTIVO: Estrarre TUTTE le attività con le DATE REALI di inizio e fine.
 
-👀 CERCA COLONNE SPECIFICHE (viste negli screenshot utente):
-- "Inizio" / "Start" (es. 2.2.26, 12.02.2026)
-- "Fine" / "End" (es. 19.2.26)
-- "Durata gg" / "Days" (es. 18, 148, 5)
+👀 CERCA COLONNE SPECIFICHE:
+- Descrizione attività / Lavorazione / Voce
+- "Inizio" / "Start" / "Data inizio" (es. 2.2.26, 12.02.2026, 2026-02-02)
+- "Fine" / "End" / "Data fine" (es. 19.2.26)
+- "Durata gg" / "Durata" / "Days" / "Giorni" (es. 18, 148, 5)
 
-⚠️ GESTIONE DATE (CRITICO):
-1. FORMATO: Le date nel file sono spesso in formato "d.m.yy" (es. 2.2.26 = 2 Febbraio 2026). Riconoscile!
-2. NO INVENZIONI: Se NON trovi una data specifica per una riga, restituisci NULL. NON inventare una sequenza temporale.
-3. SEQUENZIALITÀ: Molte attività hanno la STESSA data di inizio (es. 2.2.26). È CORRETTO. Non metterle in sequenza artificiale.
-4. FASI: Le righe in MAIUSCOLO o GRASSETTO (es. "FASI DI LAVORO") sono Fasi (livello 0). Le altre sono Attività (livello 1).
+⚠️ REGOLE FONDAMENTALI (rispettale SEMPRE):
+1. CONVERTI DATE in formato YYYY-MM-DD: "2.2.26" → "2026-02-02", "12/02/2026" → "2026-02-12", "12 febbraio 2026" → "2026-02-12"
+2. NULL se non trovi una data reale: NON inventare mai date. Se la colonna è vuota per una riga, usa null.
+3. DATE UGUALI sono CORRETTE: Se più attività iniziano lo stesso giorno, riporta la stessa data per tutte - non creare sequenze artificiali.
+4. FASI/RAGGRUPPAMENTI: Righe in MAIUSCOLO, con totali o senza durata specifica sono Fasi (livello 0). Attività specifiche sono livello 1.
+5. DURATA: Se trovi una colonna durata, usala. Se non c'è, calcolala come giorni tra data_inizio e data_fine (inclusi). Se mancano entrambe, usa null.
+6. IGNORA righe di intestazione, totali, righe vuote.
 
-Output JSON:
+FORMATO OUTPUT (OBBLIGATORIO - usa SEMPRE YYYY-MM-DD per le date):
 {
   "attivita": [
     {
-      "descrizione": "string",
-      "durata_giorni": number (CERCA colonna "Durata gg" o calcola da date),
-      "gruppo_fase": "string",
-      "data_inizio": "DD.MM.YY" o "YYYY-MM-DD" (riporta esattamente ciò che leggi, o null),
-      "data_fine": "DD.MM.YY" o "YYYY-MM-DD" (riporta esattamente ciò che leggi, o null),
-      "livello": number (0=Fase, 1=Attività)
+      "descrizione": "Nome attività",
+      "durata_giorni": 10,
+      "gruppo_fase": "Nome fase/categoria (o null)",
+      "data_inizio": "2026-02-02",
+      "data_fine": "2026-02-12",
+      "livello": 1
     }
   ],
-  "note_ai": "Quali colonne hai trovato? Hai visto date tipo 2.2.26?"
+  "note_ai": "Quali colonne hai trovato? Come hai interpretato le date?"
 }
 
-Testo PDF:
+Testo PDF estratto:
 """
 ${text}
 """
@@ -391,47 +378,12 @@ ${text}
     // Validazione e parsing date e durate
     console.log("\n🔄 Validazione e parsing date/durate...");
 
-    // STAIRCASE DETECTION (Rilevamento Sequenze Inventate)
-    // Se l'AI restituisce una sequenza perfetta (Fine A = Inizio B) per troppe attività consecutive,
-    // è probabile che stia inventando le date.
-    let sequentialCount = 0;
-    const SUSPICIOUS_SEQUENCE_THRESHOLD = 3; // Se 3 attività sono perfettamente sequenziali, sospettiamo
-
-    const attivitaProcessed = llmResult.attivita.map((att, idx, arr) => {
+    const attivitaProcessed = llmResult.attivita.map((att, idx) => {
         // Usa la durata fornita dall'AI, altrimenti cerca nel testo o default a 1
         const durata = att.durata_giorni && att.durata_giorni > 0 ? att.durata_giorni : estraiDurataGiorni(att.descrizione) || 1;
 
-        let dataInizio = parseDate(att.data_inizio);
-        let dataFine = parseDate(att.data_fine);
-
-        // CONTROLLO SEQUENZIALITÀ SOSPITTA
-        if (idx > 0 && dataInizio && arr[idx-1].data_fine) {
-            const prevEnd = parseDate(arr[idx-1].data_fine);
-            if (prevEnd) {
-                const d1 = new Date(dataInizio);
-                const dPrev = new Date(prevEnd);
-                const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
-                
-                // RILEVAMENTO "SCALETTA" (STAIRCASE)
-                // Se l'attività corrente inizia poco dopo la fine della precedente (0-7 giorni),
-                // potrebbe essere una sequenza inventata dall'AI se si ripete troppe volte.
-                // In un cantiere reale, molte attività sono parallele (diff < 0, sovrapposte).
-                if (diff >= 0 && diff <= 7) { 
-                    sequentialCount++;
-                } else {
-                    sequentialCount = 0;
-                }
-            }
-        }
-
-        // Se abbiamo rilevato una sequenza sospetta lunga, invalidiamo le date per costringere il ricalcolo parallelo
-        // Ma solo se non ci sono "prove" nel testo (difficile da dire qui, ma assumiamo l'inventiva dell'AI)
-        // Per ora siamo conservativi: se l'AI è troppo "pulita", probabilmente mente.
-        if (sequentialCount >= SUSPICIOUS_SEQUENCE_THRESHOLD) {
-             console.log(`⚠️ Rilevata sequenza artificiale all'indice ${idx}. Invalidazione date per "${att.descrizione}"`);
-             dataInizio = null;
-             dataFine = null;
-        }
+        const dataInizio = parseDate(att.data_inizio);
+        const dataFine = parseDate(att.data_fine);
 
         // Se la durata è 0 o negativa, la imposto a 1 per evitare problemi nel calcolo delle date
         const finalDurata = Math.max(1, durata);
@@ -499,43 +451,58 @@ async function parseXLSX(fileBuffer, cantiereId, base44) {
 
     console.log(`✓ Foglio "${firstSheetName}" caricato`);
 
-    console.log("🔄 Conversione foglio in CSV...");
-    const csvText = XLSX.utils.sheet_to_csv(worksheet);
+    console.log("🔄 Conversione foglio in JSON strutturato...");
+    // Usiamo sheet_to_json con dateNF per mantenere le date in formato YYYY-MM-DD
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
+      raw: false,
+      dateNF: 'yyyy-mm-dd',
+      defval: ''
+    });
+    // Fallback su CSV se sheet_to_json non produce righe
+    const csvFallback = rows.length === 0 ? XLSX.utils.sheet_to_csv(worksheet) : '';
+    const datiStrutturati = rows.length > 0
+      ? JSON.stringify(rows.slice(0, 200), null, 2)  // Limite a 200 righe per evitare prompt troppo lunghi
+      : csvFallback;
+    const formatoInput = rows.length > 0 ? 'JSON (righe strutturate)' : 'CSV (fallback)';
 
-    console.log(`✓ CSV generato (${csvText.length} caratteri)`);
-    console.log("📝 Prime 1000 caratteri:");
-    console.log(csvText.substring(0, 1000));
+    console.log(`✓ Dati estratti in formato ${formatoInput}: ${rows.length} righe`);
+    if (rows.length > 0) {
+      console.log("📝 Prime 2 righe:", JSON.stringify(rows.slice(0, 2), null, 2));
+    }
 
-    console.log("\n🧠 Chiamata a InvokeLLM per interpretare il CSV...");
+    console.log("\n🧠 Chiamata a InvokeLLM per interpretare i dati Excel...");
 
     const llmPrompt = `
-Analizza il seguente CSV da Excel.
-OBIETTIVO: Estrarre attività e DATE REALI.
+Analizza i seguenti dati estratti da un file Excel (formato ${formatoInput}).
+OBIETTIVO: Estrarre attività con DATE REALI di inizio e fine.
 
 ISTRUZIONI CRITICHE:
-1. CERCA COLONNE DATE: Identifica le colonne che contengono date (es. Inizio, Fine, Start, End, o valori tipo 2024-01-01).
-2. PARALLELISMO REALE: Riporta le date ESATTE che trovi. NON creare sequenze a cascata se le date nel file sono uguali (parallele).
-3. Se molte attività hanno la stessa data di inizio, è corretto.
-4. Se trovi colonne "Durata" usa quelle.
+1. CERCA COLONNE DATE: Identifica colonne con date (es. "Inizio", "Fine", "Start", "End", "Data inizio", "Data fine").
+   Le date potrebbero già essere in formato YYYY-MM-DD oppure testo.
+2. CERCA COLONNE DURATA: "Durata", "Durata gg", "Giorni", "Days".
+3. RIPORTA DATE ESATTE: Non inventare sequenze. Se più attività hanno la stessa data di inizio, riportala uguale per tutte.
+4. FORMATO OUTPUT DATE: Converti SEMPRE le date in formato YYYY-MM-DD (es. 02/02/2026 → 2026-02-02, "2.2.26" → 2026-02-02).
+5. FASI vs ATTIVITÀ: Righe in maiuscolo o con indentazione maggiore sono spesso fasi (livello 0), le altre sono attività (livello 1).
+6. Se una riga non ha descrizione significativa (es. riga vuota o solo numeri), IGNORALA.
 
 Output JSON:
 {
   "attivita": [
     {
       "descrizione": "string",
-      "durata_giorni": number,
-      "gruppo_fase": "string",
-      "data_inizio": "YYYY-MM-DD",
-      "data_fine": "YYYY-MM-DD",
-      "livello": number (0=Fase, 1=Attività)
+      "durata_giorni": number (null se non trovata),
+      "gruppo_fase": "string (fase/categoria di appartenenza, o null)",
+      "data_inizio": "YYYY-MM-DD (null se non trovata)",
+      "data_fine": "YYYY-MM-DD (null se non trovata)",
+      "livello": number (0=Fase/Raggruppamento, 1=Attività)
     }
   ],
-  "note_ai": "Indica quali colonne hai identificato come date."
+  "note_ai": "Descrivi quali colonne hai trovato per date, durata, descrizione."
 }
 
-CSV:
+DATI EXCEL:
 """
-${csvText}
+${datiStrutturati}
 """
     `;
 
@@ -579,32 +546,10 @@ ${csvText}
     });
 
     console.log("\n🔄 Validazione e parsing date/durate...");
-    
-    // STAIRCASE DETECTION per XLSX
-    let sequentialCount = 0;
-    const SUSPICIOUS_SEQUENCE_THRESHOLD = 3;
 
-    const attivitaProcessed = llmResult.attivita.map((att, idx, arr) => {
-        let dataInizio = parseDate(att.data_inizio);
-        let dataFine = parseDate(att.data_fine);
-
-        // Check sequenzialità
-        if (idx > 0 && dataInizio && arr[idx-1].data_fine) {
-            const prevEnd = parseDate(arr[idx-1].data_fine);
-            if (prevEnd) {
-                const d1 = new Date(dataInizio);
-                const dPrev = new Date(prevEnd);
-                const diff = (d1 - dPrev) / (1000 * 60 * 60 * 24);
-                if (diff >= 0 && diff <= 1) sequentialCount++;
-                else sequentialCount = 0;
-            }
-        }
-
-        if (sequentialCount >= SUSPICIOUS_SEQUENCE_THRESHOLD) {
-             console.log(`⚠️ XLSX AI: Sequenza sospetta all'indice ${idx}. Reset date.`);
-             dataInizio = null;
-             dataFine = null;
-        }
+    const attivitaProcessed = llmResult.attivita.map((att, idx) => {
+        const dataInizio = parseDate(att.data_inizio);
+        const dataFine = parseDate(att.data_fine);
 
         let durataGiorniCalculated = att.durata_giorni;
         if (!durataGiorniCalculated && dataInizio && dataFine) {
@@ -767,32 +712,53 @@ Deno.serve(async (req) => {
          throw new Error("Impossibile determinare una data di inizio valida per il progetto.");
       }
 
-      // CALCOLO DATE ASSISTITO (CON LOGICA DI PARALLELISMO AGGRESSIVO)
-      // Se l'AI non ha trovato date (o le abbiamo invalidate perché sospette),
-      // raggruppiamo le attività in "blocchi" paralleli.
-      
-      let ultimaDataInizio = new Date(dataInizioBase);
-      
+      // CALCOLO DATE ASSISTITO (PIANIFICAZIONE SEQUENZIALE)
+      // Per le attività senza date, le pianifichiamo sequenzialmente
+      // dopo l'ultima attività con data nota (o dalla data base del progetto).
+
+      const formatData = (d) => d.toISOString().split('T')[0];
+      let cursoreData = new Date(dataInizioBase);
+
       attivita = attivita.map((att, idx) => {
-        // Se l'attività ha date valide, usale e aggiorna il cursore temporale
-        if (att.data_inizio) {
-           try { 
-               ultimaDataInizio = new Date(att.data_inizio); 
+        // Se l'attività ha entrambe le date valide, usale e sposta il cursore
+        if (att.data_inizio && att.data_fine) {
+           try {
+               const dataFineAtt = new Date(att.data_fine);
+               // Aggiorna il cursore al giorno lavorativo successivo alla fine
+               const giornoDopo = new Date(dataFineAtt);
+               giornoDopo.setDate(giornoDopo.getDate() + 1);
+               if (giornoDopo > cursoreData) cursoreData = giornoDopo;
            } catch(e){}
            return att;
         }
 
-        // SE NON HA DATE:
-        // Usa l'ultima data di inizio conosciuta (quindi inizia INSIEME all'attività precedente che aveva una data, o all'inizio del progetto)
-        // Questo crea un effetto "a grappolo": tutte le attività senza data iniziano allo stesso punto dell'ultima data nota.
-        
-        const dataInizio = new Date(ultimaDataInizio);
+        // Se ha solo data_inizio ma non data_fine, calcola la fine dalla durata
+        if (att.data_inizio && !att.data_fine) {
+          const dataInizioAtt = new Date(att.data_inizio);
+          const durata = att.durata_giorni || 1;
+          const dataFineAtt = new Date(dataInizioAtt);
+          dataFineAtt.setDate(dataFineAtt.getDate() + durata - 1);
+          const giornoDopo = new Date(dataFineAtt);
+          giornoDopo.setDate(giornoDopo.getDate() + 1);
+          if (giornoDopo > cursoreData) cursoreData = giornoDopo;
+          return {
+            ...att,
+            data_fine: formatData(dataFineAtt),
+            durata_giorni: durata
+          };
+        }
+
+        // SE NON HA DATE: pianifica sequenzialmente dal cursore corrente
+        const dataInizio = new Date(cursoreData);
         const durata = att.durata_giorni || 1;
         const dataFine = new Date(dataInizio);
-        dataFine.setDate(dataFine.getDate() + durata);
+        // Durata 1 = stessa data inizio/fine; durata N = inizio + (N-1) giorni
+        dataFine.setDate(dataFine.getDate() + durata - 1);
 
-        const formatData = (d) => d.toISOString().split('T')[0];
-        
+        // Avanza il cursore al giorno successivo alla fine di questa attività
+        cursoreData = new Date(dataFine);
+        cursoreData.setDate(cursoreData.getDate() + 1);
+
         return {
           ...att,
           data_inizio: formatData(dataInizio),
@@ -854,7 +820,7 @@ Deno.serve(async (req) => {
       attivita_importate: attivitaInserite.length,
       range_temporale: rangeTemporale,
       note_importazione: modalita === 'assistita'
-        ? `${note}\n\n⚠️ NOTA: Le date sono state calcolate automaticamente assumendo attività sequenziali. Puoi modificarle nel Gantt.`
+        ? `${note}\n\n⚠️ NOTA: Alcune attività non avevano date esplicite nel file. Le date sono state calcolate automaticamente in sequenza a partire dalla data di inizio progetto. Puoi modificarle nel Gantt.`
         : note,
       dettagli: {
         cantiere: cantiere.denominazione || cantiere.oggetto_lavori,

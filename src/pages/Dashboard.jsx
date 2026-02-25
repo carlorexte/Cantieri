@@ -13,9 +13,9 @@ import { createPageUrl } from "@/utils";
 
 // Components
 import KPICard from "@/components/dashboard/KPICard";
-import CashFlowChart from "@/components/dashboard/CashFlowChart";
-import CostBreakdownChart from "@/components/dashboard/CostBreakdownChart";
-import PerformanceMatrixChart from "@/components/dashboard/PerformanceMatrixChart";
+const CashFlowChart = React.lazy(() => import("@/components/dashboard/CashFlowChart"));
+const CostBreakdownChart = React.lazy(() => import("@/components/dashboard/CostBreakdownChart"));
+const PerformanceMatrixChart = React.lazy(() => import("@/components/dashboard/PerformanceMatrixChart"));
 import AlertCard from "@/components/dashboard/AlertCard";
 import AttivitaInterneCard from "@/components/dashboard/AttivitaInterneCard";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
@@ -26,24 +26,24 @@ export default function Dashboard() {
   const { currentUser } = useData();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState({
-  cantieri: [],
-  sal: [],
-  costi: [],
-  documenti: [],
-  attivitaInterne: [],
-  ordini: [], 
-  attivita: [],
-  imprese: [],
-  subappalti: []
+    cantieri: [],
+    sal: [],
+    costi: [],
+    documenti: [],
+    attivitaInterne: [],
+    ordini: [],
+    attivita: [],
+    imprese: [],
+    subappalti: []
   });
-  
+
   const [filters, setFilters] = useState({
     stato: "attivo",
     committente: "tutti",
     anno: "tutti",
     valoreMin: ""
   });
-  
+
   const [advancedFilteredCantieri, setAdvancedFilteredCantieri] = useState(null);
 
   const [widgets, setWidgets] = useState([
@@ -58,7 +58,7 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setIsLoading(true);
-    
+
     // Helper to fetch safe
     const fetchSafe = async (promise, fallback = []) => {
       try {
@@ -86,9 +86,9 @@ export default function Dashboard() {
       // Enrich cantieri with advanced calculation if needed
       const enrichedCantieri = cantieri.map(c => {
         const cantiereSals = sal.filter(s => s.cantiere_id === c.id);
-        const maxAvanzamento = cantiereSals.reduce((max, s) => 
+        const maxAvanzamento = cantiereSals.reduce((max, s) =>
           Math.max(max, s.percentuale_avanzamento || 0), 0);
-        
+
         return {
           ...c,
           avanzamento: maxAvanzamento
@@ -139,7 +139,7 @@ export default function Dashboard() {
 
     // Also filter related data based on filtered cantieri IDs
     const cantiereIds = new Set(filteredCantieri.map(c => c.id));
-    
+
     return {
       cantieri: filteredCantieri,
       sal: data.sal.filter(s => cantiereIds.has(s.cantiere_id)),
@@ -160,7 +160,7 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const activeCantieri = filteredData.cantieri.filter(c => c.stato === 'attivo');
     const totalValue = activeCantieri.reduce((sum, c) => sum + (c.importo_contratto || 0), 0);
-    
+
     const avgProgress = activeCantieri.length > 0
       ? activeCantieri.reduce((sum, c) => sum + (c.avanzamento || 0), 0) / activeCantieri.length
       : 0;
@@ -169,7 +169,7 @@ export default function Dashboard() {
     const today = new Date();
     const next30Days = new Date();
     next30Days.setDate(today.getDate() + 30);
-    
+
     const expiringDocs = filteredData.documenti.filter(d => {
       if (!d.data_scadenza) return false;
       const scadenza = new Date(d.data_scadenza);
@@ -187,125 +187,125 @@ export default function Dashboard() {
   // Alerts Generation
   const alerts = useMemo(() => {
     const list = [];
-    
+
     // Document alerts (DURC & Others)
     filteredData.documenti.forEach(d => {
-       if (d.data_scadenza && new Date(d.data_scadenza) < new Date()) {
-         let details = [];
-         let relatedCantiere = null;
-         let relatedEntityName = null;
-         let link = createPageUrl('Documenti');
+      if (d.data_scadenza && new Date(d.data_scadenza) < new Date()) {
+        let details = [];
+        let relatedCantiere = null;
+        let relatedEntityName = null;
+        let link = createPageUrl('Documenti');
 
-         if (d.entita_collegate) {
-             d.entita_collegate.forEach(linkRel => {
-                 if (linkRel.entita_tipo === 'cantiere') {
-                     const c = data.cantieri.find(x => x.id === linkRel.entita_id);
-                     if (c) {
-                         relatedCantiere = c;
-                         details.push(`Cantiere: ${c.denominazione}`);
-                         link = createPageUrl('CantiereDashboard') + `?id=${c.id}`; // Link to Cantiere dashboard documents
-                     }
-                 } else if (linkRel.entita_tipo === 'impresa' || linkRel.entita_tipo === 'azienda') {
-                     const i = data.imprese?.find(x => x.id === linkRel.entita_id);
-                     if (i) {
-                         relatedEntityName = i.ragione_sociale;
-                         details.push(`Azienda: ${i.ragione_sociale}`);
-                     }
-                 } else if (linkRel.entita_tipo === 'subappalto') {
-                     const s = data.subappalti?.find(x => x.id === linkRel.entita_id);
-                     if (s) {
-                         relatedEntityName = s.ragione_sociale;
-                         details.push(`Subappalto: ${s.ragione_sociale}`);
-                     }
-                 }
-             });
-         }
+        if (d.entita_collegate) {
+          d.entita_collegate.forEach(linkRel => {
+            if (linkRel.entita_tipo === 'cantiere') {
+              const c = data.cantieri.find(x => x.id === linkRel.entita_id);
+              if (c) {
+                relatedCantiere = c;
+                details.push(`Cantiere: ${c.denominazione}`);
+                link = createPageUrl('CantiereDashboard') + `?id=${c.id}`; // Link to Cantiere dashboard documents
+              }
+            } else if (linkRel.entita_tipo === 'impresa' || linkRel.entita_tipo === 'azienda') {
+              const i = data.imprese?.find(x => x.id === linkRel.entita_id);
+              if (i) {
+                relatedEntityName = i.ragione_sociale;
+                details.push(`Azienda: ${i.ragione_sociale}`);
+              }
+            } else if (linkRel.entita_tipo === 'subappalto') {
+              const s = data.subappalti?.find(x => x.id === linkRel.entita_id);
+              if (s) {
+                relatedEntityName = s.ragione_sociale;
+                details.push(`Subappalto: ${s.ragione_sociale}`);
+              }
+            }
+          });
+        }
 
-         list.push({
-           tipo: 'scadenza',
-           priorita: 'critico',
-           messaggio: `${d.nome_documento} - SCADUTO`,
-           cantiere: relatedEntityName || (relatedCantiere ? relatedCantiere.denominazione : 'Documento Generico'),
-           details: (details.length > 0 ? details.join('\n') + '\n\n' : '') + "Azione consigliata: Rinnova o archivia il documento.",
-           link: link,
-           id: d.id
-         });
-       }
+        list.push({
+          tipo: 'scadenza',
+          priorita: 'critico',
+          messaggio: `${d.nome_documento} - SCADUTO`,
+          cantiere: relatedEntityName || (relatedCantiere ? relatedCantiere.denominazione : 'Documento Generico'),
+          details: (details.length > 0 ? details.join('\n') + '\n\n' : '') + "Azione consigliata: Rinnova o archivia il documento.",
+          link: link,
+          id: d.id
+        });
+      }
     });
 
     // Cantiere delays
     filteredData.cantieri.forEach(c => {
-       if (c.stato === 'attivo' && c.data_fine_prevista && new Date(c.data_fine_prevista) < new Date() && (c.avanzamento || 0) < 100) {
-         list.push({
-           tipo: 'scadenza',
-           priorita: 'critico',
-           messaggio: `Cantiere in ritardo`,
-           cantiere: c.denominazione,
-           details: `Data fine prevista: ${new Date(c.data_fine_prevista).toLocaleDateString()}\nAvanzamento: ${c.avanzamento}%\n\nAzione consigliata: Verifica il cronoprogramma o aggiorna la data fine.`,
-           link: createPageUrl('CantiereDashboard') + `?id=${c.id}`
-         });
-       }
+      if (c.stato === 'attivo' && c.data_fine_prevista && new Date(c.data_fine_prevista) < new Date() && (c.avanzamento || 0) < 100) {
+        list.push({
+          tipo: 'scadenza',
+          priorita: 'critico',
+          messaggio: `Cantiere in ritardo`,
+          cantiere: c.denominazione,
+          details: `Data fine prevista: ${new Date(c.data_fine_prevista).toLocaleDateString()}\nAvanzamento: ${c.avanzamento}%\n\nAzione consigliata: Verifica il cronoprogramma o aggiorna la data fine.`,
+          link: createPageUrl('CantiereDashboard') + `?id=${c.id}`
+        });
+      }
     });
 
     // Activity Delays (AttivitaInterne)
     filteredData.attivitaInterne.forEach(a => {
-        if (a.stato !== 'completato' && a.data_scadenza && new Date(a.data_scadenza) < new Date()) {
-            list.push({
-                tipo: 'task_scadenza',
-                priorita: 'medio',
-                messaggio: `Attività interna scaduta: ${a.descrizione}`,
-                cantiere: 'Interno',
-                details: `Scaduta il: ${new Date(a.data_scadenza).toLocaleDateString()}\nAssegnata a: ${a.assegnatario_id}\n\nAzione consigliata: Completa l'attività o riprogramala.`,
-                link: createPageUrl('AttivitaInterne')
-            });
-        }
+      if (a.stato !== 'completato' && a.data_scadenza && new Date(a.data_scadenza) < new Date()) {
+        list.push({
+          tipo: 'task_scadenza',
+          priorita: 'medio',
+          messaggio: `Attività interna scaduta: ${a.descrizione}`,
+          cantiere: 'Interno',
+          details: `Scaduta il: ${new Date(a.data_scadenza).toLocaleDateString()}\nAssegnata a: ${a.assegnatario_id}\n\nAzione consigliata: Completa l'attività o riprogramala.`,
+          link: createPageUrl('AttivitaInterne')
+        });
+      }
     });
 
     // Order Alerts
     data.ordini.forEach(o => {
-        if (o.stato === 'in_attesa_approvazione') {
-             const daysOld = (new Date() - new Date(o.data_ordine)) / (1000 * 60 * 60 * 24);
-             if (daysOld > 3) {
-                 list.push({
-                     tipo: 'scadenza',
-                     priorita: 'medio',
-                     messaggio: `Ordine da approvare: ${o.numero_ordine}`,
-                     cantiere: 'Acquisti',
-                     details: `Data ordine: ${new Date(o.data_ordine).toLocaleDateString()}\nFornitore: ${o.fornitore_ragione_sociale}\n\nAzione consigliata: Procedi con l'approvazione o il rifiuto.`,
-                     link: createPageUrl('OrdiniMateriali')
-                 });
-             }
+      if (o.stato === 'in_attesa_approvazione') {
+        const daysOld = (new Date() - new Date(o.data_ordine)) / (1000 * 60 * 60 * 24);
+        if (daysOld > 3) {
+          list.push({
+            tipo: 'scadenza',
+            priorita: 'medio',
+            messaggio: `Ordine da approvare: ${o.numero_ordine}`,
+            cantiere: 'Acquisti',
+            details: `Data ordine: ${new Date(o.data_ordine).toLocaleDateString()}\nFornitore: ${o.fornitore_ragione_sociale}\n\nAzione consigliata: Procedi con l'approvazione o il rifiuto.`,
+            link: createPageUrl('OrdiniMateriali')
+          });
         }
+      }
     });
 
     // Project Activity Alerts (from Attivita entity)
     data.attivita.forEach(a => {
-        const cantiere = data.cantieri.find(c => c.id === a.cantiere_id);
-        const cantiereName = cantiere ? cantiere.denominazione : 'Cantiere';
-        
-        list.push({
-            tipo: 'task_scadenza',
-            priorita: 'critico',
-            messaggio: `Attività in ritardo: ${a.descrizione}`,
-            cantiere: cantiereName,
-            details: `Scadenza: ${new Date(a.data_fine).toLocaleDateString()}\nRitardo critico sul cronoprogramma.\n\nAzione consigliata: Verifica impatto sui successori.`,
-            link: cantiere ? createPageUrl('Cronoprogramma') + `?cantiereId=${cantiere.id}` : createPageUrl('Cronoprogramma')
-        });
+      const cantiere = data.cantieri.find(c => c.id === a.cantiere_id);
+      const cantiereName = cantiere ? cantiere.denominazione : 'Cantiere';
+
+      list.push({
+        tipo: 'task_scadenza',
+        priorita: 'critico',
+        messaggio: `Attività in ritardo: ${a.descrizione}`,
+        cantiere: cantiereName,
+        details: `Scadenza: ${new Date(a.data_fine).toLocaleDateString()}\nRitardo critico sul cronoprogramma.\n\nAzione consigliata: Verifica impatto sui successori.`,
+        link: cantiere ? createPageUrl('Cronoprogramma') + `?cantiereId=${cantiere.id}` : createPageUrl('Cronoprogramma')
+      });
     });
-    
+
     // SAL Alerts
     data.sal.forEach(s => {
-        if (s.stato_pagamento === 'da_fatturare') {
-             const cantiere = data.cantieri.find(c => c.id === s.cantiere_id);
-             list.push({
-                 tipo: 'scadenza',
-                 priorita: 'basso',
-                 messaggio: `SAL da fatturare: ${s.descrizione}`,
-                 cantiere: cantiere ? cantiere.denominazione : 'Contabilità',
-                 details: `Importo: € ${s.totale}\nData SAL: ${new Date(s.data_sal).toLocaleDateString()}\n\nAzione consigliata: Emetti fattura.`,
-                 link: createPageUrl('SAL')
-             });
-        }
+      if (s.stato_pagamento === 'da_fatturare') {
+        const cantiere = data.cantieri.find(c => c.id === s.cantiere_id);
+        list.push({
+          tipo: 'scadenza',
+          priorita: 'basso',
+          messaggio: `SAL da fatturare: ${s.descrizione}`,
+          cantiere: cantiere ? cantiere.denominazione : 'Contabilità',
+          details: `Importo: € ${s.totale}\nData SAL: ${new Date(s.data_sal).toLocaleDateString()}\n\nAzione consigliata: Emetti fattura.`,
+          link: createPageUrl('SAL')
+        });
+      }
     });
 
     return list.slice(0, 8); // Limit alerts
@@ -326,8 +326,8 @@ export default function Dashboard() {
             <p className="text-slate-500 mt-1">Panoramica generale dell'attività aziendale</p>
           </div>
           {currentUser?.role === 'admin' && (
-            <DashboardWidgetManager 
-              currentConfig={widgets} 
+            <DashboardWidgetManager
+              currentConfig={widgets}
               availableWidgets={[
                 { id: 'kpi', label: 'KPI Cards' },
                 { id: 'charts_row_1', label: 'Flusso Cassa & Costi' },
@@ -340,15 +340,15 @@ export default function Dashboard() {
 
         {/* Filters */}
         <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
-          <AdvancedSearch 
-             data={data.cantieri}
-             searchFields={searchFields}
-             onFilter={setAdvancedFilteredCantieri}
-             placeholder="Cerca cantieri per filtrare la dashboard (es. cig:84*)..."
+          <AdvancedSearch
+            data={data.cantieri}
+            searchFields={searchFields}
+            onFilter={setAdvancedFilteredCantieri}
+            placeholder="Cerca cantieri per filtrare la dashboard (es. cig:84*)..."
           />
-          <DashboardFilters 
-            filters={filters} 
-            onFiltersChange={setFilters} 
+          <DashboardFilters
+            filters={filters}
+            onFiltersChange={setFilters}
             onReset={() => setFilters({ stato: "tutti", committente: "tutti", anno: "tutti", valoreMin: "" })}
             committenti={uniqueCommittenti}
           />
@@ -359,33 +359,33 @@ export default function Dashboard() {
           {widgets.sort((a, b) => a.order - b.order).map(widget => {
             if (!widget.visible) return null;
 
-            switch(widget.id) {
+            switch (widget.id) {
               case 'kpi':
                 return (
                   <div key="kpi" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <KPICard 
-                      title="Cantieri Attivi" 
+                    <KPICard
+                      title="Cantieri Attivi"
                       value={stats.activeCount}
                       subtitle="In corso di esecuzione"
                       icon={Building2}
                       colorScheme="orange"
                     />
-                    <KPICard 
-                      title="Valore Portafoglio" 
+                    <KPICard
+                      title="Valore Portafoglio"
                       value={`€ ${(stats.totalValue / 1000000).toFixed(1)}M`}
                       subtitle="Totale contratti"
                       icon={Wallet}
                       colorScheme="emerald"
                     />
-                    <KPICard 
-                      title="Avanzamento Medio" 
+                    <KPICard
+                      title="Avanzamento Medio"
                       value={`${stats.avgProgress.toFixed(0)}%`}
                       subtitle="Media ponderata"
                       icon={TrendingUp}
                       colorScheme="cyan"
                     />
-                    <KPICard 
-                      title="Documenti in Scadenza" 
+                    <KPICard
+                      title="Documenti in Scadenza"
                       value={stats.expiringCount}
                       subtitle="Prossimi 30 giorni"
                       icon={AlertTriangle}
@@ -393,15 +393,19 @@ export default function Dashboard() {
                     />
                   </div>
                 );
-              
+
               case 'charts_row_1':
                 return (
                   <div key="charts_row_1" className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
                     <div className="lg:col-span-2 h-full">
-                      <CashFlowChart salData={filteredData.sal} costiData={filteredData.costi} />
+                      <React.Suspense fallback={<div className="flex items-center justify-center h-full text-slate-500">Caricamento grafico...</div>}>
+                        <CashFlowChart salData={filteredData.sal} costiData={filteredData.costi} />
+                      </React.Suspense>
                     </div>
                     <div className="h-full">
-                      <CostBreakdownChart costiData={filteredData.costi} />
+                      <React.Suspense fallback={<div className="flex items-center justify-center h-full text-slate-500">Caricamento grafico...</div>}>
+                        <CostBreakdownChart costiData={filteredData.costi} />
+                      </React.Suspense>
                     </div>
                   </div>
                 );
@@ -410,19 +414,21 @@ export default function Dashboard() {
                 return (
                   <div key="charts_row_2" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 h-[450px]">
-                      <PerformanceMatrixChart cantieri={filteredData.cantieri} />
+                      <React.Suspense fallback={<div className="flex items-center justify-center h-full text-slate-500">Caricamento grafico...</div>}>
+                        <PerformanceMatrixChart cantieri={filteredData.cantieri} />
+                      </React.Suspense>
                     </div>
                     <div className="space-y-6">
                       <AlertCard alerts={alerts} />
-                      <AttivitaInterneCard 
-                        attivita={filteredData.attivitaInterne} 
+                      <AttivitaInterneCard
+                        attivita={filteredData.attivitaInterne}
                         cantieri={filteredData.cantieri}
                         isLoading={isLoading}
                       />
                     </div>
                   </div>
                 );
-                
+
               default:
                 return null;
             }

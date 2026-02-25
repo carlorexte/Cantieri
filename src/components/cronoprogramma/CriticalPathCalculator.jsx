@@ -79,8 +79,8 @@ export function calcolaCriticalPath(attivita) {
 
         if (newEarliestStart && (!att.earliest_start || newEarliestStart.getTime() !== att.earliest_start.getTime())) {
           att.earliest_start = newEarliestStart;
-          att.earliest_finish = att.tipo_attivita === 'milestone' 
-            ? newEarliestStart 
+          att.earliest_finish = att.tipo_attivita === 'milestone'
+            ? newEarliestStart
             : addDays(newEarliestStart, (att.durata_giorni || 1) - 1);
           changed = true;
         }
@@ -103,7 +103,7 @@ export function calcolaCriticalPath(attivita) {
   const calcolaBackwardPass = (projectEnd) => {
     // Inizializza le attività che non hanno successori
     attivitaMap.forEach(att => {
-      const haSuccessori = Array.from(attivitaMap.values()).some(other => 
+      const haSuccessori = Array.from(attivitaMap.values()).some(other =>
         other.predecessori && other.predecessori.some(p => p.attivita_id === att.id)
       );
 
@@ -192,7 +192,7 @@ export function calcolaCriticalPath(attivita) {
   // Esegui i calcoli
   calcolaForwardPass();
   const projectEnd = trovaDataFineProgetto();
-  
+
   if (!projectEnd) {
     return { attivitaCritiche: [], attivitaAggiornate: Array.from(attivitaMap.values()) };
   }
@@ -263,14 +263,16 @@ export function ricalcolaDateDipendenti(attivitaModificata, tutteLeAttivita) {
         case 'SS':
           calcData = addDays(parseISO(predAtt.data_inizio), lagGiorni);
           break;
-        case 'FF':
+        case 'FF': {
           const targetFinish = addDays(parseISO(predAtt.data_fine), lagGiorni);
           calcData = addDays(targetFinish, -(att.durata_giorni || 1) + 1);
           break;
-        case 'SF':
+        }
+        case 'SF': {
           const targetFinish2 = addDays(parseISO(predAtt.data_inizio), lagGiorni);
           calcData = addDays(targetFinish2, -(att.durata_giorni || 1) + 1);
           break;
+        }
       }
 
       if (calcData && (!nuovaDataInizio || calcData > nuovaDataInizio)) {

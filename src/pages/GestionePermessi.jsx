@@ -57,7 +57,7 @@ export default function GestionePermessiPage() {
           action: 'delete_role',
           data: { roleId: ruoloId }
         });
-        
+
         if (res.data?.error) throw new Error(res.data.error);
 
         toast.success("Ruolo eliminato con successo");
@@ -73,9 +73,9 @@ export default function GestionePermessiPage() {
     try {
       const res = await base44.functions.invoke('managePermissions', {
         action: 'assign_role',
-        data: { userId, roleId }
+        data: { userId, roleId: ruoloId }
       });
-      
+
       if (res.data?.error) throw new Error(res.data.error);
 
       toast.success("Ruolo assegnato con successo");

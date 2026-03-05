@@ -778,6 +778,11 @@ Deno.serve(async (req) => {
 
     console.log(`✓ File: ${fileBuffer.byteLength} bytes, .${fileExtension}`);
 
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (fileBuffer.byteLength > MAX_FILE_SIZE) {
+        return Response.json({ success: false, error: `File troppo grande (${(fileBuffer.byteLength / 1024 / 1024).toFixed(2)}MB). Limite: 10MB.` }, { status: 413 });
+    }
+
     if (!['xlsx', 'xls', 'pdf', 'jpg', 'jpeg', 'png'].includes(fileExtension)) {
       return Response.json({ success: false, error: 'Tipo file non supportato. Usa PDF, Excel o Immagini.' }, { status: 400 });
     }

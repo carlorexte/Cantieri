@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Calendar, Plus, Search, ChevronDown, ChevronRight as ChevronRightIcon, DollarSign, Layers } from "lucide-react";
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getDaysInMonth, getWeek } from "date-fns";
+import { ChevronDown, ChevronRight as ChevronRightIcon, Plus, Layers } from "lucide-react";
+import { format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getWeek } from "date-fns";
 import { it } from "date-fns/locale";
 
 // Costanti di stile
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 60;
-const DAY_WIDTH = 40;
 const SIDEBAR_WIDTH = 500; // Larghezza pannello sinistro
 
 export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, onEditAttivita }) {
@@ -27,6 +24,11 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
       case 'day': default: return { colWidth: 40, daysPerCol: 1 };
     }
   }, [viewMode]);
+
+  const isGroupExpanded = (nodeId, level) => {
+    if (expandedGroups[nodeId] !== undefined) return expandedGroups[nodeId];
+    return level < 2;
+  };
 
   // Elaborazione dati gerarchici (WBS)
   const processedData = useMemo(() => {
@@ -66,29 +68,9 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
       node.level = level;
       node.wbs = prefix;
       
-      // Calcolo aggregato per i raggruppamenti (date e importi)
-      if (node.tipo_attivita === 'raggruppamento' && node.children.length > 0) {
-        // Le date del raggruppamento sono min(start) e max(end) dei figli
-        // L'importo è la somma
-        let minStart = null;
-        let maxEnd = null;
-        let sumAmount = 0;
-        
-        // Prima processa i figli per avere i loro dati aggiornati (post-order traversal parziale per date?)
-        // In realtà per il WBS serve pre-order, ma per i totali serve post-order.
-        // Facciamo che ci fidiamo dei dati dei figli se processati, ma qui stiamo scendendo.
-        // Risolviamo calcolando i totali DOPO aver processato i figli in una seconda passata o...
-        // Semplifichiamo: raggruppamento prende i dati dai figli diretti e indiretti.
-      }
-
       flatList.push(node);
-      
-      // Espandi di default i primi livelli
-      if (expandedGroups[node.id] === undefined && level < 2) {
-         setExpandedGroups(prev => ({...prev, [node.id]: true}));
-      }
 
-      if (expandedGroups[node.id] !== false) { // Se espanso (undefined = true per logica sopra, ma gestiamo meglio dopo)
+      if (isGroupExpanded(node.id, level)) {
         node.children.sort((a, b) => (a._startDate || 0) - (b._startDate || 0)); // Ordina per data
         node.children.forEach((child, index) => {
            traverse(child, level + 1, `${prefix}.${index + 1}`);
@@ -183,10 +165,13 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
   };
 
   const toggleGroup = (id) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+    setExpandedGroups(prev => {
+      const current = prev[id];
+      return {
+        ...prev,
+        [id]: current === undefined ? false : !current
+      };
+    });
   };
 
   // Funzione per calcolare posizione barra
@@ -246,6 +231,23 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
       type: sal.tipo_sal_dettaglio
     })).filter(s => isValid(s.date) && isWithinInterval(s.date, {start: timeRange.start, end: timeRange.end}));
   }, [sals, timeRange]);
+
+  useEffect(() => {
+    const handleScrollToday = () => {
+      if (!scrollContainerRef.current || !timeRange.start || !timeRange.end) return;
+      const today = new Date();
+      if (!isWithinInterval(today, { start: timeRange.start, end: timeRange.end })) return;
+
+      const pxPerDay = config.colWidth / config.daysPerCol;
+      const offset = differenceInDays(today, timeRange.start) * pxPerDay + (pxPerDay / 2);
+      const containerWidth = scrollContainerRef.current.clientWidth;
+      const target = Math.max(0, offset - (containerWidth / 2));
+      scrollContainerRef.current.scrollLeft = target;
+    };
+
+    window.addEventListener('gantt-scroll-today', handleScrollToday);
+    return () => window.removeEventListener('gantt-scroll-today', handleScrollToday);
+  }, [timeRange, config]);
 
 
   return (
@@ -365,6 +367,7 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
         <div 
             className="flex-1 overflow-auto bg-white" 
             ref={scrollContainerRef}
+            data-gantt-grid
             onScroll={handleScroll}
         >
             <div style={{ width: timeColumns.length * config.colWidth }}>

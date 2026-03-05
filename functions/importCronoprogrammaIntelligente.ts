@@ -91,7 +91,7 @@ function parseDate(value) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       const [year, month, day] = trimmed.split('-').map(Number);
       // Validazione: anno ragionevole
-      if (year < 2020 || year > 2035) {
+      if (year < 1990 || year > 2100) {
         console.warn(`⚠️ Anno sospetto in formato ISO: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -111,7 +111,7 @@ function parseDate(value) {
       }
 
       // Validazione anno
-      if (year < 2020 || year > 2035) {
+      if (year < 1990 || year > 2100) {
         console.warn(`⚠️ Anno sospetto: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -149,7 +149,7 @@ function parseDate(value) {
     if (yyyymmdd) {
       const [, year, month, day] = yyyymmdd;
       
-      if (parseInt(year) < 2020 || parseInt(year) > 2035) {
+      if (parseInt(year) < 1990 || parseInt(year) > 2100) {
         console.warn(`⚠️ Anno sospetto in formato YYYY: ${year} per valore "${trimmed}"`);
         return null;
       }
@@ -188,6 +188,72 @@ function estraiDurataGiorni(durataString) {
   }
 
   return null;
+}
+
+function aggiungiGiorni(dataIso, giorni) {
+  const d = new Date(dataIso);
+  if (isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + giorni);
+  return d.toISOString().split('T')[0];
+}
+
+function normalizzaHeader(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function normalizzaValoreTesto(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseImporto(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number' && !isNaN(value)) return value;
+
+  const cleaned = String(value)
+    .replace(/[€\s]/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function trovaIndiceColonna(headers, aliases) {
+  for (const alias of aliases) {
+    const idx = headers.findIndex((h) => h.includes(alias));
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+function trovaRigaHeader(sheetRows) {
+  const maxRows = Math.min(sheetRows.length, 20);
+  let bestIndex = 0;
+  let bestScore = -1;
+
+  const keywords = ['descr', 'attivit', 'lavor', 'inizio', 'fine', 'start', 'end', 'durata', 'giorni'];
+  for (let i = 0; i < maxRows; i++) {
+    const row = sheetRows[i] || [];
+    const normalizedCells = row.map((cell) => normalizzaHeader(cell));
+    const score = normalizedCells.reduce((acc, cell) => {
+      if (!cell) return acc;
+      return acc + (keywords.some((k) => cell.includes(k)) ? 1 : 0);
+    }, 0);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+
+  return bestIndex;
 }
 
 // ============================================================================
@@ -433,12 +499,10 @@ ${text}
 }
 
 async function parseXLSX(fileBuffer, cantiereId, base44) {
-  console.log("📊 Inizio parsing file XLSX con AI...");
+  console.log("📊 Inizio parsing file XLSX (strutturato + fallback AI)...");
 
   try {
     console.log("📖 Lettura file Excel...");
-
-    // IMPORTANTE: Convertiamo ArrayBuffer in Uint8Array per XLSX
     const uint8Array = new Uint8Array(fileBuffer);
     const workbook = XLSX.read(uint8Array, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
 
@@ -451,26 +515,107 @@ async function parseXLSX(fileBuffer, cantiereId, base44) {
 
     console.log(`✓ Foglio "${firstSheetName}" caricato`);
 
-    console.log("🔄 Conversione foglio in JSON strutturato...");
-    // Usiamo sheet_to_json con dateNF per mantenere le date in formato YYYY-MM-DD
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
+    const sheetRows = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      raw: true,
+      defval: null,
+      blankrows: false
+    });
+
+    if (!sheetRows.length) {
+      throw new Error("Il foglio Excel è vuoto.");
+    }
+
+    const headerRowIndex = trovaRigaHeader(sheetRows);
+    const headerRaw = (sheetRows[headerRowIndex] || []).map((cell) => normalizzaValoreTesto(cell));
+    const headerNorm = headerRaw.map((h) => normalizzaHeader(h));
+
+    const colDescrizione = trovaIndiceColonna(headerNorm, ['descrizion', 'attivita', 'lavorazione', 'lavori', 'voce', 'nome']);
+    const colInizio = trovaIndiceColonna(headerNorm, ['data inizio', 'inizio', 'start', 'dal']);
+    const colFine = trovaIndiceColonna(headerNorm, ['data fine', 'fine', 'end', 'al']);
+    const colDurata = trovaIndiceColonna(headerNorm, ['durata', 'giorni', 'gg', 'days']);
+    const colFase = trovaIndiceColonna(headerNorm, ['fase', 'gruppo', 'categoria', 'wbs']);
+    const colImporto = trovaIndiceColonna(headerNorm, ['importo', 'totale', 'euro', 'costo', 'valore', 'budget']);
+
+    console.log("🧭 Mapping colonne rilevato:", {
+      colDescrizione,
+      colInizio,
+      colFine,
+      colDurata,
+      colFase,
+      colImporto
+    });
+
+    const structuredAttivita = [];
+    let structuredConDate = 0;
+
+    for (let i = headerRowIndex + 1; i < sheetRows.length; i++) {
+      const row = sheetRows[i] || [];
+      if (!row || row.every((cell) => cell === null || String(cell).trim() === '')) continue;
+
+      const descrizioneRaw = colDescrizione >= 0 ? row[colDescrizione] : row[0];
+      const descrizione = normalizzaValoreTesto(descrizioneRaw);
+      if (!descrizione || descrizione.length < 3 || /^\d+([.,]\d+)?$/.test(descrizione)) continue;
+
+      const inizioRaw = colInizio >= 0 ? row[colInizio] : null;
+      const fineRaw = colFine >= 0 ? row[colFine] : null;
+      const durataRaw = colDurata >= 0 ? row[colDurata] : null;
+      const faseRaw = colFase >= 0 ? row[colFase] : null;
+      const importoRaw = colImporto >= 0 ? row[colImporto] : null;
+
+      let dataInizio = parseDate(inizioRaw);
+      let dataFine = parseDate(fineRaw);
+      let durata = typeof durataRaw === 'number' ? durataRaw : estraiDurataGiorni(durataRaw);
+      if (!durata) durata = estraiDurataGiorni(descrizione);
+
+      if (!durata && dataInizio && dataFine) {
+        durata = calcolaDurataGiorni(dataInizio, dataFine);
+      }
+      if (!durata || durata < 1) durata = 1;
+
+      if (dataInizio && !dataFine) {
+        dataFine = aggiungiGiorni(dataInizio, durata - 1);
+      } else if (!dataInizio && dataFine) {
+        dataInizio = aggiungiGiorni(dataFine, -(durata - 1));
+      }
+
+      if (dataInizio || dataFine) structuredConDate++;
+
+      structuredAttivita.push({
+        descrizione: formatTextoProfessionale(descrizione),
+        gruppo_fase: faseRaw ? formatTextoProfessionale(normalizzaValoreTesto(faseRaw)) : null,
+        data_inizio: dataInizio,
+        data_fine: dataFine,
+        durata_giorni: Math.max(1, Math.round(durata)),
+        importo_previsto: parseImporto(importoRaw)
+      });
+    }
+
+    const dateCoverage = structuredAttivita.length > 0
+      ? structuredConDate / structuredAttivita.length
+      : 0;
+
+    if (structuredAttivita.length >= 3 || (structuredAttivita.length > 0 && dateCoverage >= 0.4)) {
+      console.log(`✅ Parser strutturato completato: ${structuredAttivita.length} attività, copertura date ${(dateCoverage * 100).toFixed(0)}%`);
+      return {
+        attivita: structuredAttivita,
+        note: `Parsing Excel strutturato completato (${structuredAttivita.length} attività).`
+      };
+    }
+
+    console.log("⚠️ Parsing strutturato non affidabile, attivo fallback AI...");
+
+    const rowsForAI = XLSX.utils.sheet_to_json(worksheet, {
       raw: false,
       dateNF: 'yyyy-mm-dd',
       defval: ''
     });
-    // Fallback su CSV se sheet_to_json non produce righe
-    const csvFallback = rows.length === 0 ? XLSX.utils.sheet_to_csv(worksheet) : '';
-    const datiStrutturati = rows.length > 0
-      ? JSON.stringify(rows.slice(0, 200), null, 2)  // Limite a 200 righe per evitare prompt troppo lunghi
+
+    const csvFallback = rowsForAI.length === 0 ? XLSX.utils.sheet_to_csv(worksheet) : '';
+    const datiStrutturati = rowsForAI.length > 0
+      ? JSON.stringify(rowsForAI.slice(0, 200), null, 2)
       : csvFallback;
-    const formatoInput = rows.length > 0 ? 'JSON (righe strutturate)' : 'CSV (fallback)';
-
-    console.log(`✓ Dati estratti in formato ${formatoInput}: ${rows.length} righe`);
-    if (rows.length > 0) {
-      console.log("📝 Prime 2 righe:", JSON.stringify(rows.slice(0, 2), null, 2));
-    }
-
-    console.log("\n🧠 Chiamata a InvokeLLM per interpretare i dati Excel...");
+    const formatoInput = rowsForAI.length > 0 ? 'JSON (righe strutturate)' : 'CSV (fallback)';
 
     const llmPrompt = `
 Analizza i seguenti dati estratti da un file Excel (formato ${formatoInput}).
@@ -478,26 +623,23 @@ OBIETTIVO: Estrarre attività con DATE REALI di inizio e fine.
 
 ISTRUZIONI CRITICHE:
 1. CERCA COLONNE DATE: Identifica colonne con date (es. "Inizio", "Fine", "Start", "End", "Data inizio", "Data fine").
-   Le date potrebbero già essere in formato YYYY-MM-DD oppure testo.
 2. CERCA COLONNE DURATA: "Durata", "Durata gg", "Giorni", "Days".
-3. RIPORTA DATE ESATTE: Non inventare sequenze. Se più attività hanno la stessa data di inizio, riportala uguale per tutte.
-4. FORMATO OUTPUT DATE: Converti SEMPRE le date in formato YYYY-MM-DD (es. 02/02/2026 → 2026-02-02, "2.2.26" → 2026-02-02).
-5. FASI vs ATTIVITÀ: Righe in maiuscolo o con indentazione maggiore sono spesso fasi (livello 0), le altre sono attività (livello 1).
-6. Se una riga non ha descrizione significativa (es. riga vuota o solo numeri), IGNORALA.
+3. RIPORTA DATE ESATTE: non creare sequenze artificiali, mantieni le date uguali quando presenti.
+4. FORMATO OUTPUT DATE: YYYY-MM-DD.
+5. Ignora righe vuote o non descrittive.
 
 Output JSON:
 {
   "attivita": [
     {
       "descrizione": "string",
-      "durata_giorni": number (null se non trovata),
-      "gruppo_fase": "string (fase/categoria di appartenenza, o null)",
-      "data_inizio": "YYYY-MM-DD (null se non trovata)",
-      "data_fine": "YYYY-MM-DD (null se non trovata)",
-      "livello": number (0=Fase/Raggruppamento, 1=Attività)
+      "durata_giorni": number,
+      "gruppo_fase": "string o null",
+      "data_inizio": "YYYY-MM-DD o null",
+      "data_fine": "YYYY-MM-DD o null"
     }
   ],
-  "note_ai": "Descrivi quali colonne hai trovato per date, durata, descrizione."
+  "note_ai": "Descrivi quali colonne hai trovato."
 }
 
 DATI EXCEL:
@@ -519,8 +661,8 @@ ${datiStrutturati}
                             descrizione: { type: "string" },
                             durata_giorni: { type: "number", nullable: true },
                             gruppo_fase: { type: "string", nullable: true },
-                            data_inizio: { type: "string" },
-                            data_fine: { type: "string" }
+                            data_inizio: { type: "string", nullable: true },
+                            data_fine: { type: "string", nullable: true }
                         },
                         required: ["descrizione"]
                     }
@@ -531,23 +673,9 @@ ${datiStrutturati}
         }
     });
 
-    console.log(`✓ InvokeLLM ha risposto!`);
-    console.log(`  - Attività suggerite dall'AI: ${llmResult.attivita.length}`);
-    console.log(`  - Note AI: ${llmResult.note_ai || 'Nessuna'}`);
+    console.log(`✓ InvokeLLM ha risposto con ${llmResult.attivita.length} attività.`);
 
-    // Log delle prime 5 attività raw dall'AI
-    console.log("\n📋 Prime 5 attività dall'AI (raw):");
-    llmResult.attivita.slice(0, 5).forEach((att, idx) => {
-      console.log(`  ${idx + 1}. "${att.descrizione}"`);
-      console.log(`     - Gruppo: ${att.gruppo_fase || 'N/A'}`);
-      console.log(`     - Durata: ${att.durata_giorni || 'N/A'} giorni`);
-      console.log(`     - Inizio: ${att.data_inizio || 'N/A'}`);
-      console.log(`     - Fine: ${att.data_fine || 'N/A'}`);
-    });
-
-    console.log("\n🔄 Validazione e parsing date/durate...");
-
-    const attivitaProcessed = llmResult.attivita.map((att, idx) => {
+    const attivitaProcessed = llmResult.attivita.map((att) => {
         const dataInizio = parseDate(att.data_inizio);
         const dataFine = parseDate(att.data_fine);
 
@@ -555,19 +683,10 @@ ${datiStrutturati}
         if (!durataGiorniCalculated && dataInizio && dataFine) {
           durataGiorniCalculated = calcolaDurataGiorni(dataInizio, dataFine);
         } else if (!durataGiorniCalculated) {
-          durataGiorniCalculated = 1; // Default duration
+          durataGiorniCalculated = 1;
         }
-        // Ensure duration is at least 1
         durataGiorniCalculated = Math.max(1, durataGiorniCalculated);
 
-
-        if (!dataInizio || !dataFine) {
-          console.log(`  ⚠️ Attenzione: Date mancanti per attività "${att.descrizione}"`);
-          console.log(`     - data_inizio raw: "${att.data_inizio}" → parsed: ${dataInizio || 'FALLITO'}`);
-          console.log(`     - data_fine raw: "${att.data_fine}" → parsed: ${dataFine || 'FALLITO'}`);
-        }
-
-        // FORMATTAZIONE PROFESSIONALE
         const descrizioneFormattata = formatTextoProfessionale(att.descrizione);
         const gruppoFaseFormattato = att.gruppo_fase ? formatTextoProfessionale(att.gruppo_fase) : null;
 
@@ -578,9 +697,9 @@ ${datiStrutturati}
             data_fine: dataFine,
             durata_giorni: durataGiorniCalculated
         };
-    }).filter((att) => att.descrizione && att.durata_giorni > 0); // Filter for description and valid duration
+    }).filter((att) => att.descrizione && att.durata_giorni > 0);
 
-    console.log(`✓ ${attivitaProcessed.length} attività valide dopo validazione`);
+    console.log(`✓ ${attivitaProcessed.length} attività valide dopo fallback AI`);
 
     if (attivitaProcessed.length === 0) {
       console.error("❌ Nessuna attività valida trovata!");
@@ -591,21 +710,14 @@ ${datiStrutturati}
       throw new Error("L'AI non è riuscita a estrarre attività valide. Verifica il file.");
     }
 
-    // Log delle prime 3 attività valide
-    console.log("\n✅ Prime 3 attività valide:");
-    attivitaProcessed.slice(0, 3).forEach((att, idx) => {
-      console.log(`  ${idx + 1}. "${att.descrizione}"`);
-      console.log(`     - Inizio: ${att.data_inizio}, Fine: ${att.data_fine}, Durata: ${att.durata_giorni} giorni`);
-    });
-
     return {
         attivita: attivitaProcessed,
-        note: llmResult.note_ai || "Parsing completato con AI."
+        note: llmResult.note_ai || "Parsing Excel completato con fallback AI."
     };
 
   } catch (error) {
     console.error("❌ Errore parsing XLSX:", error);
-    throw new Error(`Errore parsing XLSX con AI: ${error.message}`);
+    throw new Error(`Errore parsing XLSX: ${error.message}`);
   }
 }
 
@@ -778,23 +890,82 @@ Deno.serve(async (req) => {
     console.log("\n📅 Step 7: Range temporale complessivo...");
     const dateInizio = attivita.map(a => a.data_inizio).filter(Boolean).sort();
     const dateFine = attivita.map(a => a.data_fine).filter(Boolean).sort();
+    const todayIso = new Date().toISOString().split('T')[0];
 
     const rangeTemporale = {
-      data_inizio: dateInizio[0],
-      data_fine: dateFine[dateFine.length - 1]
+      data_inizio: dateInizio[0] || todayIso,
+      data_fine: dateFine[dateFine.length - 1] || dateInizio[0] || todayIso
     };
 
     console.log(`✓ Range: ${rangeTemporale.data_inizio} → ${rangeTemporale.data_fine}`);
 
     console.log("\n💾 Step 8: Preparazione dati per il database...");
+
+    const gruppiMap = new Map();
+    for (const att of attivita) {
+      const gruppo = (att.gruppo_fase || '').trim();
+      if (!gruppo) continue;
+      if (!gruppiMap.has(gruppo)) {
+        gruppiMap.set(gruppo, {
+          descrizione: gruppo,
+          data_inizio: att.data_inizio,
+          data_fine: att.data_fine
+        });
+      } else {
+        const curr = gruppiMap.get(gruppo);
+        if (att.data_inizio && (!curr.data_inizio || att.data_inizio < curr.data_inizio)) {
+          curr.data_inizio = att.data_inizio;
+        }
+        if (att.data_fine && (!curr.data_fine || att.data_fine > curr.data_fine)) {
+          curr.data_fine = att.data_fine;
+        }
+      }
+    }
+
+    const gruppiDaInserire = Array.from(gruppiMap.values()).map((gruppo) => {
+      const dataInizio = gruppo.data_inizio || rangeTemporale.data_inizio;
+      const dataFine = gruppo.data_fine || dataInizio;
+      return {
+        cantiere_id: cantiere_id,
+        gruppo_fase: '',
+        descrizione: gruppo.descrizione,
+        tipo_attivita: 'raggruppamento',
+        parent_id: null,
+        data_inizio: dataInizio,
+        data_fine: dataFine,
+        durata_giorni: calcolaDurataGiorni(dataInizio, dataFine) || 1,
+        percentuale_completamento: 0,
+        importo_previsto: 0,
+        colore: '#1e293b',
+        categoria: 'altro',
+        predecessori: [],
+        responsabile: '',
+        note: 'Creato automaticamente da importazione',
+        stato: 'pianificata'
+      };
+    });
+
+    let gruppiInseriti = [];
+    if (gruppiDaInserire.length > 0) {
+      gruppiInseriti = await base44.asServiceRole.entities.Attivita.bulkCreate(gruppiDaInserire);
+    }
+
+    const gruppoIdByDescrizione = gruppiInseriti.reduce((acc, gruppo) => {
+      acc[gruppo.descrizione] = gruppo.id;
+      return acc;
+    }, {});
+
     const attivitaDaInserire = attivita.map((att) => ({
       cantiere_id: cantiere_id,
       gruppo_fase: att.gruppo_fase || '',
       descrizione: att.descrizione,
+      tipo_attivita: att.livello === 0 ? 'raggruppamento' : 'task',
+      parent_id: att.gruppo_fase ? (gruppoIdByDescrizione[att.gruppo_fase] || null) : null,
       data_inizio: att.data_inizio,
       data_fine: att.data_fine,
       durata_giorni: att.durata_giorni,
       percentuale_completamento: 0,
+      importo_previsto: att.importo_previsto || 0,
       colore: '#3b82f6',
       categoria: 'altro',
       predecessori: [],
@@ -803,12 +974,13 @@ Deno.serve(async (req) => {
       stato: 'pianificata'
     }));
 
-    console.log(`✓ ${attivitaDaInserire.length} attività pronte`);
+    console.log(`✓ ${attivitaDaInserire.length} attività pronte (+${gruppiDaInserire.length} gruppi WBS)`);
 
     console.log("\n💾 Step 9: Salvataggio database...");
     const attivitaInserite = await base44.asServiceRole.entities.Attivita.bulkCreate(attivitaDaInserire);
+    const totaleInserite = attivitaInserite.length + gruppiInseriti.length;
 
-    console.log(`✓ ${attivitaInserite.length} attività salvate`);
+    console.log(`✓ ${totaleInserite} record salvati (${attivitaInserite.length} attività, ${gruppiInseriti.length} gruppi)`);
 
     console.log("\n✅ =================================================");
     console.log("✅ IMPORTAZIONE COMPLETATA CON SUCCESSO");
@@ -825,8 +997,9 @@ Deno.serve(async (req) => {
       dettagli: {
         cantiere: cantiere.denominazione || cantiere.oggetto_lavori,
         file_tipo: fileExtension,
-        metodo_parsing: modalita === 'assistita' ? 'AI Assistita (calcolo date automatico)' : 'AI Standard',
-        modalita: modalita
+        metodo_parsing: modalita === 'assistita' ? 'Assistita (calcolo date automatico)' : 'Standard',
+        modalita: modalita,
+        gruppi_wbs_creati: gruppiInseriti.length
       }
     });
 

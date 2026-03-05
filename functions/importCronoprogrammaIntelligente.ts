@@ -7,7 +7,7 @@
  * @platform Base44 + Deno
  */
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import * as XLSX from "npm:xlsx@0.18.5";
 import pdfParse from "npm:pdf-parse@1.1.1";
 
@@ -357,12 +357,15 @@ async function parsePDF(fileBuffer, cantiereId, base44) {
 
     console.log(`✓ Testo estratto (${text.length} caratteri)`);
     console.log("📝 Prime 500 caratteri:", text.substring(0, 500));
-    console.log("\n📄 TESTO COMPLETO DEL PDF:");
-    console.log("=".repeat(80));
-    console.log(text);
-    console.log("=".repeat(80));
+    // RIMOSSO LOG TESTO COMPLETO PER EVITARE OVERFLOW LOGS
 
     console.log("\n🧠 Chiamata a InvokeLLM per interpretare il PDF (estrazione attività, durate e date se presenti)...");
+
+    // TRONCAMENTO TESTO PER EVITARE LIMITI TOKEN/PAYLOAD
+    const MAX_TEXT_LENGTH = 15000;
+    const truncatedText = text.length > MAX_TEXT_LENGTH 
+        ? text.substring(0, MAX_TEXT_LENGTH) + "\n...[TESTO TRONCATO PER LIMITI AI]..." 
+        : text;
 
     const llmPrompt = `
 Analizza il testo estratto da un cronoprogramma lavori (probabilmente una tabella con colonne allineate).
@@ -397,9 +400,9 @@ FORMATO OUTPUT (OBBLIGATORIO - usa SEMPRE YYYY-MM-DD per le date):
   "note_ai": "Quali colonne hai trovato? Come hai interpretato le date?"
 }
 
-Testo PDF estratto:
+Testo PDF estratto (primi ${MAX_TEXT_LENGTH} caratteri):
 """
-${text}
+${truncatedText}
 """
 `;
 

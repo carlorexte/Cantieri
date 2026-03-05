@@ -3,7 +3,7 @@
  * Supporta file XLSX e PDF con layout variabili
  *
  * @author Base44 Backend Function
- * @version 2.0.0 - AI POWERED
+ * @version 2.1.0 - AI POWERED (Optimized)
  * @platform Base44 + Deno
  */
 

@@ -7,7 +7,33 @@ import { base44 } from '@/api/base44Client';
 import { usePermissions } from '@/components/shared/PermissionGuard';
 import { format } from 'date-fns';
 
+import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
+import { useState } from "react";
+import { Loader2, Database } from "lucide-react";
+
 export default function AdminDataPage() {
+    const [generating, setGenerating] = useState(false);
+
+    const handleGenerateData = async () => {
+        if (!confirm("Sei sicuro? Questo genererà molti dati di test nel database.")) return;
+        
+        setGenerating(true);
+        try {
+            const res = await base44.functions.invoke("generateFullTestData", {});
+            if (res.data.success) {
+                toast.success(res.data.message);
+            } else {
+                toast.error("Errore generazione: " + res.data.error);
+            }
+        } catch (e) {
+            toast.error("Errore invocazione funzione: " + e.message);
+        } finally {
+            setGenerating(false);
+        }
+    };
+
     const { isAdmin } = usePermissions();
     const [isLoadingBackup, setIsLoadingBackup] = useState(false);
     const [isLoadingRestore, setIsLoadingRestore] = useState(false);

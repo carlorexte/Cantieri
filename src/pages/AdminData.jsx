@@ -6,15 +6,15 @@ import { Loader2, Download, Upload, Database, AlertTriangle, CheckCircle2 } from
 import { base44 } from '@/api/base44Client';
 import { usePermissions } from '@/components/shared/PermissionGuard';
 import { format } from 'date-fns';
-
-import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { useState } from "react";
-import { Loader2, Database } from "lucide-react";
 
 export default function AdminDataPage() {
+    const { isAdmin } = usePermissions();
+    const [isLoadingBackup, setIsLoadingBackup] = useState(false);
+    const [isLoadingRestore, setIsLoadingRestore] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [restoreStatus, setRestoreStatus] = useState(null);
+    const [fileToUpload, setFileToUpload] = useState(null);
 
     const handleGenerateData = async () => {
         if (!confirm("Sei sicuro? Questo genererà molti dati di test nel database.")) return;
@@ -33,12 +33,6 @@ export default function AdminDataPage() {
             setGenerating(false);
         }
     };
-
-    const { isAdmin } = usePermissions();
-    const [isLoadingBackup, setIsLoadingBackup] = useState(false);
-    const [isLoadingRestore, setIsLoadingRestore] = useState(false);
-    const [restoreStatus, setRestoreStatus] = useState(null);
-    const [fileToUpload, setFileToUpload] = useState(null);
 
     const handleBackup = async () => {
         setIsLoadingBackup(true);
@@ -123,10 +117,20 @@ export default function AdminDataPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                <Database className="w-8 h-8 text-indigo-600" />
-                Gestione Dati e Backup
-            </h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                    <Database className="w-8 h-8 text-indigo-600" />
+                    Gestione Dati e Backup
+                </h1>
+                <Button 
+                    onClick={handleGenerateData} 
+                    disabled={generating}
+                    className="bg-purple-600 hover:bg-purple-700 text-white shadow-md transition-all hover:scale-105"
+                >
+                    {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                    Genera Dati Test
+                </Button>
+            </div>
 
             <div className="grid md:grid-cols-2 gap-6">
                 {/* BACKUP SECTION */}

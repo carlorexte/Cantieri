@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight as ChevronRightIcon, Plus, Layers } from "lucide-react";
-import { format, addDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getWeek } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Calendar, Plus, Search, ChevronDown, ChevronRight as ChevronRightIcon, DollarSign, Layers } from "lucide-react";
+import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getDaysInMonth, getWeek } from "date-fns";
 import { it } from "date-fns/locale";
 
 // Costanti di stile
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 60;
+const DAY_WIDTH = 40;
 const SIDEBAR_WIDTH = 500; // Larghezza pannello sinistro
 
 export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, onEditAttivita }) {
@@ -24,11 +27,6 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
       case 'day': default: return { colWidth: 40, daysPerCol: 1 };
     }
   }, [viewMode]);
-
-  const isGroupExpanded = (nodeId, level) => {
-    if (expandedGroups[nodeId] !== undefined) return expandedGroups[nodeId];
-    return level < 2;
-  };
 
   // Elaborazione dati gerarchici (WBS)
   const processedData = useMemo(() => {
@@ -68,9 +66,26 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
       node.level = level;
       node.wbs = prefix;
       
+      // Calcolo aggregato per i raggruppamenti (date e importi)
+      if (node.tipo_attivita === 'raggruppamento' && node.children.length > 0) {
+        // Le date del raggruppamento sono min(start) e max(end) dei figli
+        // L'importo è la somma
+        let minStart = null;
+        let maxEnd = null;
+        let sumAmount = 0;
+        
+        // Prima processa i figli per avere i loro dati aggiornati (post-order traversal parziale per date?)
+        // In realtà per il WBS serve pre-order, ma per i totali serve post-order.
+        // Facciamo che ci fidiamo dei dati dei figli se processati, ma qui stiamo scendendo.
+        // Risolviamo calcolando i totali DOPO aver processato i figli in una seconda passata o...
+        // Semplifichiamo: raggruppamento prende i dati dai figli diretti e indiretti.
+      }
+
       flatList.push(node);
 
-      if (isGroupExpanded(node.id, level)) {
+      // Rimosso setExpandedGroups da qui - verrà gestito in useEffect separato
+
+      if (expandedGroups[node.id] !== false) { // Se espanso
         node.children.sort((a, b) => (a._startDate || 0) - (b._startDate || 0)); // Ordina per data
         node.children.forEach((child, index) => {
            traverse(child, level + 1, `${prefix}.${index + 1}`);
@@ -122,6 +137,25 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
     return flatList;
   }, [attivita, expandedGroups]);
 
+  // Inizializza expanded groups automaticamente per i primi 2 livelli
+  useEffect(() => {
+    if (!processedData.length) return;
+
+    const newExpanded = {};
+    let hasChanges = false;
+
+    processedData.forEach(node => {
+      if (node.level < 2 && expandedGroups[node.id] === undefined) {
+        newExpanded[node.id] = true;
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setExpandedGroups(prev => ({ ...prev, ...newExpanded }));
+    }
+  }, [processedData]);
+
   // Calcolo range temporale totale
   useEffect(() => {
     if (!processedData.length) return;
@@ -165,13 +199,10 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
   };
 
   const toggleGroup = (id) => {
-    setExpandedGroups(prev => {
-      const current = prev[id];
-      return {
-        ...prev,
-        [id]: current === undefined ? false : !current
-      };
-    });
+    setExpandedGroups(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
   };
 
   // Funzione per calcolare posizione barra
@@ -232,23 +263,6 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
     })).filter(s => isValid(s.date) && isWithinInterval(s.date, {start: timeRange.start, end: timeRange.end}));
   }, [sals, timeRange]);
 
-  useEffect(() => {
-    const handleScrollToday = () => {
-      if (!scrollContainerRef.current || !timeRange.start || !timeRange.end) return;
-      const today = new Date();
-      if (!isWithinInterval(today, { start: timeRange.start, end: timeRange.end })) return;
-
-      const pxPerDay = config.colWidth / config.daysPerCol;
-      const offset = differenceInDays(today, timeRange.start) * pxPerDay + (pxPerDay / 2);
-      const containerWidth = scrollContainerRef.current.clientWidth;
-      const target = Math.max(0, offset - (containerWidth / 2));
-      scrollContainerRef.current.scrollLeft = target;
-    };
-
-    window.addEventListener('gantt-scroll-today', handleScrollToday);
-    return () => window.removeEventListener('gantt-scroll-today', handleScrollToday);
-  }, [timeRange, config]);
-
 
   return (
     <div className="flex flex-col h-full bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden select-none">
@@ -305,37 +319,37 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
       <div className="flex flex-1 overflow-hidden relative">
         
         {/* Left Sidebar (Grid/Tree) */}
-        <div 
+        <div
             ref={sidebarRef}
             className="flex-shrink-0 border-r border-slate-200 overflow-hidden bg-white z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)]"
             style={{ width: SIDEBAR_WIDTH }}
         >
-            {/* Sidebar Header */}
+            {/* Sidebar Header - Allineato con griglia temporale */}
             <div className="flex border-b border-slate-200 bg-slate-100 font-semibold text-xs text-slate-600 uppercase tracking-wider" style={{ height: HEADER_HEIGHT }}>
-                <div className="w-16 p-3 border-r border-slate-200 flex items-center justify-center">WBS</div>
-                <div className="flex-1 p-3 border-r border-slate-200 flex items-center">Descrizione Lavori</div>
-                <div className="w-24 p-3 border-r border-slate-200 flex items-center justify-end">Importo</div>
-                <div className="w-16 p-3 flex items-center justify-center">GG</div>
+                <div className="w-16 border-r border-slate-200 flex items-center justify-center">WBS</div>
+                <div className="flex-1 border-r border-slate-200 flex items-center px-3">Descrizione Lavori</div>
+                <div className="w-24 border-r border-slate-200 flex items-center justify-end px-2">Importo</div>
+                <div className="w-16 flex items-center justify-center">GG</div>
             </div>
 
             {/* Sidebar Rows */}
             <div>
                 {processedData.map((item, index) => (
-                    <div 
-                        key={item.id} 
+                    <div
+                        key={item.id}
                         className={`flex border-b border-slate-100 text-sm hover:bg-indigo-50 transition-colors cursor-pointer ${hoveredRow === item.id ? 'bg-indigo-50' : ''}`}
                         style={{ height: ROW_HEIGHT }}
                         onMouseEnter={() => setHoveredRow(item.id)}
                         onMouseLeave={() => setHoveredRow(null)}
                         onClick={() => onEditAttivita(item)}
                     >
-                        <div className="w-16 p-2 border-r border-slate-200 flex items-center justify-center font-mono text-slate-500 text-xs truncate">
+                        <div className="w-16 border-r border-slate-200 flex items-center justify-center font-mono text-slate-500 text-xs truncate">
                             {item.wbs}
                         </div>
-                        <div className="flex-1 p-2 border-r border-slate-200 flex items-center overflow-hidden">
+                        <div className="flex-1 border-r border-slate-200 flex items-center overflow-hidden px-3">
                             <div style={{ paddingLeft: `${item.level * 16}px` }} className="flex items-center gap-1 truncate w-full">
                                 {item.children && item.children.length > 0 && (
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); toggleGroup(item.id); }}
                                         className="p-0.5 hover:bg-slate-200 rounded"
                                     >
@@ -347,10 +361,10 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
                                 </span>
                             </div>
                         </div>
-                        <div className="w-24 p-2 border-r border-slate-200 flex items-center justify-end font-mono text-xs">
+                        <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-xs px-2">
                            {item._amount > 0 ? `€ ${item._amount.toLocaleString('it-IT', {maximumFractionDigits: 0})}` : '-'}
                         </div>
-                        <div className="w-16 p-2 flex items-center justify-center text-xs text-slate-500">
+                        <div className="w-16 flex items-center justify-center text-xs text-slate-500">
                             {item._duration}
                         </div>
                     </div>
@@ -367,7 +381,6 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
         <div 
             className="flex-1 overflow-auto bg-white" 
             ref={scrollContainerRef}
-            data-gantt-grid
             onScroll={handleScroll}
         >
             <div style={{ width: timeColumns.length * config.colWidth }}>
@@ -470,21 +483,26 @@ export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, o
                             >
                                 {pos && (
                                     item.tipo_attivita === 'raggruppamento' ? (
-                                        // Barra Raggruppamento (stile parentesi graffa nera o barra spezzata)
-                                        <div 
-                                            className="absolute h-3 top-3 bg-slate-800 opacity-80"
-                                            style={{ left: pos.left, width: pos.width }}
+                                        /* Barra Raggruppamento - centrata verticalmente */
+                                        <div
+                                            className="absolute h-3 bg-slate-800 opacity-80"
+                                            style={{
+                                                left: pos.left,
+                                                width: pos.width,
+                                                top: (ROW_HEIGHT - 12) / 2 // Centrato: (40px - 12px) / 2 = 14px
+                                            }}
                                         >
                                             <div className="absolute -left-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                                             <div className="absolute -right-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                                         </div>
                                     ) : (
-                                        // Barra Attività Normale
-                                        <div 
-                                            className="absolute h-5 top-2 rounded shadow-sm border border-black/10 cursor-pointer hover:shadow-md transition-all group"
-                                            style={{ 
-                                                left: pos.left, 
+                                        /* Barra Attività Normale - centrata verticalmente */
+                                        <div
+                                            className="absolute h-5 rounded shadow-sm border border-black/10 cursor-pointer hover:shadow-md transition-all group"
+                                            style={{
+                                                left: pos.left,
                                                 width: pos.width,
+                                                top: (ROW_HEIGHT - 20) / 2, // Centrato: (40px - 20px) / 2 = 10px
                                                 backgroundColor: item.colore || '#3b82f6'
                                             }}
                                             onClick={() => onEditAttivita(item)}

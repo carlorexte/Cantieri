@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Impresa } from '@/entities/Impresa';
-import { PersonaEsterna } from '@/entities/PersonaEsterna';
-import { Cantiere } from '@/entities/Cantiere';
-import { Subappalto } from '@/entities/Subappalto';
-import { Documento } from '@/entities/Documento';
-import { CreateFileSignedUrl } from '@/integrations/Core';
+import { base44 } from '@/api/base44Client';
+import { CreateFileSignedUrl } from '@/api/integrations';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +38,7 @@ export default function ImpresaDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [editingDocumento, setEditingDocumento] = useState(null);
-  
+
   // Stati per il visualizzatore
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
@@ -64,10 +60,10 @@ export default function ImpresaDashboardPage() {
     setIsLoading(true);
     try {
       const [impresaData, cantieriData, subappaltiData, documentiData] = await Promise.all([
-        Impresa.get(impresaId),
-        Cantiere.list(),
-        Subappalto.list(),
-        Documento.filter({ entita_collegata_tipo: 'azienda' })
+        base44.entities.Impresa.get(impresaId),
+        base44.entities.Cantiere.list(),
+        base44.entities.Subappalto.list(),
+        base44.entities.Documento.filter({ entita_collegata_tipo: 'azienda' })
       ]);
 
       setImpresa(impresaData);
@@ -75,7 +71,7 @@ export default function ImpresaDashboardPage() {
       // Carica PersoneEsterne se ci sono ID
       if (impresaData.referente_impresa_id) {
         try {
-          const refData = await PersonaEsterna.get(impresaData.referente_impresa_id);
+          const refData = await base44.entities.PersonaEsterna.get(impresaData.referente_impresa_id);
           setReferenteImpresa(refData);
         } catch (error) {
           console.error("Errore caricamento referente impresa:", error);
@@ -84,7 +80,7 @@ export default function ImpresaDashboardPage() {
 
       if (impresaData.responsabile_sicurezza_id) {
         try {
-          const respData = await PersonaEsterna.get(impresaData.responsabile_sicurezza_id);
+          const respData = await base44.entities.PersonaEsterna.get(impresaData.responsabile_sicurezza_id);
           setResponsabileSicurezza(respData);
         } catch (error) {
           console.error("Errore caricamento responsabile sicurezza:", error);
@@ -118,8 +114,8 @@ export default function ImpresaDashboardPage() {
           // Verifica se è subappaltatore
           const subappalto = subappaltiData.find(
             s => s.cantiere_id === cantiere.id &&
-            (s.ragione_sociale?.toLowerCase().includes(impresaData.ragione_sociale?.toLowerCase()) ||
-             s.impresa_id === impresaId)
+              (s.ragione_sociale?.toLowerCase().includes(impresaData.ragione_sociale?.toLowerCase()) ||
+                s.impresa_id === impresaId)
           );
           if (subappalto) {
             tipologie.push('Subappaltatore');
@@ -146,19 +142,19 @@ export default function ImpresaDashboardPage() {
         toast.error("Errore: ID impresa non disponibile.");
         return;
       }
-      
+
       if (editingDocumento) {
-        await Documento.update(editingDocumento.id, formData);
+        await base44.entities.Documento.update(editingDocumento.id, formData);
         toast.success("Documento aggiornato con successo");
       } else {
-        await Documento.create({
+        await base44.entities.Documento.create({
           ...formData,
           entita_collegata_id: impresa.id,
           entita_collegata_tipo: 'azienda',
         });
         toast.success("Documento creato con successo");
       }
-      
+
       setShowDocumentoForm(false);
       setEditingDocumento(null);
       loadData(impresa.id);
@@ -176,7 +172,7 @@ export default function ImpresaDashboardPage() {
   const handleDeleteDocumento = async (documento) => {
     if (window.confirm(`Sei sicuro di voler eliminare "${documento.nome_documento}"?`)) {
       try {
-        await Documento.delete(documento.id);
+        await base44.entities.Documento.delete(documento.id);
         toast.success("Documento eliminato con successo");
         loadData(impresa.id);
       } catch (error) {
@@ -202,9 +198,9 @@ export default function ImpresaDashboardPage() {
       setViewingDocument(documento);
       setShowViewer(true);
       setSignedUrl(null);
-      
+
       try {
-        const result = await CreateFileSignedUrl({ 
+        const result = await CreateFileSignedUrl({
           file_uri: documento.file_uri,
           expires_in: 3600
         });
@@ -231,7 +227,7 @@ export default function ImpresaDashboardPage() {
   const handleDownloadDocument = async (documento) => {
     if (documento.file_uri) {
       try {
-        const result = await CreateFileSignedUrl({ 
+        const result = await CreateFileSignedUrl({
           file_uri: documento.file_uri,
           expires_in: 300
         });
@@ -320,15 +316,15 @@ export default function ImpresaDashboardPage() {
 
   const getScadenzaStatus = (dataScadenza) => {
     if (!dataScadenza) return null;
-    
+
     const oggi = new Date();
     const scadenza = new Date(dataScadenza);
     // Set hours, minutes, seconds, milliseconds to 0 for accurate day comparison
     oggi.setHours(0, 0, 0, 0);
     scadenza.setHours(0, 0, 0, 0);
-    
+
     const differenzaGiorni = Math.ceil((scadenza.getTime() - oggi.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (differenzaGiorni < 0) {
       return { status: "scaduto", label: "Scaduto", color: "bg-red-100 text-red-800", icon: AlertTriangle };
     } else if (differenzaGiorni <= 30) {
@@ -612,7 +608,7 @@ export default function ImpresaDashboardPage() {
                     {documenti.map(doc => {
                       const hasFile = doc.file_uri || doc.cloud_file_url;
                       const scadenzaStatus = getScadenzaStatus(doc.data_scadenza);
-                      
+
                       return (
                         <div key={doc.id} className="p-3 border rounded-md hover:bg-slate-50">
                           <div className="flex items-start justify-between gap-2">

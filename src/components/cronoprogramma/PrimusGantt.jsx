@@ -1,589 +1,694 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Calendar, Plus, Search, ChevronDown, ChevronRight as ChevronRightIcon, DollarSign, Layers } from "lucide-react";
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, isSameDay, isWithinInterval, parseISO, isValid, differenceInDays, addMonths, startOfMonth, endOfMonth, getDaysInMonth, getWeek } from "date-fns";
-import { it } from "date-fns/locale";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { jsPDF } from 'jspdf';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock } from 'lucide-react';
+import {
+  format,
+  addDays,
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  parseISO,
+  isValid,
+  differenceInDays,
+  addMonths,
+  startOfMonth,
+  endOfMonth,
+  getWeek,
+  isWithinInterval
+} from 'date-fns';
+import { it } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { GanttDndProvider } from './GanttDndProvider';
+import { ActivityBar } from './ActivityBar';
+import { useCPM } from '@/hooks/useCPM';
 
-// Costanti di stile
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 60;
-const DAY_WIDTH = 40;
-const SIDEBAR_WIDTH = 500; // Larghezza pannello sinistro
+const SIDEBAR_WIDTH = 380;
 
-export default function PrimusGantt({ attivita, sals, cantiere, onAddAttivita, onEditAttivita }) {
+function compareRows(a, b) {
+  const aStart = a?._startDate instanceof Date ? a._startDate.getTime() : Number.MAX_SAFE_INTEGER;
+  const bStart = b?._startDate instanceof Date ? b._startDate.getTime() : Number.MAX_SAFE_INTEGER;
+  if (aStart !== bStart) return aStart - bStart;
+  return String(a?.descrizione || '').localeCompare(String(b?.descrizione || ''), 'it', { sensitivity: 'base' });
+}
+
+function formatPlanningDate(value) {
+  if (!(value instanceof Date) || !isValid(value)) return '-';
+  return format(value, 'dd/MM/yyyy');
+}
+
+export default function PrimusGantt({
+  attivita,
+  sals,
+  cantiere,
+  onAddAttivita,
+  onEditAttivita,
+  onAttivitaUpdate,
+  isSectionFullView = false,
+  onToggleSectionFullView = () => {}
+}) {
   const [timeRange, setTimeRange] = useState({ start: new Date(), end: new Date() });
   const [expandedGroups, setExpandedGroups] = useState({});
-  const [viewMode, setViewMode] = useState('day'); // 'day', 'week', 'month'
+  const [isCompactWbsView, setIsCompactWbsView] = useState(false);
+  const [viewMode, setViewMode] = useState('week');
+  const [hoveredRow, setHoveredRow] = useState(null);
+  const [draggingActivity, setDraggingActivity] = useState(null);
+  const [timelineViewportWidth, setTimelineViewportWidth] = useState(1200);
   const scrollContainerRef = useRef(null);
   const sidebarRef = useRef(null);
-  const [hoveredRow, setHoveredRow] = useState(null);
+
+  const projectStartForCPM = useMemo(() => {
+    if (cantiere?.data_inizio) return cantiere.data_inizio;
+    const dates = (attivita || []).map((item) => item.data_inizio).filter(Boolean).sort();
+    return dates[0] || null;
+  }, [attivita, cantiere?.data_inizio]);
+
+  const { cpmResult, rescheduleActivity } = useCPM(attivita, projectStartForCPM);
 
   const config = useMemo(() => {
-    switch(viewMode) {
-      case 'week': return { colWidth: 40, daysPerCol: 7 };
-      case 'month': return { colWidth: 60, daysPerCol: 30.44 };
-      case 'day': default: return { colWidth: 40, daysPerCol: 1 };
+    switch (viewMode) {
+      case 'day': return { colWidth: 34, daysPerCol: 1 };
+      case 'month': return { colWidth: 84, daysPerCol: 30.44 };
+      case 'fit': {
+        const fitStart = timeRange.start && isValid(timeRange.start) ? startOfMonth(timeRange.start) : new Date();
+        const fitEnd = timeRange.end && isValid(timeRange.end) ? endOfMonth(timeRange.end) : new Date();
+        const monthCount = Math.max(1, eachMonthOfInterval({ start: fitStart, end: fitEnd }).length);
+        const availableWidth = Math.max(timelineViewportWidth - 8, monthCount * 32);
+        return { colWidth: Math.max(32, availableWidth / monthCount), daysPerCol: 30.44 };
+      }
+      case 'week':
+      default:
+        return { colWidth: 48, daysPerCol: 7 };
     }
-  }, [viewMode]);
+  }, [timeRange.end, timeRange.start, timelineViewportWidth, viewMode]);
 
-  // Elaborazione dati gerarchici (WBS)
   const processedData = useMemo(() => {
-    if (!attivita) return [];
+    if (!attivita?.length) return [];
 
-    // 1. Costruisci mappa e albero
-    const map = {};
-    const roots = [];
-    
-    // Clona e inizializza
-    const nodes = attivita.map(a => ({ 
-      ...a, 
-      children: [], 
+    const nodes = attivita.map((item) => ({
+      ...item,
+      children: [],
       level: 0,
       wbs: '',
-      _startDate: a.data_inizio ? parseISO(a.data_inizio) : null,
-      _endDate: a.data_fine ? parseISO(a.data_fine) : null,
-      _duration: a.durata_giorni || 0,
-      _amount: a.importo_previsto || 0,
+      _startDate: item.data_inizio ? parseISO(item.data_inizio) : null,
+      _endDate: item.data_fine ? parseISO(item.data_fine) : null,
+      _duration: item.durata_giorni || 1,
+      _amount: item.importo_previsto || 0,
+      _cpmDetails: cpmResult?.results?.find((row) => row.activity.id === item.id) || null
     }));
 
-    nodes.forEach(node => { map[node.id] = node; });
+    const nodeMap = new Map(nodes.map((item) => [item.id, item]));
+    const roots = [];
 
-    // Collega padri-figli
-    nodes.forEach(node => {
-      if (node.parent_id && map[node.parent_id]) {
-        map[node.parent_id].children.push(node);
+    nodes.forEach((node) => {
+      if (node.parent_id && nodeMap.has(node.parent_id)) {
+        nodeMap.get(node.parent_id).children.push(node);
       } else {
-        roots.push(node); // È una radice (o orfano)
+        roots.push(node);
       }
     });
 
-    // 2. Funzione ricorsiva per appiattire la lista (ordine visualizzazione) e calcolare WBS
-    const flatList = [];
-    
-    const traverse = (node, level, prefix) => {
-      node.level = level;
-      node.wbs = prefix;
-      
-      // Calcolo aggregato per i raggruppamenti (date e importi)
-      if (node.tipo_attivita === 'raggruppamento' && node.children.length > 0) {
-        // Le date del raggruppamento sono min(start) e max(end) dei figli
-        // L'importo è la somma
-        let minStart = null;
-        let maxEnd = null;
-        let sumAmount = 0;
-        
-        // Prima processa i figli per avere i loro dati aggiornati (post-order traversal parziale per date?)
-        // In realtà per il WBS serve pre-order, ma per i totali serve post-order.
-        // Facciamo che ci fidiamo dei dati dei figli se processati, ma qui stiamo scendendo.
-        // Risolviamo calcolando i totali DOPO aver processato i figli in una seconda passata o...
-        // Semplifichiamo: raggruppamento prende i dati dai figli diretti e indiretti.
-      }
-
-      flatList.push(node);
-
-      // Rimosso setExpandedGroups da qui - verrà gestito in useEffect separato
-
-      if (expandedGroups[node.id] !== false) { // Se espanso
-        node.children.sort((a, b) => (a._startDate || 0) - (b._startDate || 0)); // Ordina per data
-        node.children.forEach((child, index) => {
-           traverse(child, level + 1, `${prefix}.${index + 1}`);
-        });
-      }
-    };
-
-    // Ordina radici per data
-    roots.sort((a, b) => (a._startDate || 0) - (b._startDate || 0));
-    roots.forEach((root, index) => traverse(root, 0, `${index + 1}`));
-
-    // 3. Calcolo Post-Order per aggregare date e importi sui padri
-    // Ripercorriamo la lista al contrario per propagare dai figli ai padri
-    // O meglio, usiamo la mappa originale e una funzione ricorsiva di calcolo
     const calculateTotals = (node) => {
-      if (!node.children || node.children.length === 0) return {
+      if (!node.children.length) {
+        return {
+          start: node._startDate,
+          end: node._endDate,
+          amount: node._amount
+        };
+      }
+
+      let minStart = null;
+      let maxEnd = null;
+      let totalAmount = 0;
+
+      node.children.forEach((child) => {
+        const childTotals = calculateTotals(child);
+        if (childTotals.start && (!minStart || childTotals.start < minStart)) minStart = childTotals.start;
+        if (childTotals.end && (!maxEnd || childTotals.end > maxEnd)) maxEnd = childTotals.end;
+        totalAmount += childTotals.amount || 0;
+      });
+
+      if (node.tipo_attivita === 'raggruppamento') {
+        node._startDate = minStart;
+        node._endDate = maxEnd;
+        node._amount = totalAmount;
+        if (minStart && maxEnd) {
+          node._duration = differenceInDays(maxEnd, minStart) + 1;
+        }
+      }
+
+      return {
         start: node._startDate,
         end: node._endDate,
         amount: node._amount || 0
       };
-
-      let minS = null;
-      let maxE = null;
-      let totA = 0;
-
-      node.children.forEach(child => {
-        const res = calculateTotals(child);
-        if (res.start && (!minS || res.start < minS)) minS = res.start;
-        if (res.end && (!maxE || res.end > maxE)) maxE = res.end;
-        totA += res.amount;
-      });
-
-      // Se è raggruppamento, sovrascrivi
-      if (node.tipo_attivita === 'raggruppamento') {
-        node._startDate = minS;
-        node._endDate = maxE;
-        node._amount = totA;
-        // Ricalcola durata
-        if (minS && maxE) {
-          node._duration = differenceInDays(maxE, minS) + 1;
-        }
-      }
-      
-      return { start: node._startDate, end: node._endDate, amount: node._amount };
     };
 
-    roots.forEach(root => calculateTotals(root));
+    roots.sort(compareRows);
+    roots.forEach((root) => calculateTotals(root));
+    nodes.forEach((node) => node.children.sort(compareRows));
 
-    return flatList;
-  }, [attivita, expandedGroups]);
+    const flat = [];
+    const walk = (node, level, prefix) => {
+      node.level = level;
+      node.wbs = prefix;
+      flat.push(node);
 
-  // Inizializza expanded groups automaticamente per i primi 2 livelli
+      if (expandedGroups[node.id] !== false) {
+        node.children.forEach((child, index) => walk(child, level + 1, `${prefix}.${index + 1}`));
+      }
+    };
+
+    roots.forEach((root, index) => walk(root, 0, `${index + 1}`));
+    return flat;
+  }, [attivita, cpmResult, expandedGroups]);
+
   useEffect(() => {
     if (!processedData.length) return;
 
-    const newExpanded = {};
+    const nextExpanded = {};
     let hasChanges = false;
-
-    processedData.forEach(node => {
+    processedData.forEach((node) => {
       if (node.level < 2 && expandedGroups[node.id] === undefined) {
-        newExpanded[node.id] = true;
+        nextExpanded[node.id] = true;
         hasChanges = true;
       }
     });
 
     if (hasChanges) {
-      setExpandedGroups(prev => ({ ...prev, ...newExpanded }));
+      setExpandedGroups((current) => ({ ...current, ...nextExpanded }));
     }
+  }, [processedData, expandedGroups]);
+
+  useEffect(() => {
+    const dates = processedData
+      .flatMap((item) => [item._startDate, item._endDate])
+      .filter((date) => date && isValid(date));
+
+    if (!dates.length) return;
+
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+
+    setTimeRange({
+      start: addDays(minDate, -7),
+      end: addDays(maxDate, 7)
+    });
   }, [processedData]);
 
-  // Calcolo range temporale totale
   useEffect(() => {
-    if (!processedData.length) return;
-    
-    const dates = processedData
-      .map(n => [n._startDate, n._endDate])
-      .flat()
-      .filter(d => d && isValid(d));
+    const updateViewportWidth = () => {
+      const nextWidth = scrollContainerRef.current?.clientWidth || Math.max(window.innerWidth - SIDEBAR_WIDTH - 48, 960);
+      setTimelineViewportWidth(nextWidth);
+    };
 
-    if (dates.length > 0) {
-      const minDate = new Date(Math.min(...dates));
-      const maxDate = new Date(Math.max(...dates));
-      
-      // Buffer di 15 giorni
-      setTimeRange({
-        start: addDays(minDate, -15),
-        end: addDays(maxDate, 15)
-      });
-    }
-  }, [attivita]); // Dipende da attivita raw, non processed che cambia con expand
+    updateViewportWidth();
+    window.addEventListener('resize', updateViewportWidth);
+    return () => window.removeEventListener('resize', updateViewportWidth);
+  }, []);
 
-  // Generazione colonne temporali
   const timeColumns = useMemo(() => {
     if (!timeRange.start || !timeRange.end) return [];
-    
+
     if (viewMode === 'day') {
-       return eachDayOfInterval({ start: timeRange.start, end: timeRange.end });
-    } else if (viewMode === 'week') {
-       return eachWeekOfInterval({ start: timeRange.start, end: timeRange.end }, { weekStartsOn: 1 });
-    } else if (viewMode === 'month') {
-       return eachMonthOfInterval({ start: timeRange.start, end: timeRange.end });
+      return eachDayOfInterval({ start: timeRange.start, end: timeRange.end });
     }
-    return [];
+
+    if (viewMode === 'month' || viewMode === 'fit') {
+      return eachMonthOfInterval({ start: timeRange.start, end: timeRange.end });
+    }
+
+    const weeks = [];
+    let cursor = new Date(timeRange.start);
+    while (cursor <= timeRange.end) {
+      weeks.push(new Date(cursor));
+      cursor = addDays(cursor, 7);
+    }
+    return weeks;
   }, [timeRange, viewMode]);
 
-  // Scroll Sync
-  const handleScroll = (e) => {
+  const salMarkers = useMemo(() => {
+    if (!Array.isArray(sals)) return [];
+    return sals
+      .map((sal) => ({
+        id: sal.id,
+        date: parseISO(sal.data_sal),
+        amount: sal.imponibile || 0,
+        description: sal.descrizione || `SAL ${sal.numero_sal || ''}`
+      }))
+      .filter((item) => isValid(item.date) && isWithinInterval(item.date, { start: timeRange.start, end: timeRange.end }));
+  }, [sals, timeRange]);
+
+  const overviewStats = useMemo(() => {
+    const today = new Date();
+    const validActivities = processedData.filter((item) => item._startDate && item._endDate);
+    const startDates = validActivities.map((item) => item._startDate);
+    const endDates = validActivities.map((item) => item._endDate);
+    const delayedActivities = processedData.filter((item) => item.tipo_attivita === 'task' && item._endDate && item._endDate < today && item.stato !== 'completata').length;
+    const salToInvoice = (sals || []).filter((item) => {
+      if (!item?.data_sal) return false;
+      const date = parseISO(item.data_sal);
+      return isValid(date) && date <= today;
+    }).length;
+
+    return {
+      projectStart: startDates.length ? new Date(Math.min(...startDates)) : null,
+      projectEnd: endDates.length ? new Date(Math.max(...endDates)) : null,
+      delayedActivities,
+      salToInvoice
+    };
+  }, [processedData, sals]);
+
+  const handleScroll = (event) => {
     if (sidebarRef.current) {
-      sidebarRef.current.scrollTop = e.target.scrollTop;
+      sidebarRef.current.scrollTop = event.target.scrollTop;
     }
   };
 
   const toggleGroup = (id) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [id]: !prev[id]
+    setIsCompactWbsView(false);
+    setExpandedGroups((current) => ({
+      ...current,
+      [id]: !current[id]
     }));
   };
 
-  // Funzione per calcolare posizione barra
-  const getBarPosition = (start, end) => {
-    if (!start || !end || !timeRange.start) return null;
-    
+  const getBarPosition = useCallback((start, end) => {
+    if (!start || !end || !isValid(start) || !isValid(end) || !timeRange.start) return null;
+
     const offsetDays = differenceInDays(start, timeRange.start);
     const durationDays = differenceInDays(end, start) + 1;
-    
     const pxPerDay = config.colWidth / config.daysPerCol;
-    
+
     return {
       left: offsetDays * pxPerDay,
-      width: durationDays * pxPerDay
+      width: Math.max(durationDays * pxPerDay, 6)
     };
-  };
+  }, [config, timeRange.start]);
 
-  // Cash Flow Mensile
-  const cashFlow = useMemo(() => {
-      // Raggruppa per mese
-      const months = {};
-      // Inizializza mesi nel range
-      let curr = startOfMonth(timeRange.start);
-      const end = endOfMonth(timeRange.end);
-      
-      while (curr <= end) {
-          months[format(curr, 'yyyy-MM')] = 0;
-          curr = addMonths(curr, 1);
-      }
+  const handleFitToProject = useCallback(() => {
+    const dates = processedData
+      .flatMap((item) => [item._startDate, item._endDate])
+      .filter((date) => date && isValid(date));
 
-      processedData.forEach(item => {
-          if (item.tipo_attivita === 'task' && item._amount > 0 && item._startDate && item._endDate) {
-              // Distribuzione lineare (semplificata) dell'importo sui giorni
-              const dailyAmount = item._amount / item._duration;
-              const days = eachDayOfInterval({ start: item._startDate, end: item._endDate });
-              
-              days.forEach(day => {
-                  const key = format(day, 'yyyy-MM');
-                  if (months[key] !== undefined) {
-                      months[key] += dailyAmount;
-                  }
-              });
-          }
+    if (!dates.length) return;
+
+    const minDate = startOfMonth(new Date(Math.min(...dates)));
+    const maxDate = endOfMonth(new Date(Math.max(...dates)));
+    setViewMode('fit');
+    setTimeRange({ start: minDate, end: maxDate });
+    setExpandedGroups(() => {
+      const next = {};
+      processedData.forEach((item) => {
+        if (item.children?.length) next[item.id] = false;
       });
+      return next;
+    });
+    setIsCompactWbsView(true);
 
-      return months;
-  }, [processedData, timeRange]);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = 0;
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [processedData]);
 
-  // SAL Markers
-  const salMarkers = useMemo(() => {
-    if (!sals) return [];
-    return sals.map(sal => ({
-      id: sal.id,
-      date: parseISO(sal.data_sal),
-      amount: sal.imponibile || 0,
-      description: sal.descrizione || `SAL ${sal.numero_sal || ''}`,
-      type: sal.tipo_sal_dettaglio
-    })).filter(s => isValid(s.date) && isWithinInterval(s.date, {start: timeRange.start, end: timeRange.end}));
-  }, [sals, timeRange]);
+  const handleExpandWbs = useCallback(() => {
+    setExpandedGroups(() => {
+      const next = {};
+      processedData.forEach((item) => {
+        if (item.children?.length && item.level < 2) next[item.id] = true;
+      });
+      return next;
+    });
+    setIsCompactWbsView(false);
+  }, [processedData]);
 
+  useEffect(() => {
+    if (!isSectionFullView || !processedData.length) return;
+    handleFitToProject();
+  }, [handleFitToProject, isSectionFullView, processedData.length]);
+
+  const handleExportPdf = useCallback(() => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const title = cantiere?.denominazione || cantiere?.oggetto_lavori || 'Cronoprogramma';
+    const rows = processedData.filter((item) => item.tipo_attivita !== 'raggruppamento');
+    const columns = [
+      { label: 'WBS', width: 18 },
+      { label: 'Descrizione', width: 90 },
+      { label: 'Inizio', width: 26 },
+      { label: 'Fine', width: 26 },
+      { label: 'Dur.', width: 18 },
+      { label: 'Stato', width: 24 }
+    ];
+    const marginLeft = 10;
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('Cronoprogramma - Vista Totale', marginLeft, 14);
+    doc.setFontSize(10);
+    doc.text(title, marginLeft, 20);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Inizio complessivo: ${formatPlanningDate(overviewStats.projectStart)}`, marginLeft, 27);
+    doc.text(`Fine complessiva: ${formatPlanningDate(overviewStats.projectEnd)}`, marginLeft + 60, 27);
+    doc.text(`Attivita in ritardo: ${overviewStats.delayedActivities}`, marginLeft + 120, 27);
+    doc.text(`SAL da fatturare/verificare: ${overviewStats.salToInvoice}`, marginLeft + 182, 27);
+    doc.text(`Export: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - 58, 14);
+
+    let x = marginLeft;
+    const headerY = 36;
+    doc.setFillColor(241, 245, 249);
+    doc.rect(marginLeft, headerY - 5, columns.reduce((sum, col) => sum + col.width, 0), 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    columns.forEach((column) => {
+      doc.text(column.label, x + 1, headerY);
+      x += column.width;
+    });
+
+    doc.setFont('helvetica', 'normal');
+    let y = 42;
+    rows.forEach((item) => {
+      if (y > 195) return;
+      const values = [
+        item.wbs || '',
+        String(item.descrizione || '').slice(0, 54),
+        formatPlanningDate(item._startDate),
+        formatPlanningDate(item._endDate),
+        String(item._duration || '-'),
+        item.stato || '-'
+      ];
+      let currentX = marginLeft;
+      values.forEach((value, index) => {
+        doc.text(String(value), currentX + 1, y);
+        currentX += columns[index].width;
+      });
+      y += 6;
+    });
+
+    doc.save(`cronoprogramma-vista-totale-${String(title).replace(/[\\/:*?"<>|]/g, '-').slice(0, 48)}.pdf`);
+  }, [cantiere?.denominazione, cantiere?.oggetto_lavori, overviewStats, processedData]);
+
+  const handleActivityDateChange = useCallback(async (activityId, deltaDays) => {
+    if (!deltaDays) return;
+
+    const row = processedData.find((item) => item.id === activityId);
+    if (!row || !row._startDate || !isValid(row._startDate)) return;
+
+    const nextStart = addDays(row._startDate, deltaDays);
+
+    if (cpmResult) {
+      const result = rescheduleActivity(activityId, format(nextStart, 'yyyy-MM-dd'));
+      if (result?.updatedActivities?.length && onAttivitaUpdate) {
+        await onAttivitaUpdate(result.updatedActivities, result.result);
+        toast.success(`Attivita spostata di ${deltaDays > 0 ? '+' : ''}${deltaDays} giorni`);
+      }
+      return;
+    }
+
+    if (!onAttivitaUpdate) return;
+
+    const duration = Math.max(1, row._duration || 1);
+    const nextEnd = row.tipo_attivita === 'milestone' ? nextStart : addDays(nextStart, duration - 1);
+
+    await onAttivitaUpdate([activityId], {
+      directUpdates: [{
+        id: activityId,
+        data_inizio: format(nextStart, 'yyyy-MM-dd'),
+        data_fine: format(nextEnd, 'yyyy-MM-dd')
+      }]
+    });
+
+    toast.success(`Attivita spostata di ${deltaDays > 0 ? '+' : ''}${deltaDays} giorni`);
+  }, [cpmResult, onAttivitaUpdate, processedData, rescheduleActivity]);
 
   return (
-    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden select-none">
-      {/* Toolbar */}
-      <div className="h-14 border-b border-slate-200 flex items-center justify-between px-4 bg-slate-50">
-        <div className="flex items-center gap-4">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-indigo-600" />
-                Cronoprogramma Lavori
-            </h3>
-            <div className="flex bg-white rounded-md border border-slate-200 p-0.5">
-                <Button 
-                    variant={viewMode === 'day' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className={`h-7 text-xs px-2 ${viewMode === 'day' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`} 
-                    onClick={() => setViewMode('day')}
-                >
-                    Giornaliero
-                </Button>
-                <Button 
-                    variant={viewMode === 'week' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className={`h-7 text-xs px-2 ${viewMode === 'week' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`} 
-                    onClick={() => setViewMode('week')}
-                >
-                    Settimanale
-                </Button>
-                <Button 
-                    variant={viewMode === 'month' ? 'secondary' : 'ghost'} 
-                    size="sm" 
-                    className={`h-7 text-xs px-2 ${viewMode === 'month' ? 'bg-slate-100 font-medium' : 'text-slate-600'}`} 
-                    onClick={() => setViewMode('month')}
-                >
-                    Mensile
-                </Button>
+    <div className={`flex flex-col h-full bg-white border border-slate-200 shadow-sm overflow-hidden ${isSectionFullView ? 'rounded-none' : 'rounded-lg'}`}>
+      <div className="border-b border-slate-200 px-4 py-3 bg-slate-50">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900">Cronoprogramma Lavori</h3>
+              <p className="text-xs text-slate-500">
+                Inizio {formatPlanningDate(overviewStats.projectStart)} · Fine {formatPlanningDate(overviewStats.projectEnd)}
+              </p>
             </div>
-        </div>
-        
-        {/* Totali Cantiere */}
-        <div className="flex items-center gap-4 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100 mr-4">
-             <div className="text-xs text-indigo-800">
-                <span className="font-semibold">Totale Lavori:</span> € {processedData.reduce((acc, item) => item.level === 0 ? acc + (item._amount || 0) : acc, 0).toLocaleString('it-IT', {maximumFractionDigits: 0})}
-             </div>
-        </div>
-        <div className="flex items-center gap-2">
-            <Button size="sm" onClick={onAddAttivita} className="bg-indigo-600 hover:bg-indigo-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Aggiungi Voce
+            <div className="flex bg-white rounded-md border border-slate-200 p-0.5">
+              <Button variant={viewMode === 'day' ? 'secondary' : 'ghost'} size="sm" className="h-8 text-xs px-2" onClick={() => setViewMode('day')}>Giorni</Button>
+              <Button variant={viewMode === 'week' ? 'secondary' : 'ghost'} size="sm" className="h-8 text-xs px-2" onClick={() => setViewMode('week')}>Settimane</Button>
+              <Button variant={viewMode === 'month' ? 'secondary' : 'ghost'} size="sm" className="h-8 text-xs px-2" onClick={() => setViewMode('month')}>Mesi</Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 bg-white"
+              onClick={onToggleSectionFullView}
+            >
+              {isSectionFullView ? <Minimize2 className="w-3 h-3 mr-1" /> : <Maximize2 className="w-3 h-3 mr-1" />}
+              {isSectionFullView ? 'Esci vista totale' : 'Vista totale'}
             </Button>
+            {isSectionFullView && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 bg-white"
+                onClick={handleFitToProject}
+              >
+                Adatta progetto
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 bg-white"
+              onClick={isCompactWbsView ? handleExpandWbs : handleFitToProject}
+            >
+              {isCompactWbsView ? 'Espandi WBS' : 'Compatta WBS'}
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 bg-white" onClick={handleExportPdf}>
+              <FileDown className="w-4 h-4 mr-2" />
+              PDF 1 pagina
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+              <div className="text-slate-500">Attivita in ritardo</div>
+              <div className="font-semibold text-amber-700">{overviewStats.delayedActivities}</div>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+              <div className="text-slate-500">SAL da verificare/fatturare</div>
+              <div className="font-semibold text-slate-900">{overviewStats.salToInvoice}</div>
+            </div>
+            <Button size="sm" onClick={onAddAttivita} className="bg-indigo-600 hover:bg-indigo-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Nuova Voce
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Main Content Split */}
       <div className="flex flex-1 overflow-hidden relative">
-        
-        {/* Left Sidebar (Grid/Tree) */}
         <div
-            ref={sidebarRef}
-            className="flex-shrink-0 border-r border-slate-200 overflow-hidden bg-white z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)]"
-            style={{ width: SIDEBAR_WIDTH }}
+          ref={sidebarRef}
+          className="flex-shrink-0 border-r border-slate-200 overflow-hidden bg-white z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)]"
+          style={{ width: SIDEBAR_WIDTH }}
         >
-            {/* Sidebar Header - Allineato con griglia temporale */}
-            <div className="flex border-b border-slate-200 bg-slate-100 font-semibold text-xs text-slate-600 uppercase tracking-wider" style={{ height: HEADER_HEIGHT }}>
-                <div className="w-16 border-r border-slate-200 flex items-center justify-center">WBS</div>
-                <div className="flex-1 border-r border-slate-200 flex items-center px-3">Descrizione Lavori</div>
-                <div className="w-24 border-r border-slate-200 flex items-center justify-end px-2">Importo</div>
-                <div className="w-16 flex items-center justify-center">GG</div>
-            </div>
+          <div className="flex border-b border-slate-200 bg-slate-100 font-semibold text-xs text-slate-600 uppercase tracking-wider" style={{ height: HEADER_HEIGHT }}>
+            <div className="w-16 border-r border-slate-200 flex items-center justify-center">WBS</div>
+            <div className="flex-1 border-r border-slate-200 flex items-center px-3">Descrizione</div>
+            <div className="w-24 border-r border-slate-200 flex items-center justify-end px-2">Importo</div>
+            <div className="w-16 flex items-center justify-center">GG</div>
+          </div>
 
-            {/* Sidebar Rows */}
-            <div>
-                {processedData.map((item, index) => (
-                    <div
-                        key={item.id}
-                        className={`flex border-b border-slate-100 text-sm hover:bg-indigo-50 transition-colors cursor-pointer ${hoveredRow === item.id ? 'bg-indigo-50' : ''}`}
-                        style={{ height: ROW_HEIGHT }}
-                        onMouseEnter={() => setHoveredRow(item.id)}
-                        onMouseLeave={() => setHoveredRow(null)}
-                        onClick={() => onEditAttivita(item)}
-                    >
-                        <div className="w-16 border-r border-slate-200 flex items-center justify-center font-mono text-slate-500 text-xs truncate">
-                            {item.wbs}
-                        </div>
-                        <div className="flex-1 border-r border-slate-200 flex items-center overflow-hidden px-3">
-                            <div style={{ paddingLeft: `${item.level * 16}px` }} className="flex items-center gap-1 truncate w-full">
-                                {item.children && item.children.length > 0 && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); toggleGroup(item.id); }}
-                                        className="p-0.5 hover:bg-slate-200 rounded"
-                                    >
-                                        {expandedGroups[item.id] !== false ? <ChevronDown className="w-3 h-3" /> : <ChevronRightIcon className="w-3 h-3" />}
-                                    </button>
-                                )}
-                                <span className={`truncate ${item.tipo_attivita === 'raggruppamento' ? 'font-bold text-slate-800' : 'text-slate-700'}`}>
-                                    {item.descrizione}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-xs px-2">
-                           {item._amount > 0 ? `€ ${item._amount.toLocaleString('it-IT', {maximumFractionDigits: 0})}` : '-'}
-                        </div>
-                        <div className="w-16 flex items-center justify-center text-xs text-slate-500">
-                            {item._duration}
-                        </div>
-                    </div>
-                ))}
-                
-                {/* Filler per Cash Flow Row alignment */}
-                <div className="border-t-2 border-slate-300 bg-slate-50 p-3 text-right font-bold text-xs flex items-center justify-end" style={{ height: 100 }}>
-                    TOTALE MENSILE
+          <div>
+            {processedData.map((item) => (
+              <div
+                key={item.id}
+                className={`flex border-b border-slate-100 text-sm hover:bg-indigo-50 transition-colors cursor-pointer ${hoveredRow === item.id ? 'bg-indigo-50' : ''}`}
+                style={{ height: ROW_HEIGHT }}
+                onMouseEnter={() => setHoveredRow(item.id)}
+                onMouseLeave={() => setHoveredRow(null)}
+                onClick={() => onEditAttivita(item)}
+              >
+                <div className="w-16 border-r border-slate-200 flex items-center justify-center font-mono text-slate-500 text-xs truncate">
+                  {item.wbs}
                 </div>
+                <div className="flex-1 border-r border-slate-200 flex items-center overflow-hidden px-3">
+                  <div style={{ paddingLeft: `${item.level * 16}px` }} className="flex items-center gap-1 truncate w-full">
+                    {item.children?.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleGroup(item.id);
+                        }}
+                        className="p-0.5 hover:bg-slate-200 rounded"
+                      >
+                        {expandedGroups[item.id] !== false ? <ChevronDown className="w-3 h-3" /> : <ChevronRightIcon className="w-3 h-3" />}
+                      </button>
+                    )}
+                    <span className={`truncate ${item.tipo_attivita === 'raggruppamento' ? 'font-bold text-slate-800' : 'text-slate-700'}`}>
+                      {item.descrizione}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-xs px-2">
+                  {item._amount > 0 ? `${item._amount.toLocaleString('it-IT', { maximumFractionDigits: 0 })} €` : '-'}
+                </div>
+                <div className="w-16 flex items-center justify-center text-xs text-slate-500">
+                  {item._duration}
+                </div>
+              </div>
+            ))}
+
+            <div className="border-t-2 border-slate-300 bg-slate-50 px-3 text-right font-bold text-xs flex items-center justify-end" style={{ height: 72 }}>
+              SCADENZE SAL
             </div>
+          </div>
         </div>
 
-        {/* Right Content (Gantt Chart) */}
-        <div 
-            className="flex-1 overflow-auto bg-white" 
-            ref={scrollContainerRef}
-            onScroll={handleScroll}
+        <GanttDndProvider
+          onActivityDrop={(activityId, deltaDays) => handleActivityDateChange(activityId, deltaDays)}
+          onDragStateChange={setDraggingActivity}
+          draggingActivity={draggingActivity}
+          dayWidth={config.colWidth / config.daysPerCol}
         >
+          <div className="flex-1 overflow-auto bg-white" ref={scrollContainerRef} onScroll={handleScroll}>
             <div style={{ width: timeColumns.length * config.colWidth }}>
-                {/* Timeline Header */}
-                <div className="sticky top-0 z-10 bg-white" style={{ height: HEADER_HEIGHT }}>
-                    {/* First Header Row (Month or Year) */}
-                    <div className="flex h-8 border-b border-slate-200">
-                        {(() => {
-                            const blocks = [];
-                            let currentBlock = null;
-                            let count = 0;
-                            
-                            timeColumns.forEach((colDate, i) => {
-                                let label = '';
-                                if (viewMode === 'day' || viewMode === 'week') {
-                                    label = format(colDate, 'MMM yyyy', { locale: it });
-                                } else {
-                                    label = format(colDate, 'yyyy', { locale: it });
-                                }
+              <div className="sticky top-0 z-10 bg-white" style={{ height: HEADER_HEIGHT }}>
+                <div className="flex h-8 border-b border-slate-200">
+                  {(() => {
+                    const blocks = [];
+                    let currentBlock = null;
+                    let count = 0;
 
-                                if (label !== currentBlock) {
-                                    if (currentBlock) {
-                                        blocks.push({ name: currentBlock, width: count * config.colWidth });
-                                    }
-                                    currentBlock = label;
-                                    count = 1;
-                                } else {
-                                    count++;
-                                }
-                                if (i === timeColumns.length - 1) {
-                                    blocks.push({ name: currentBlock, width: count * config.colWidth });
-                                }
-                            });
-                            
-                            return blocks.map((b, i) => (
-                                <div key={i} className="border-r border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-bold text-slate-600 uppercase" style={{ width: b.width }}>
-                                    {b.name}
-                                </div>
-                            ));
-                        })()}
-                    </div>
-                    {/* Second Header Row (Days, Weeks, or Months) */}
-                    <div className="flex h-7 border-b border-slate-200">
-                        {timeColumns.map((colDate, i) => {
-                             let label = '';
-                             if (viewMode === 'day') label = format(colDate, 'dd');
-                             else if (viewMode === 'week') label = `Set ${getWeek(colDate)}`;
-                             else if (viewMode === 'month') label = format(colDate, 'MMM', { locale: it });
+                    timeColumns.forEach((colDate, index) => {
+                      const label = viewMode === 'month' || viewMode === 'fit'
+                        ? format(colDate, 'yyyy', { locale: it })
+                        : format(colDate, 'MMM yyyy', { locale: it });
 
-                             return (
-                                <div 
-                                    key={i} 
-                                    className={`flex items-center justify-center text-[10px] border-r border-slate-100 text-slate-600`}
-                                    style={{ width: config.colWidth }}
-                                >
-                                    {label}
-                                </div>
-                             );
-                        })}
-                    </div>
+                      if (label !== currentBlock) {
+                        if (currentBlock) blocks.push({ name: currentBlock, width: count * config.colWidth });
+                        currentBlock = label;
+                        count = 1;
+                      } else {
+                        count += 1;
+                      }
+
+                      if (index === timeColumns.length - 1) {
+                        blocks.push({ name: currentBlock, width: count * config.colWidth });
+                      }
+                    });
+
+                    return blocks.map((block, index) => (
+                      <div key={index} className="border-r border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-bold text-slate-600 uppercase" style={{ width: block.width }}>
+                        {block.name}
+                      </div>
+                    ));
+                  })()}
+                </div>
+                <div className="flex h-7 border-b border-slate-200">
+                  {timeColumns.map((colDate, index) => {
+                    let label = '';
+                    if (viewMode === 'day') label = format(colDate, 'dd');
+                    else if (viewMode === 'week') label = `Set ${getWeek(colDate)}`;
+                    else if (viewMode === 'fit') label = format(colDate, 'MMM', { locale: it });
+                    else label = format(colDate, 'MMM', { locale: it });
+
+                    return (
+                      <div key={index} className="flex items-center justify-center text-[10px] border-r border-slate-100 text-slate-600" style={{ width: config.colWidth }}>
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex pointer-events-none">
+                  {timeColumns.map((_, index) => (
+                    <div key={index} className="border-r border-slate-100 h-full" style={{ width: config.colWidth }} />
+                  ))}
                 </div>
 
-                {/* Grid & Bars */}
-                <div className="relative">
-                    {/* Background Grid */}
-                    <div className="absolute inset-0 flex pointer-events-none">
-                        {timeColumns.map((colDate, i) => (
-                            <div 
-                                key={i} 
-                                className={`border-r border-slate-100 h-full`}
-                                style={{ width: config.colWidth }}
-                            />
-                        ))}
-                        {/* Linea Oggi */}
-                        {(() => {
-                            const today = new Date();
-                            if (isWithinInterval(today, {start: timeRange.start, end: timeRange.end})) {
-                                const pxPerDay = config.colWidth / config.daysPerCol;
-                                const offset = differenceInDays(today, timeRange.start) * pxPerDay + (pxPerDay/2);
-                                return (
-                                    <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: offset }}>
-                                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
-                                    </div>
-                                );
-                            }
-                        })()}
+                {processedData.map((item) => {
+                  const pos = getBarPosition(item._startDate, item._endDate);
+                  const isCritical = Boolean(item._cpmDetails?.isCritical);
+                  return (
+                    <div
+                      key={item.id}
+                      className={`relative border-b border-slate-100 transition-colors ${hoveredRow === item.id ? 'bg-indigo-50/50' : ''}`}
+                      style={{ height: ROW_HEIGHT }}
+                      onMouseEnter={() => setHoveredRow(item.id)}
+                      onMouseLeave={() => setHoveredRow(null)}
+                    >
+                      {pos && (
+                        item.tipo_attivita === 'raggruppamento' ? (
+                          <div
+                            className="absolute h-3 bg-slate-800 opacity-80"
+                            style={{ left: pos.left, width: pos.width, top: (ROW_HEIGHT - 12) / 2 }}
+                          >
+                            <div className="absolute -left-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800" />
+                            <div className="absolute -right-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800" />
+                          </div>
+                        ) : (
+                          <ActivityBar
+                            activity={item}
+                            startDate={item._startDate instanceof Date ? item._startDate.toISOString().split('T')[0] : item.data_inizio}
+                            duration={item._duration || 1}
+                            isCritical={isCritical}
+                            canDrag={item.tipo_attivita === 'task'}
+                            viewMode={viewMode}
+                            timelineStart={format(timeRange.start, 'yyyy-MM-dd')}
+                            dayWidth={config.colWidth / config.daysPerCol}
+                            barLeft={pos.left}
+                            barWidth={pos.width}
+                          />
+                        )
+                      )}
                     </div>
+                  );
+                })}
 
-                    {/* Activity Rows */}
-                    {processedData.map((item) => {
-                        const pos = getBarPosition(item._startDate, item._endDate);
-                        
-                        return (
-                            <div 
-                                key={item.id} 
-                                className={`relative border-b border-slate-100 hover:bg-indigo-50/30 transition-colors ${hoveredRow === item.id ? 'bg-indigo-50/50' : ''}`}
-                                style={{ height: ROW_HEIGHT }}
-                                onMouseEnter={() => setHoveredRow(item.id)}
-                                onMouseLeave={() => setHoveredRow(null)}
-                            >
-                                {pos && (
-                                    item.tipo_attivita === 'raggruppamento' ? (
-                                        /* Barra Raggruppamento - centrata verticalmente */
-                                        <div
-                                            className="absolute h-3 bg-slate-800 opacity-80"
-                                            style={{
-                                                left: pos.left,
-                                                width: pos.width,
-                                                top: (ROW_HEIGHT - 12) / 2 // Centrato: (40px - 12px) / 2 = 14px
-                                            }}
-                                        >
-                                            <div className="absolute -left-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
-                                            <div className="absolute -right-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
-                                        </div>
-                                    ) : (
-                                        /* Barra Attività Normale - centrata verticalmente */
-                                        <div
-                                            className="absolute h-5 rounded shadow-sm border border-black/10 cursor-pointer hover:shadow-md transition-all group"
-                                            style={{
-                                                left: pos.left,
-                                                width: pos.width,
-                                                top: (ROW_HEIGHT - 20) / 2, // Centrato: (40px - 20px) / 2 = 10px
-                                                backgroundColor: item.colore || '#3b82f6'
-                                            }}
-                                            onClick={() => onEditAttivita(item)}
-                                        >
-                                            {/* Progress Bar */}
-                                            <div 
-                                                className="h-full bg-black/20" 
-                                                style={{ width: `${item.percentuale_completamento}%` }}
-                                            />
-                                            {/* Label on bar if wide enough */}
-                                            {pos.width > 100 && (
-                                                <span className="absolute left-2 top-0.5 text-[10px] text-white font-medium truncate w-full pr-2 drop-shadow-md">
-                                                    {item.descrizione}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )
-                                )}
-                            </div>
-                        );
-                    })}
+                <div className="border-t-2 border-slate-300 bg-slate-50 relative" style={{ height: 72 }}>
+                  <div className="absolute inset-0 flex pointer-events-none">
+                    {timeColumns.map((_, index) => (
+                      <div key={index} className="border-r border-slate-100 h-full" style={{ width: config.colWidth }} />
+                    ))}
+                  </div>
 
-                    {/* SAL Markers & Cash Flow Row */}
-                    <div className="border-t-2 border-slate-300 bg-slate-50 relative" style={{ height: 120 }}>
-                        {/* Background Grid for this row too */}
-                        <div className="absolute inset-0 flex pointer-events-none">
-                            {timeColumns.map((day, i) => (
-                                <div key={i} className="border-r border-slate-100 h-full" style={{ width: config.colWidth }} />
-                            ))}
+                  {salMarkers.map((sal) => {
+                    const pxPerDay = config.colWidth / config.daysPerCol;
+                    const offset = differenceInDays(sal.date, timeRange.start) * pxPerDay + (pxPerDay / 2);
+                    return (
+                      <div key={sal.id} className="absolute top-0 bottom-0 z-10 flex flex-col items-center group" style={{ left: offset }}>
+                        <div className="h-full w-0.5 bg-orange-400 border-l border-dashed border-orange-400" />
+                        <div className="absolute top-2 bg-orange-100 border border-orange-300 text-orange-800 text-[10px] px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-20">
+                          <div className="font-bold">SAL {format(sal.date, 'dd/MM')}</div>
+                          <div>{Math.round(sal.amount).toLocaleString('it-IT')} €</div>
                         </div>
-
-                        {/* SAL Markers */}
-                        {salMarkers.map(sal => {
-                            const pxPerDay = config.colWidth / config.daysPerCol;
-                            const offset = differenceInDays(sal.date, timeRange.start) * pxPerDay + (pxPerDay/2);
-                            return (
-                                <div 
-                                    key={sal.id}
-                                    className="absolute top-0 bottom-0 z-10 flex flex-col items-center group"
-                                    style={{ left: offset }}
-                                >
-                                    <div className="h-full w-0.5 bg-red-400 border-l border-dashed border-red-400"></div>
-                                    <div className="absolute top-2 bg-red-100 border border-red-300 text-red-800 text-[10px] px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap z-20 hover:scale-110 transition-transform cursor-pointer">
-                                        <div className="font-bold">SAL {sal.date.getDate()}/{sal.date.getMonth()+1}</div>
-                                        <div>€ {(sal.amount/1000).toFixed(1)}k</div>
-                                    </div>
-                                    <div className="absolute bottom-0 w-3 h-3 bg-red-500 rotate-45 translate-y-1.5"></div>
-                                </div>
-                            );
-                        })}
-
-                        {/* Planned Cash Flow Bars */}
-                        {Object.entries(cashFlow).map(([monthStr, amount]) => {
-                             const monthDate = parseISO(monthStr + '-01');
-                             if (amount <= 0 || !isValid(monthDate)) return null;
-                             
-                             if (!isWithinInterval(monthDate, {start: startOfMonth(timeRange.start), end: endOfMonth(timeRange.end)})) return null;
-
-                             const startPos = getBarPosition(monthDate, endOfMonth(monthDate));
-                             if (!startPos) return null;
-
-                             return (
-                                 <div 
-                                    key={monthStr}
-                                    className="absolute bottom-0 border-l border-slate-200 flex flex-col justify-end pb-0 px-1 pointer-events-none"
-                                    style={{ left: startPos.left, width: startPos.width, height: '60%' }}
-                                 >
-                                     <div className="text-center w-full h-full flex flex-col justify-end">
-                                         <div className="text-[9px] text-slate-400 font-bold mb-0.5 uppercase tracking-tighter">Budget</div>
-                                         <div className="flex-1 bg-indigo-100 w-full mx-auto rounded-t flex items-end justify-center border-b-2 border-indigo-400 opacity-80">
-                                            <div className="text-[10px] font-bold text-indigo-700 mb-1">
-                                                € {(amount/1000).toFixed(0)}k
-                                            </div>
-                                         </div>
-                                     </div>
-                                 </div>
-                             );
-                        })}
-                    </div>
+                      </div>
+                    );
+                  })}
                 </div>
+              </div>
             </div>
+          </div>
+        </GanttDndProvider>
+      </div>
+
+      <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="inline-flex items-center gap-1">
+            <CalendarClock className="w-3.5 h-3.5 text-orange-500" />
+            I marker SAL evidenziano quando verificare la fatturazione.
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+            Le attivita oltre la data fine prevista vengono conteggiate come ritardi.
+          </span>
         </div>
       </div>
     </div>

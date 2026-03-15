@@ -10,8 +10,10 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import GanttAvanzato from "../components/cronoprogramma/GanttAvanzato";
+import PlanningGantt from "../components/cronoprogramma/PlanningGantt";
 import ImportCronoprogrammaForm from "../components/cronoprogramma/ImportCronoprogrammaForm";
+import AttivitaForm from "../components/cronoprogramma/AttivitaForm";
+import { createPlanningActivity, dbActivitiesToPlanning, planningActivitiesToDb } from "@/utils/planningModel";
 
 const statoStats = {
   pianificata: { icon: Building2, color: "bg-slate-100 text-slate-700", label: "Pianificate" },
@@ -30,8 +32,15 @@ export default function CronoprogrammaPage() {
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [showImportForm, setShowImportForm] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAttivitaDialog, setShowAttivitaDialog] = useState(false);
+  const [editingAttivita, setEditingAttivita] = useState(null);
+  const [isSectionFullView, setIsSectionFullView] = useState(false);
 
   const currentCantiere = useMemo(() => cantieri.find(c => c.id === selectedCantiereId), [cantieri, selectedCantiereId]);
+
+  const handleToggleSectionFullView = useCallback(() => {
+    setIsSectionFullView((current) => !current);
+  }, []);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -44,7 +53,7 @@ export default function CronoprogrammaPage() {
 
       const activeCantiereId = selectedCantiereId || (cantieriData.length > 0 ? cantieriData[0].id : null);
 
-      if (activeCantiereId && !selectedCantiereId) {
+      if (activeCantiereId && activeCantiereId !== selectedCantiereId) {
         setSelectedCantiereId(activeCantiereId);
       }
 
@@ -79,6 +88,37 @@ export default function CronoprogrammaPage() {
     loadData();
   }, [reloadTrigger, loadData]);
 
+  useEffect(() => {
+    if (!selectedCantiereId) return;
+
+    let isCancelled = false;
+
+    const loadSalsForCantiere = async () => {
+      try {
+        const salResult = await supabaseDB.sals.getByCantiere(selectedCantiereId);
+        if (isCancelled) return;
+
+        setCantieriSals(prev => ({
+          ...prev,
+          [selectedCantiereId]: salResult || []
+        }));
+      } catch (error) {
+        if (isCancelled) return;
+        console.warn("Caricamento SAL non disponibile:", error);
+        setCantieriSals(prev => ({
+          ...prev,
+          [selectedCantiereId]: prev[selectedCantiereId] || []
+        }));
+      }
+    };
+
+    loadSalsForCantiere();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedCantiereId, reloadTrigger]);
+
   const getCantiereStats = useCallback((cantiere) => {
     if (!cantiere || !cantiere.id) return { totale: 0, percentualeCompletamento: 0 };
     const attivita = cantieriAttivita[cantiere.id] || [];
@@ -96,6 +136,12 @@ export default function CronoprogrammaPage() {
     return filtroStato === "tutti" ? attivita : attivita.filter(att => att.stato === filtroStato);
   }, [filtroStato]);
 
+  const selectedPlanningActivities = useMemo(() => {
+    if (!selectedCantiereId) return [];
+    const rawActivities = filteredAttivita(cantieriAttivita[selectedCantiereId] || []);
+    return dbActivitiesToPlanning(rawActivities);
+  }, [selectedCantiereId, cantieriAttivita, filteredAttivita]);
+
   const getOverallStats = useMemo(() => {
     const allAttivita = Object.values(cantieriAttivita).flat();
     return Object.keys(statoStats).reduce((acc, stato) => {
@@ -109,6 +155,90 @@ export default function CronoprogrammaPage() {
     setReloadTrigger(prev => prev + 1);
     toast.success("Cronoprogramma importato con successo!");
   };
+
+  const handleOpenNewAttivita = useCallback(() => {
+    if (!selectedCantiereId) {
+      toast.info("Seleziona un cantiere prima di creare una nuova attivita.");
+      return;
+    }
+    setEditingAttivita(null);
+    setShowAttivitaDialog(true);
+  }, [selectedCantiereId]);
+
+  const handleOpenEditAttivita = useCallback((attivita) => {
+    if (!attivita) return;
+    setEditingAttivita(attivita);
+    setShowAttivitaDialog(true);
+  }, []);
+
+  const handleAttivitaSubmit = useCallback(async (formPayload) => {
+    if (!selectedCantiereId) {
+      toast.error("Cantiere non selezionato.");
+      return;
+    }
+
+    try {
+      const planningActivity = createPlanningActivity({
+        ...formPayload,
+        cantiere_id: selectedCantiereId,
+        id: editingAttivita?.id || formPayload.id || undefined
+      }, 'manual-form');
+      const dbPayload = planningActivitiesToDb([planningActivity])[0];
+
+      let savedActivity;
+      if (editingAttivita?.id) {
+        savedActivity = await supabaseDB.attivita.update(editingAttivita.id, {
+          ...dbPayload,
+          cantiere_id: selectedCantiereId,
+          updated_date: new Date().toISOString()
+        });
+      } else {
+        savedActivity = await supabaseDB.attivita.create({
+          ...dbPayload,
+          cantiere_id: selectedCantiereId,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString()
+        });
+      }
+
+      setCantieriAttivita((prev) => {
+        const current = prev[selectedCantiereId] || [];
+        const next = editingAttivita?.id
+          ? current.map((item) => item.id === savedActivity.id ? savedActivity : item)
+          : [...current, savedActivity];
+
+        return {
+          ...prev,
+          [selectedCantiereId]: next
+        };
+      });
+
+      setShowAttivitaDialog(false);
+      setEditingAttivita(null);
+      toast.success(editingAttivita?.id ? "Attivita aggiornata." : "Attivita creata.");
+    } catch (error) {
+      console.error("Errore salvataggio attivita:", error);
+      toast.error("Errore durante il salvataggio dell'attivita.");
+    }
+  }, [selectedCantiereId, editingAttivita]);
+
+  const handleAttivitaDelete = useCallback(async (attivitaId) => {
+    if (!selectedCantiereId || !attivitaId) return;
+
+    try {
+      await supabaseDB.attivita.delete(attivitaId);
+      setCantieriAttivita((prev) => ({
+        ...prev,
+        [selectedCantiereId]: (prev[selectedCantiereId] || []).filter((item) => item.id !== attivitaId)
+      }));
+      setShowAttivitaDialog(false);
+      setEditingAttivita(null);
+      toast.success("Attivita eliminata.");
+    } catch (error) {
+      console.error("Errore eliminazione attivita:", error);
+      toast.error("Errore durante l'eliminazione dell'attivita.");
+    }
+  }, [selectedCantiereId]);
 
   const handleAttivitaUpdate = useCallback(async (updatedActivityIds, calculationResult) => {
     if (!selectedCantiereId || !updatedActivityIds || updatedActivityIds.length === 0) {
@@ -141,13 +271,13 @@ export default function CronoprogrammaPage() {
       if (updates.length === 0) return;
 
       await Promise.all(
-        updates.map((update) =>
-          supabaseDB.attivita.update(update.id, {
-            data_inizio: update.data_inizio,
-            data_fine: update.data_fine,
+        updates.map((update) => {
+          const { id, ...fields } = update;
+          return supabaseDB.attivita.update(id, {
+            ...fields,
             updated_date: new Date().toISOString()
-          })
-        )
+          });
+        })
       );
 
       const updatesMap = new Map(updates.map((update) => [update.id, update]));
@@ -158,8 +288,7 @@ export default function CronoprogrammaPage() {
           if (!update) return attivita;
           return {
             ...attivita,
-            data_inizio: update.data_inizio,
-            data_fine: update.data_fine
+            ...update
           };
         });
         return {
@@ -236,6 +365,35 @@ export default function CronoprogrammaPage() {
 
   const overallStats = getOverallStats;
 
+  if (isSectionFullView) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-100">
+        <div className="h-full p-4">
+          {selectedCantiereId && currentCantiere ? (
+            <PlanningGantt
+              planningActivities={selectedPlanningActivities}
+              sals={cantieriSals[selectedCantiereId] || []}
+              cantiere={currentCantiere}
+              onAddAttivita={handleOpenNewAttivita}
+              onEditAttivita={handleOpenEditAttivita}
+              onAttivitaUpdate={handleAttivitaUpdate}
+              isSectionFullView={isSectionFullView}
+              onToggleSectionFullView={handleToggleSectionFullView}
+            />
+          ) : (
+            <Card className="border-0 shadow-lg bg-white h-full">
+              <CardContent className="p-12 text-center">
+                <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-400" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Seleziona un cantiere</h3>
+                <p className="text-slate-600">Usa il menu a tendina per scegliere un cantiere</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="p-8">
@@ -297,6 +455,16 @@ export default function CronoprogrammaPage() {
                   </SelectContent>
                 </Select>
               )}
+
+              <Button
+                onClick={handleOpenNewAttivita}
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 h-10"
+                disabled={!selectedCantiereId}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nuova Attivita
+              </Button>
 
               <Button
                 onClick={() => setShowImportForm(true)}
@@ -417,13 +585,15 @@ export default function CronoprogrammaPage() {
           ) : (
             <div className="flex flex-col space-y-4" style={{ height: 'calc(100vh - 12rem)' }}>
               {selectedCantiereId && currentCantiere ? (
-                <GanttAvanzato
-                  attivita={filteredAttivita(cantieriAttivita[selectedCantiereId] || [])}
+                <PlanningGantt
+                  planningActivities={selectedPlanningActivities}
                   sals={cantieriSals[selectedCantiereId] || []}
                   cantiere={currentCantiere}
-                  onAddAttivita={() => {}}
-                  onEditAttivita={() => {}}
+                  onAddAttivita={handleOpenNewAttivita}
+                  onEditAttivita={handleOpenEditAttivita}
                   onAttivitaUpdate={handleAttivitaUpdate}
+                  isSectionFullView={isSectionFullView}
+                  onToggleSectionFullView={handleToggleSectionFullView}
                 />
               ) : (
                 <Card className="border-0 shadow-lg bg-white">
@@ -441,14 +611,34 @@ export default function CronoprogrammaPage() {
 
       {/* Dialog Importazione */}
       <Dialog open={showImportForm} onOpenChange={setShowImportForm}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="w-[96vw] max-w-[96vw] h-[92vh] overflow-hidden p-0 sm:max-w-[96vw]">
+          <DialogHeader className="px-6 py-4 border-b border-slate-200">
             <DialogTitle>Importa Cronoprogramma da File</DialogTitle>
           </DialogHeader>
-          <ImportCronoprogrammaForm
-            cantieri={cantieri}
-            onSuccess={handleImportSuccess}
-            onCancel={() => setShowImportForm(false)}
+          <div className="h-[calc(92vh-73px)] overflow-y-auto px-6 py-4">
+            <ImportCronoprogrammaForm
+              cantieri={cantieri}
+              onSuccess={handleImportSuccess}
+              onCancel={() => setShowImportForm(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAttivitaDialog} onOpenChange={setShowAttivitaDialog}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingAttivita ? "Modifica Attivita" : "Nuova Attivita"}</DialogTitle>
+          </DialogHeader>
+          <AttivitaForm
+            attivita={editingAttivita}
+            cantiere_id={selectedCantiereId}
+            onSubmit={handleAttivitaSubmit}
+            onCancel={() => {
+              setShowAttivitaDialog(false);
+              setEditingAttivita(null);
+            }}
+            onDelete={editingAttivita ? handleAttivitaDelete : undefined}
           />
         </DialogContent>
       </Dialog>

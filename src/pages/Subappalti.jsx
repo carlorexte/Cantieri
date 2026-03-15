@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Subappalto } from "@/entities/Subappalto";
-import { Cantiere } from "@/entities/Cantiere";
-import { Impresa } from "@/entities/Impresa";
-import { User } from "@/entities/User";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -96,10 +93,10 @@ export default function SubappaltiPage() {
     setIsLoading(true);
     try {
       const [subappaltiData, cantieriData, impreseData, user] = await Promise.all([
-        Subappalto.list("-created_date"),
-        Cantiere.list(),
-        Impresa.list(),
-        User.me()
+        base44.entities.Subappalto.list("-created_date"),
+        base44.entities.Cantiere.list(),
+        base44.entities.Impresa.list(),
+        base44.auth.me()
       ]);
       setSubappalti(subappaltiData);
       setCantieri(cantieriData);
@@ -114,9 +111,9 @@ export default function SubappaltiPage() {
   const handleSubmit = async (formData) => {
     try {
       if (editingSubappalto) {
-        await Subappalto.update(editingSubappalto.id, formData);
+        await base44.entities.Subappalto.update(editingSubappalto.id, formData);
       } else {
-        await Subappalto.create(formData);
+        await base44.entities.Subappalto.create(formData);
       }
       setShowForm(false);
       setEditingSubappalto(null);
@@ -129,7 +126,7 @@ export default function SubappaltiPage() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) {
       try {
-        await Subappalto.delete(id);
+        await base44.entities.Subappalto.delete(id);
         loadData();
       } catch (error) {
         console.error("Errore eliminazione:", error);

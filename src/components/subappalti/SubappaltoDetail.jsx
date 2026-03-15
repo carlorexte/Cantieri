@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import { SALSubappalto } from "@/entities/SALSubappalto";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
   const loadSAL = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
+      const data = await base44.entities.SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
       setSalList(data);
     } catch (error) {
       console.error("Errore caricamento SAL:", error);
@@ -58,13 +58,13 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
       };
 
       if (salData.id) {
-        await SALSubappalto.update(salData.id, dataToSave);
+        await base44.entities.SALSubappalto.update(salData.id, dataToSave);
       } else {
-        await SALSubappalto.create(dataToSave);
+        await base44.entities.SALSubappalto.create(dataToSave);
       }
-      
+
       // After saving, re-fetch the latest SALs to update the list and get the correct next numero_sal
-      const updatedSalList = await SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
+      const updatedSalList = await base44.entities.SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
       setSalList(updatedSalList); // Update the state with the fresh list
       setEditingRow(null);
 
@@ -240,32 +240,32 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
                 {editingRow === 'new' && (
                   <TableRow className="bg-green-50">
                     <TableCell>
-                      <Input 
-                        type="number" 
-                        value={newSal.numero_sal} 
-                        onChange={(e) => setNewSal({...newSal, numero_sal: parseInt(e.target.value)})}
+                      <Input
+                        type="number"
+                        value={newSal.numero_sal}
+                        onChange={(e) => setNewSal({ ...newSal, numero_sal: parseInt(e.target.value) })}
                         className="w-20"
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="date" 
-                        value={newSal.data_sal} 
-                        onChange={(e) => setNewSal({...newSal, data_sal: e.target.value})}
+                      <Input
+                        type="date"
+                        value={newSal.data_sal}
+                        onChange={(e) => setNewSal({ ...newSal, data_sal: e.target.value })}
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        value={newSal.numero_fattura} 
-                        onChange={(e) => setNewSal({...newSal, numero_fattura: e.target.value})}
+                      <Input
+                        value={newSal.numero_fattura}
+                        onChange={(e) => setNewSal({ ...newSal, numero_fattura: e.target.value })}
                         placeholder="Num. fattura"
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="number" 
-                        value={newSal.imponibile} 
-                        onChange={(e) => setNewSal({...newSal, imponibile: parseFloat(e.target.value) || 0})}
+                      <Input
+                        type="number"
+                        value={newSal.imponibile}
+                        onChange={(e) => setNewSal({ ...newSal, imponibile: parseFloat(e.target.value) || 0 })}
                         step="0.01"
                       />
                     </TableCell>
@@ -276,17 +276,17 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
                       € {(newSal.imponibile * 1.1).toLocaleString('it-IT')}
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="date" 
-                        value={newSal.data_pagamento} 
-                        onChange={(e) => setNewSal({...newSal, data_pagamento: e.target.value})}
+                      <Input
+                        type="date"
+                        value={newSal.data_pagamento}
+                        onChange={(e) => setNewSal({ ...newSal, data_pagamento: e.target.value })}
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="number" 
-                        value={newSal.importo_pagamento} 
-                        onChange={(e) => setNewSal({...newSal, importo_pagamento: parseFloat(e.target.value) || 0})}
+                      <Input
+                        type="number"
+                        value={newSal.importo_pagamento}
+                        onChange={(e) => setNewSal({ ...newSal, importo_pagamento: parseFloat(e.target.value) || 0 })}
                         step="0.01"
                       />
                     </TableCell>

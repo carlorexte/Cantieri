@@ -74,6 +74,7 @@ export function GanttDndProvider({ children, onActivityDrop, onDragStateChange, 
               isCritical={draggingActivity._cpmDetails?.isCritical || false}
               canDrag={false}
               viewMode="day"
+              timelineStart={draggingActivity.data_inizio}
               dayWidth={dayWidth}
             />
           </div>

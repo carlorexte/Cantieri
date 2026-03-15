@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { PersonaEsterna } from "@/entities/PersonaEsterna";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -26,7 +26,7 @@ export default function PersonaEsternaSelector({ value, onSelect, label = "Selez
 
   const loadPersone = async () => {
     try {
-      const data = await PersonaEsterna.list("nome");
+      const data = await base44.entities.PersonaEsterna.list("nome");
       setPersone(data);
     } catch (error) {
       console.error("Errore caricamento persone:", error);

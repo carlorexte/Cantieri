@@ -1,6 +1,8 @@
+// @ts-ignore - Supabase Edge Function Deno context
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 
-Deno.serve(async (req) => {
+// @ts-ignore - Deno is globally available in Edge Functions
+Deno.serve(async (req: Request) => {
     try {
         const base44 = createClientFromRequest(req);
         const user = await base44.auth.me();
@@ -19,18 +21,18 @@ Deno.serve(async (req) => {
 
         // 2. Prepare context for the LLM
         const dataContext = {
-            cantieri_summary: cantieri.map(c => ({
+            cantieri_summary: cantieri.map((c: any) => ({
                 nome: c.denominazione,
                 budget: c.importo_contratto,
                 data_fine: c.data_fine_prevista,
                 stato: c.stato
             })),
-            costi_recenti_summary: costi.map(c => ({
+            costi_recenti_summary: costi.map((c: any) => ({
                 categoria: c.categoria,
                 importo: c.importo,
                 data: c.data_sostenimento
             })),
-            sals_summary: sals.map(s => ({
+            sals_summary: sals.map((s: any) => ({
                 totale: s.totale_fattura,
                 data: s.data_sal
             }))
@@ -97,7 +99,7 @@ Deno.serve(async (req) => {
 
         return Response.json(result);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error in analyzeProjectData:", error);
         return Response.json({ error: error.message }, { status: 500 });
     }

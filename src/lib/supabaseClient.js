@@ -6,6 +6,47 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { createPlanningActivity, planningActivitiesToDb } from '@/utils/planningModel';
+
+const OPTIONAL_ATTIVITA_COLUMNS = [
+  'parent_id',
+  'vincolo_tipo',
+  'vincolo_data',
+  'baseline_start_date',
+  'baseline_end_date'
+];
+
+function isMissingColumnError(error) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return (
+    error?.code === 'PGRST204' ||
+    error?.code === '42703' ||
+    message.includes('column') && message.includes('does not exist') ||
+    message.includes('could not find the') ||
+    message.includes('schema cache')
+  );
+}
+
+function stripUnsupportedAttivitaColumns(payload) {
+  if (Array.isArray(payload)) {
+    return payload.map((item) => stripUnsupportedAttivitaColumns(item));
+  }
+
+  const next = { ...(payload || {}) };
+  for (const column of OPTIONAL_ATTIVITA_COLUMNS) {
+    delete next[column];
+  }
+  return next;
+}
+
+async function retryWithoutOptionalAttivitaColumns(operation, payload) {
+  try {
+    return await operation(payload);
+  } catch (error) {
+    if (!isMissingColumnError(error)) throw error;
+    return operation(stripUnsupportedAttivitaColumns(payload));
+  }
+}
 
 // Variabili d'ambiente
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT.supabase.co';
@@ -109,36 +150,48 @@ export const supabaseDB = {
     },
 
     create: async (attivita) => {
-      const { data, error } = await supabase
-        .from('attivita')
-        .insert([attivita])
-        .select()
-        .single();
+      const executeInsert = async (payload) => {
+        const { data, error } = await supabase
+          .from('attivita')
+          .insert([payload])
+          .select()
+          .single();
       
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      };
+
+      return retryWithoutOptionalAttivitaColumns(executeInsert, attivita);
     },
 
     createBatch: async (attivitaList) => {
-      const { data, error } = await supabase
-        .from('attivita')
-        .insert(attivitaList)
-        .select();
-      
-      if (error) throw error;
-      return data || [];
+      const executeInsert = async (payload) => {
+        const { data, error } = await supabase
+          .from('attivita')
+          .insert(payload)
+          .select();
+        
+        if (error) throw error;
+        return data || [];
+      };
+
+      return retryWithoutOptionalAttivitaColumns(executeInsert, attivitaList);
     },
 
     update: async (id, updates) => {
-      const { data, error } = await supabase
-        .from('attivita')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const executeUpdate = async (payload) => {
+        const { data, error } = await supabase
+          .from('attivita')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return data;
+      };
+
+      return retryWithoutOptionalAttivitaColumns(executeUpdate, updates);
     },
 
     delete: async (id) => {
@@ -170,7 +223,19 @@ export const supabaseDB = {
         .select('*')
         .order('denominazione', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        const isMissingRelation =
+          error.code === 'PGRST205' ||
+          error.code === '42P01' ||
+          error.status === 404 ||
+          /imprese/i.test(error.message || '');
+
+        if (isMissingRelation) {
+          console.warn('Tabella "imprese" non disponibile su Supabase. Continuo con lista vuota.');
+          return [];
+        }
+        throw error;
+      }
       return data || [];
     },
 
@@ -278,7 +343,10 @@ export const supabaseDB = {
       // 2. Prepara le attività con solo le colonne che esistono nel DB
       await supabaseDB.attivita.deleteByCantiere(cantiereId);
 
-      attivitaDaInserire = attivitaList.map(att => ({
+      const planningActivities = attivitaList.map((att) => createPlanningActivity(att, 'supabase-import'));
+      const dbActivities = planningActivitiesToDb(planningActivities);
+
+      attivitaDaInserire = dbActivities.map(att => ({
         cantiere_id: cantiereId,
         wbs: att.wbs || '',
         // parent_id: att.parent_id || null, // TODO: Aggiungere colonna parent_id al database

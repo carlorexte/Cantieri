@@ -25,6 +25,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 import AdvancedSearch from "@/components/shared/AdvancedSearch";
+import SALAlerts from "@/components/sal/SALAlerts";
 
 const statoPagamentoColori = {
   da_fatturare: "bg-blue-50 text-blue-700 border-blue-200",
@@ -278,6 +279,10 @@ export default function SalPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {/* SAL Alerts - Nuova sezione */}
+            <div className="md:col-span-4">
+              <SALAlerts cantiereId={selectedCantiereId} />
+            </div>
             <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">

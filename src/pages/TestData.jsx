@@ -1,14 +1,5 @@
 import React, { useState } from "react";
-import { Cantiere } from "@/entities/Cantiere";
-import { SAL } from "@/entities/SAL";
-import { Costo } from "@/entities/Costo";
-import { Subappalto } from "@/entities/Subappalto";
-import { SocioConsorzio } from "@/entities/SocioConsorzio";
-import { AttivitaInterna } from "@/entities/AttivitaInterna";
-import { Attivita } from "@/entities/Attivita";
-import { User } from "@/entities/User";
-import { SALSocio } from "@/entities/SALSocio";
-import { SALSubappalto } from "@/entities/SALSubappalto";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database, Trash2, AlertCircle, RefreshCw } from "lucide-react";
@@ -24,27 +15,27 @@ export default function TestData() {
   const generateTestData = async () => {
     setIsGenerating(true);
     setMessage("Generazione dati di prova in corso... Questo potrebbe richiedere qualche minuto.");
-    
+
     try {
       // 1. Fetch prerequisite data
       setProgress("Caricamento dati preliminari (Cantieri, Utenti)...");
-      const cantieri = await Cantiere.list();
+      const cantieri = await base44.entities.Cantiere.list();
       if (cantieri.length === 0) {
         setMessage("Errore: Nessun cantiere trovato. Crea prima alcuni cantieri.");
         setIsGenerating(false);
         return;
       }
-      const utenti = await User.list();
+      const utenti = await base44.entities.User.list();
       if (utenti.length === 0) {
-          setMessage("Errore: Nessun utente trovato. Assicurati che ci siano utenti nel sistema.");
-          setIsGenerating(false);
-          return;
+        setMessage("Errore: Nessun utente trovato. Assicurati che ci siano utenti nel sistema.");
+        setIsGenerating(false);
+        return;
       }
 
       // Helper functions for random data - CORREZIONE: DATE 2025
       const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
       const getRandomDate = (start, end) => new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-      
+
       // CORREZIONE: Date per il 2025
       const currentYear = 2025; // FORZATO AL 2025
       const startOfYear = new Date(currentYear, 0, 1);
@@ -73,7 +64,7 @@ export default function TestData() {
 
           if (importoSalCorrente > 0) {
             const dataInizio = cantiere.data_inizio ? new Date(cantiere.data_inizio) : startOfYear;
-            await SAL.create({
+            await base44.entities.SAL.create({
               cantiere_id: cantiere.id,
               numero_sal: i,
               data_sal: getRandomDate(dataInizio, endOfYear).toISOString().split('T')[0],
@@ -97,7 +88,7 @@ export default function TestData() {
         const numCosti = Math.floor(Math.random() * 15) + 5; // 5 to 20 costs per site
         for (let i = 0; i < numCosti; i++) {
           const dataInizio = cantiere.data_inizio ? new Date(cantiere.data_inizio) : startOfYear;
-          await Costo.create({
+          await base44.entities.Costo.create({
             cantiere_id: cantiere.id,
             categoria: getRandomItem(categorieCosto),
             descrizione: `Costo di prova ${i + 1} per ${cantiere.denominazione || cantiere.oggetto_lavori}`,
@@ -126,14 +117,14 @@ export default function TestData() {
         for (let i = 0; i < numSub; i++) {
           const percentuale = Math.random() * 0.1 + 0.05; // 5-15%
           const importoSub = Math.round(importoBase * percentuale);
-          
+
           if (importoSub <= 0) {
             console.warn(`Saltato subappalto: importo calcolato non valido (${importoSub})`);
             continue;
           }
 
           const dataInizio = cantiere.data_inizio ? new Date(cantiere.data_inizio) : startOfYear;
-          const subappalto = await Subappalto.create({
+          const subappalto = await base44.entities.Subappalto.create({
             cantiere_id: cantiere.id,
             ragione_sociale: getRandomItem(subappaltatori),
             importo_contratto: importoSub,
@@ -147,7 +138,7 @@ export default function TestData() {
           for (let j = 1; j <= numSalSub; j++) {
             const imponibileSAL = Math.round(importoSub / numSalSub);
             if (imponibileSAL > 0) {
-              await SALSubappalto.create({
+              await base44.entities.SALSubappalto.create({
                 subappalto_id: subappalto.id,
                 numero_sal: j,
                 imponibile: imponibileSAL,
@@ -159,7 +150,7 @@ export default function TestData() {
           }
         }
       }
-      
+
       // 5. Generate Consortium Partners and their SALs
       setProgress("Generazione Soci Consorzio e relativi SAL...");
       const soci = ["Socio Esecutore 1 Srl", "Socio Esecutore 2 S.p.A."];
@@ -170,48 +161,48 @@ export default function TestData() {
           continue;
         }
 
-         const numSoci = Math.floor(Math.random() * 2) + 1;
-         for (let i = 0; i < numSoci; i++) {
-            const percentuale = Math.random() * 0.2 + 0.1; // 10-30%
-            const importoComputo = Math.round(importoBase * percentuale);
-            
-            if (importoComputo <= 0) {
-              console.warn(`Saltato socio: importo calcolato non valido (${importoComputo})`);
-              continue;
-            }
+        const numSoci = Math.floor(Math.random() * 2) + 1;
+        for (let i = 0; i < numSoci; i++) {
+          const percentuale = Math.random() * 0.2 + 0.1; // 10-30%
+          const importoComputo = Math.round(importoBase * percentuale);
 
-            const socio = await SocioConsorzio.create({
-                cantiere_id: cantiere.id,
-                ragione_sociale: getRandomItem(soci),
-                importo_computo: importoComputo,
-                ribasso_percentuale: parseFloat((Math.random() * 5 + 15).toFixed(2)), // 15-20%
-                stato: 'attivo'
-            });
-            await delay(150);
-            
-            const numSalSocio = Math.floor(Math.random() * 3) + 1;
-            for (let j = 1; j <= numSalSocio; j++) {
-                const imponibileSAL = Math.round(importoComputo / numSalSocio);
-                if (imponibileSAL > 0) {
-                  const dataInizio = cantiere.data_inizio ? new Date(cantiere.data_inizio) : startOfYear;
-                  await SALSocio.create({
-                      socio_id: socio.id,
-                      numero_sal: j,
-                      imponibile: imponibileSAL,
-                      data_sal: getRandomDate(dataInizio, endOfYear).toISOString().split('T')[0],
-                      stato_pagamento: getRandomItem(["da_pagare", "pagato"]),
-                  });
-                  await delay(150);
-                }
+          if (importoComputo <= 0) {
+            console.warn(`Saltato socio: importo calcolato non valido (${importoComputo})`);
+            continue;
+          }
+
+          const socio = await base44.entities.SocioConsorzio.create({
+            cantiere_id: cantiere.id,
+            ragione_sociale: getRandomItem(soci),
+            importo_computo: importoComputo,
+            ribasso_percentuale: parseFloat((Math.random() * 5 + 15).toFixed(2)), // 15-20%
+            stato: 'attivo'
+          });
+          await delay(150);
+
+          const numSalSocio = Math.floor(Math.random() * 3) + 1;
+          for (let j = 1; j <= numSalSocio; j++) {
+            const imponibileSAL = Math.round(importoComputo / numSalSocio);
+            if (imponibileSAL > 0) {
+              const dataInizio = cantiere.data_inizio ? new Date(cantiere.data_inizio) : startOfYear;
+              await base44.entities.SALSocio.create({
+                socio_id: socio.id,
+                numero_sal: j,
+                imponibile: imponibileSAL,
+                data_sal: getRandomDate(dataInizio, endOfYear).toISOString().split('T')[0],
+                stato_pagamento: getRandomItem(["da_pagare", "pagato"]),
+              });
+              await delay(150);
             }
-         }
+          }
+        }
       }
 
       // 6. Generate Internal Activities
       setProgress("Generazione Attività Interne...");
       const descrizioniInterne = ["Preparare documentazione per gara", "Verifica contabilità cantiere", "Riunione di coordinamento", "Controllo sicurezza"];
       for (let i = 0; i < 10; i++) {
-        await AttivitaInterna.create({
+        await base44.entities.AttivitaInterna.create({
           descrizione: getRandomItem(descrizioniInterne),
           cantiere_id: getRandomItem(cantieri).id,
           assegnatario_id: getRandomItem(utenti).id,
@@ -229,64 +220,73 @@ export default function TestData() {
       for (const cantiere of cantieri) {
         const cantiereStart = cantiere.data_inizio ? new Date(cantiere.data_inizio) : new Date(currentYear, 0, 15);
         let lastEndDate = new Date(cantiereStart);
-        
+
         for (const desc of descrizioniGantt) {
-            const startDate = new Date(lastEndDate);
-            startDate.setDate(startDate.getDate() + 1);
-            const duration = Math.floor(Math.random() * 20) + 10; // 10-30 days
-            const endDate = new Date(startDate);
-            endDate.setDate(endDate.getDate() + duration);
-            
-            await Attivita.create({
-                cantiere_id: cantiere.id,
-                descrizione: desc,
-                data_inizio: startDate.toISOString().split('T')[0],
-                data_fine: endDate.toISOString().split('T')[0],
-                durata_giorni: duration,
-                percentuale_completamento: Math.floor(Math.random() * 101),
-                categoria: getRandomItem(["preparazione", "strutture", "impianti", "finiture", "collaudi"]),
-                stato: getRandomItem(["pianificata", "in_corso", "completata", "in_ritardo"])
-            });
-            lastEndDate = endDate;
-            await delay(150);
+          const startDate = new Date(lastEndDate);
+          startDate.setDate(startDate.getDate() + 1);
+          const duration = Math.floor(Math.random() * 20) + 10; // 10-30 days
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + duration);
+
+          await base44.entities.Attivita.create({
+            cantiere_id: cantiere.id,
+            descrizione: desc,
+            data_inizio: startDate.toISOString().split('T')[0],
+            data_fine: endDate.toISOString().split('T')[0],
+            durata_giorni: duration,
+            percentuale_completamento: Math.floor(Math.random() * 101),
+            categoria: getRandomItem(["preparazione", "strutture", "impianti", "finiture", "collaudi"]),
+            stato: getRandomItem(["pianificata", "in_corso", "completata", "in_ritardo"])
+          });
+          lastEndDate = endDate;
+          await delay(150);
         }
       }
-      
+
       setProgress("");
       setMessage("✅ Dati di prova generati con successo per tutte le entità!");
 
     } catch (error) {
       console.error("Errore generazione dati:", error);
       const errorMessage = error.response?.data?.message || error.message;
-      setMessage(errorMessage.includes("Rate limit") 
+      setMessage(errorMessage.includes("Rate limit")
         ? "⚠️ Limite di velocità raggiunto. Riprova tra qualche minuto."
         : "❌ Errore durante la generazione dei dati: " + errorMessage);
     }
-    
+
     setIsGenerating(false);
     setProgress("");
   };
 
   const clearAllData = async () => {
     if (!confirm("ATTENZIONE: Questa azione eliminerà TUTTI i dati (SAL, Costi, Subappalti, Soci, Attività) da TUTTI i cantieri. Sei sicuro di voler procedere?")) {
-        return;
+      return;
     }
     setIsDeleting(true);
     setMessage("Cancellazione di tutti i dati in corso...");
     try {
-        const entitiesToDelete = [SAL, Costo, Subappalto, SALSocio, SALSubappalto, SocioConsorzio, Attivita, AttivitaInterna];
-        for (const entity of entitiesToDelete) {
-            setProgress(`Cancellazione ${entity.name}...`);
-            const records = await entity.list();
-            for (const record of records) {
-                await entity.delete(record.id);
-                await delay(100);
-            }
+      const entitiesToDelete = [
+        base44.entities.SAL,
+        base44.entities.Costo,
+        base44.entities.Subappalto,
+        base44.entities.SALSocio,
+        base44.entities.SALSubappalto,
+        base44.entities.SocioConsorzio,
+        base44.entities.Attivita,
+        base44.entities.AttivitaInterna
+      ];
+      for (const entity of entitiesToDelete) {
+        setProgress(`Cancellazione ${entity.name || 'entità'}...`);
+        const records = await entity.list();
+        for (const record of records) {
+          await entity.delete(record.id);
+          await delay(100);
         }
-        setMessage("✅ Tutti i dati di prova sono stati cancellati. Ora puoi generarne di nuovi.");
+      }
+      setMessage("✅ Tutti i dati di prova sono stati cancellati. Ora puoi generarne di nuovi.");
     } catch (error) {
-        console.error("Errore cancellazione dati:", error);
-        setMessage("❌ Errore durante la cancellazione dei dati: " + error.message);
+      console.error("Errore cancellazione dati:", error);
+      setMessage("❌ Errore durante la cancellazione dei dati: " + error.message);
     }
     setIsDeleting(false);
     setProgress("");
@@ -316,7 +316,7 @@ export default function TestData() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
+              <Button
                 onClick={generateTestData}
                 disabled={isGenerating || isDeleting}
                 className="bg-blue-600 hover:bg-blue-700 flex-1"
@@ -324,8 +324,8 @@ export default function TestData() {
                 <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
                 {isGenerating ? "Generazione..." : "Genera Nuovi Dati (2025)"}
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={clearAllData}
                 disabled={isDeleting || isGenerating}
                 variant="destructive"

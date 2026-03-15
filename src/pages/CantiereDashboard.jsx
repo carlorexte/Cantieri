@@ -37,6 +37,7 @@ import CantiereForm from '../components/cantieri/CantiereForm';
 import AttivitaManager from '../components/cantieri/AttivitaManager';
 import ProgressChart from '../components/cantiere-dashboard/ProgressChart';
 import QuickNotes from '../components/cantiere-dashboard/QuickNotes';
+import SALAlerts from '@/components/sal/SALAlerts';
 
 const DetailField = React.memo(({ label, value }) => (
   <div>
@@ -500,11 +501,18 @@ export default function CantiereDashboardPage() {
               </div>
             )}
 
+            {/* Alert SAL - Nuova sezione */}
+            {permissions?.sal?.view && (
+              <div className="mb-6">
+                <SALAlerts cantiereId={cantiere.id} />
+              </div>
+            )}
+
             <div className="mb-6">
-              <AttivitaManager 
-                cantiereId={cantiere.id} 
-                attivitaList={attivita} 
-                onUpdate={() => loadData(cantiere.id)} 
+              <AttivitaManager
+                cantiereId={cantiere.id}
+                attivitaList={attivita}
+                onUpdate={() => loadData(cantiere.id)}
               />
             </div>
 

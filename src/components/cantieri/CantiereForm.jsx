@@ -17,7 +17,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Save, X, Plus, Trash2, Building2, Calendar, Euro, FileText, Users, User, Briefcase, Handshake, ClipboardList, Database, Edit, PlusCircle } from "lucide-react";
 import { addDays, format, parseISO } from 'date-fns';
 
-import { Impresa } from "@/entities/Impresa"; // Assuming this entity exists and defines the structure of a company
 import CategorieSOASelector from "./CategorieSOASelector";
 import ImpresaSelectorForCantiere from "./ImpresaSelectorForCantiere";
 import SubappaltoForm from "../subappalti/SubappaltoForm";
@@ -75,14 +74,14 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     polizza_anticipazione_agenzia: cantiere?.polizza_anticipazione_agenzia || "",
     categorie_soa: Array.isArray(cantiere?.categorie_soa)
       ? cantiere.categorie_soa.map(item => {
-          if (typeof item === 'string') {
-            return { category: item, classification: '' };
-          }
-          return {
-            category: item?.category || '',
-            classification: item?.classification || ''
-          };
-        })
+        if (typeof item === 'string') {
+          return { category: item, classification: '' };
+        }
+        return {
+          category: item?.category || '',
+          classification: item?.classification || ''
+        };
+      })
       : [],
     contratto_principale_desc: cantiere?.contratto_principale_desc || "",
     contratto_principale_data: cantiere?.contratto_principale_data || "",
@@ -113,16 +112,16 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     azienda_appaltatrice_piva: cantiere?.azienda_appaltatrice_piva || "",
     partner_consorziati: Array.isArray(cantiere?.partner_consorziati)
       ? cantiere.partner_consorziati.map(p => ({
-          ragione_sociale: p?.ragione_sociale || "",
-          tipo_impresa: p?.tipo_impresa || "socio",
-          indirizzo: p?.indirizzo || "",
-          cap: p?.cap || "",
-          citta: p?.citta || "",
-          telefono: p?.telefono || "",
-          email: p?.email || "",
-          cf: p?.cf || "",
-          piva: p?.piva || ""
-        }))
+        ragione_sociale: p?.ragione_sociale || "",
+        tipo_impresa: p?.tipo_impresa || "socio",
+        indirizzo: p?.indirizzo || "",
+        cap: p?.cap || "",
+        citta: p?.citta || "",
+        telefono: p?.telefono || "",
+        email: p?.email || "",
+        cf: p?.cf || "",
+        piva: p?.piva || ""
+      }))
       : [],
     direttore_lavori_id: cantiere?.direttore_lavori_id || "", // Changed to ID
     responsabile_unico_procedimento_id: cantiere?.responsabile_unico_procedimento_id || "", // Changed to ID
@@ -196,14 +195,14 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
       polizza_anticipazione_agenzia: cantiere?.polizza_anticipazione_agenzia || "",
       categorie_soa: Array.isArray(cantiere?.categorie_soa)
         ? cantiere.categorie_soa.map(item => {
-            if (typeof item === 'string') {
-              return { category: item, classification: '' };
-            }
-            return {
-              category: item?.category || '',
-              classification: item?.classification || ''
-            };
-          })
+          if (typeof item === 'string') {
+            return { category: item, classification: '' };
+          }
+          return {
+            category: item?.category || '',
+            classification: item?.classification || ''
+          };
+        })
         : [],
       contratto_principale_desc: cantiere?.contratto_principale_desc || "",
       contratto_principale_data: cantiere?.contratto_principale_data || "",
@@ -234,16 +233,16 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
       azienda_appaltatrice_piva: cantiere?.azienda_appaltatrice_piva || "",
       partner_consorziati: Array.isArray(cantiere?.partner_consorziati)
         ? cantiere.partner_consorziati.map(p => ({
-            ragione_sociale: p?.ragione_sociale || "",
-            tipo_impresa: p?.tipo_impresa || "socio",
-            indirizzo: p?.indirizzo || "",
-            cap: p?.cap || "",
-            citta: p?.citta || "",
-            telefono: p?.telefono || "",
-            email: p?.email || "",
-            cf: p?.cf || "",
-            piva: p?.piva || ""
-          }))
+          ragione_sociale: p?.ragione_sociale || "",
+          tipo_impresa: p?.tipo_impresa || "socio",
+          indirizzo: p?.indirizzo || "",
+          cap: p?.cap || "",
+          citta: p?.citta || "",
+          telefono: p?.telefono || "",
+          email: p?.email || "",
+          cf: p?.cf || "",
+          piva: p?.piva || ""
+        }))
         : [],
       direttore_lavori_id: cantiere?.direttore_lavori_id || "", // Changed to ID
       responsabile_unico_procedimento_id: cantiere?.responsabile_unico_procedimento_id || "", // Changed to ID
@@ -251,7 +250,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
       note: cantiere?.note || "",
       team_assegnati: cantiere?.team_assegnati || []
     };
-    
+
     setForm(data);
     setInitialData(JSON.stringify(data));
   }, [cantiere, calculateImportoContrattualeFromCantiere]);
@@ -260,8 +259,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
 
   const loadSubappaltiSubaffidamenti = useCallback(async (cantiereId) => {
     try {
-      const { Subappalto } = await import("@/entities/Subappalto");
-      const data = await Subappalto.filter({ cantiere_id: cantiereId });
+      const data = await base44.entities.Subappalto.filter({ cantiere_id: cantiereId });
       setSubappalti(data.filter(s => s.tipo_relazione === "subappalto"));
       setSubaffidamenti(data.filter(s => s.tipo_relazione === "subaffidamento"));
     } catch (error) {
@@ -273,7 +271,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     if (cantiere?.id) {
       loadSubappaltiSubaffidamenti(cantiere.id);
     }
-    
+
     // Load Teams
     const loadTeams = async () => {
       try {
@@ -351,11 +349,10 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
 
   const handleSubappaltoSubmit = async (subappaltoData) => {
     try {
-      const { Subappalto } = await import("@/entities/Subappalto");
       if (editingSubappalto) {
-        await Subappalto.update(editingSubappalto.id, subappaltoData);
+        await base44.entities.Subappalto.update(editingSubappalto.id, subappaltoData);
       } else {
-        await Subappalto.create(subappaltoData);
+        await base44.entities.Subappalto.create(subappaltoData);
       }
       setShowSubappaltoDialog(false);
       setShowSubaffidamentoDialog(false);
@@ -371,8 +368,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
   const handleDeleteSubappalto = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) {
       try {
-        const { Subappalto } = await import("@/entities/Subappalto");
-        await Subappalto.delete(id);
+        await base44.entities.Subappalto.delete(id);
         if (cantiere?.id) {
           loadSubappaltiSubaffidamenti(cantiere.id);
         }
@@ -384,11 +380,11 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
-    
+
     const importoContrattualeOltreIva = parseFloat(getImportoContrattuale()) || 0;
     const ivaPercentuale = parseFloat(form.percentuale_iva) || 0;
     const importoTotaleConIva = importoContrattualeOltreIva * (1 + ivaPercentuale / 100);
-    
+
     const dataToSubmit = {
       ...form,
       // Ensure arrays are preserved
@@ -412,7 +408,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
   return (
     <form onSubmit={handleSubmit} className="space-y-8"> {/* Changed space-y-6 to space-y-8 */}
       <Accordion type="multiple" defaultValue={["dati-cantiere", "impresa-appaltatrice", "subappalti"]} className="w-full">
-        
+
         {/* Sezione 1: Dati Cantiere */}
         <AccordionItem value="dati-cantiere">
           <AccordionTrigger className="text-lg font-semibold">
@@ -441,52 +437,52 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                 </div>
 
                 <div>
-                   <Label>Team Assegnati</Label>
-                   <div className="flex flex-wrap gap-2 mb-2 mt-2">
-                      {form.team_assegnati?.map(teamId => {
-                        const team = teams.find(t => t.id === teamId);
-                        return (
-                          <Badge key={teamId} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
-                             {team?.nome || 'Team Sconosciuto'}
-                             <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-4 w-4 ml-1 hover:bg-transparent text-slate-500 hover:text-red-500 rounded-full"
-                                onClick={() => {
-                                   updateField("team_assegnati", form.team_assegnati.filter(id => id !== teamId));
-                                }}
-                             >
-                                <X className="h-3 w-3" />
-                             </Button>
-                          </Badge>
-                        );
-                      })}
-                      {(!form.team_assegnati || form.team_assegnati.length === 0) && (
-                        <span className="text-sm text-slate-500 italic py-1">Nessun team assegnato</span>
+                  <Label>Team Assegnati</Label>
+                  <div className="flex flex-wrap gap-2 mb-2 mt-2">
+                    {form.team_assegnati?.map(teamId => {
+                      const team = teams.find(t => t.id === teamId);
+                      return (
+                        <Badge key={teamId} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                          {team?.nome || 'Team Sconosciuto'}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 ml-1 hover:bg-transparent text-slate-500 hover:text-red-500 rounded-full"
+                            onClick={() => {
+                              updateField("team_assegnati", form.team_assegnati.filter(id => id !== teamId));
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      );
+                    })}
+                    {(!form.team_assegnati || form.team_assegnati.length === 0) && (
+                      <span className="text-sm text-slate-500 italic py-1">Nessun team assegnato</span>
+                    )}
+                  </div>
+                  <Select
+                    onValueChange={(value) => {
+                      if (value && !form.team_assegnati?.includes(value)) {
+                        updateField("team_assegnati", [...(form.team_assegnati || []), value]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full md:w-1/2">
+                      <SelectValue placeholder="Aggiungi Team..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.filter(t => !form.team_assegnati?.includes(t.id)).map(team => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.nome}
+                        </SelectItem>
+                      ))}
+                      {teams.filter(t => !form.team_assegnati?.includes(t.id)).length === 0 && (
+                        <div className="p-2 text-sm text-slate-500 text-center">Tutti i team sono stati assegnati</div>
                       )}
-                   </div>
-                   <Select
-                      onValueChange={(value) => {
-                         if (value && !form.team_assegnati?.includes(value)) {
-                            updateField("team_assegnati", [...(form.team_assegnati || []), value]);
-                         }
-                      }}
-                   >
-                      <SelectTrigger className="w-full md:w-1/2">
-                         <SelectValue placeholder="Aggiungi Team..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                         {teams.filter(t => !form.team_assegnati?.includes(t.id)).map(team => (
-                            <SelectItem key={team.id} value={team.id}>
-                               {team.nome}
-                            </SelectItem>
-                         ))}
-                         {teams.filter(t => !form.team_assegnati?.includes(t.id)).length === 0 && (
-                            <div className="p-2 text-sm text-slate-500 text-center">Tutti i team sono stati assegnati</div>
-                         )}
-                      </SelectContent>
-                   </Select>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -612,8 +608,8 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                         <div key={idx} className="flex flex-col sm:flex-row gap-2 items-end p-2 border rounded-md bg-slate-50">
                           <div className="flex-1 w-full">
                             <Label className="text-xs">Tipo</Label>
-                            <Select 
-                              value={item.tipo} 
+                            <Select
+                              value={item.tipo}
                               onValueChange={(val) => {
                                 const newDates = [...form.date_consegna];
                                 newDates[idx].tipo = val;
@@ -631,9 +627,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                           </div>
                           <div className="flex-1 w-full">
                             <Label className="text-xs">Data</Label>
-                            <Input 
-                              type="date" 
-                              value={item.data} 
+                            <Input
+                              type="date"
+                              value={item.data}
                               onChange={(e) => {
                                 const newDates = [...form.date_consegna];
                                 newDates[idx].data = e.target.value;
@@ -643,8 +639,8 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                           </div>
                           <div className="flex-1 w-full">
                             <Label className="text-xs">Note</Label>
-                            <Input 
-                              value={item.note || ''} 
+                            <Input
+                              value={item.note || ''}
                               onChange={(e) => {
                                 const newDates = [...form.date_consegna];
                                 newDates[idx].note = e.target.value;
@@ -1038,33 +1034,33 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                       />
                     </div>
                   </div>
-                  
+
                   {/* Contatti Aggiuntivi */}
                   <div className="mt-4 border-t pt-4">
                     <Label className="mb-2 block">Altri Contatti Committente</Label>
                     {form.contatti_committente && form.contatti_committente.map((contatto, idx) => (
                       <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2 items-end">
-                        <Input 
-                          placeholder="Nome" 
-                          value={contatto.nome || ''} 
+                        <Input
+                          placeholder="Nome"
+                          value={contatto.nome || ''}
                           onChange={(e) => {
                             const newC = [...form.contatti_committente];
                             newC[idx].nome = e.target.value;
                             updateField("contatti_committente", newC);
                           }}
                         />
-                        <Input 
-                          placeholder="Email" 
-                          value={contatto.email || ''} 
+                        <Input
+                          placeholder="Email"
+                          value={contatto.email || ''}
                           onChange={(e) => {
                             const newC = [...form.contatti_committente];
                             newC[idx].email = e.target.value;
                             updateField("contatti_committente", newC);
                           }}
                         />
-                        <Input 
-                          placeholder="Telefono" 
-                          value={contatto.telefono || ''} 
+                        <Input
+                          placeholder="Telefono"
+                          value={contatto.telefono || ''}
                           onChange={(e) => {
                             const newC = [...form.contatti_committente];
                             newC[idx].telefono = e.target.value;
@@ -1072,9 +1068,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                           }}
                         />
                         <div className="flex gap-2">
-                          <Input 
-                            placeholder="Ruolo" 
-                            value={contatto.ruolo || ''} 
+                          <Input
+                            placeholder="Ruolo"
+                            value={contatto.ruolo || ''}
                             onChange={(e) => {
                               const newC = [...form.contatti_committente];
                               newC[idx].ruolo = e.target.value;
@@ -1250,7 +1246,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
             </Card>
           </AccordionContent>
         </AccordionItem>
-        
+
         {/* Sezione 9: Impresa Appaltatrice - ORA COLLASSABILE */}
         <AccordionItem value="impresa-appaltatrice">
           <AccordionTrigger className="text-lg font-semibold">
@@ -1265,14 +1261,14 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                 <ImpresaSelectorForCantiere
                   label="Seleziona Impresa Appaltatrice Principale"
                   currentValues={{
-                      ragione_sociale: form.azienda_appaltatrice_ragione_sociale,
-                      indirizzo: form.azienda_appaltatrice_indirizzo,
-                      cap: form.azienda_appaltatrice_cap,
-                      citta: form.azienda_appaltatrice_citta,
-                      telefono: form.azienda_appaltatrice_telefono,
-                      email: form.azienda_appaltatrice_email,
-                      cf: form.azienda_appaltatrice_cf,
-                      piva: form.azienda_appaltatrice_piva
+                    ragione_sociale: form.azienda_appaltatrice_ragione_sociale,
+                    indirizzo: form.azienda_appaltatrice_indirizzo,
+                    cap: form.azienda_appaltatrice_cap,
+                    citta: form.azienda_appaltatrice_citta,
+                    telefono: form.azienda_appaltatrice_telefono,
+                    email: form.azienda_appaltatrice_email,
+                    cf: form.azienda_appaltatrice_cf,
+                    piva: form.azienda_appaltatrice_piva
                   }}
                   onImpresaSelect={(impresa) => {
                     console.log("Impresa selezionata in CantiereForm:", impresa);
@@ -1297,7 +1293,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                     }
                   }}
                 />
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
                     <Label>Tipologia Impresa</Label>
@@ -1465,34 +1461,34 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                         </div>
                         {/* Rest of partner fields (keeping existing code) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <Label className="text-sm">Indirizzo</Label>
-                                <Input value={partner.indirizzo || ''} onChange={(e) => updatePartner(index, 'indirizzo', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label className="text-sm">CAP</Label>
-                                <Input value={partner.cap || ''} onChange={(e) => updatePartner(index, 'cap', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label className="text-sm">Città</Label>
-                                <Input value={partner.citta || ''} onChange={(e) => updatePartner(index, 'citta', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label className="text-sm">Telefono</Label>
-                                <Input value={partner.telefono || ''} onChange={(e) => updatePartner(index, 'telefono', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label className="text-sm">Email</Label>
-                                <Input type="email" value={partner.email || ''} onChange={(e) => updatePartner(index, 'email', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label className="text-sm">Codice Fiscale</Label>
-                                <Input value={partner.cf || ''} onChange={(e) => updatePartner(index, 'cf', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label className="text-sm">Partita IVA</Label>
-                                <Input value={partner.piva || ''} onChange={(e) => updatePartner(index, 'piva', e.target.value)} />
-                            </div>
+                          <div>
+                            <Label className="text-sm">Indirizzo</Label>
+                            <Input value={partner.indirizzo || ''} onChange={(e) => updatePartner(index, 'indirizzo', e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-sm">CAP</Label>
+                            <Input value={partner.cap || ''} onChange={(e) => updatePartner(index, 'cap', e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Città</Label>
+                            <Input value={partner.citta || ''} onChange={(e) => updatePartner(index, 'citta', e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Telefono</Label>
+                            <Input value={partner.telefono || ''} onChange={(e) => updatePartner(index, 'telefono', e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Email</Label>
+                            <Input type="email" value={partner.email || ''} onChange={(e) => updatePartner(index, 'email', e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Codice Fiscale</Label>
+                            <Input value={partner.cf || ''} onChange={(e) => updatePartner(index, 'cf', e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Partita IVA</Label>
+                            <Input value={partner.piva || ''} onChange={(e) => updatePartner(index, 'piva', e.target.value)} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1516,9 +1512,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
               <CardContent className="pt-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-md font-semibold text-slate-900">Elenco Subappalti</h4>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
                       setEditingSubappalto(null);
                       setShowSubappaltoDialog(true);
@@ -1593,9 +1589,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
               <CardContent className="pt-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-md font-semibold text-slate-900">Elenco Subaffidamenti</h4>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
                       setEditingSubappalto(null);
                       setShowSubaffidamentoDialog(true);

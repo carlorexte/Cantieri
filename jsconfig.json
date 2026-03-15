@@ -2,6 +2,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/components/ui/*": ["./src/types/ui/*", "./src/components/ui/*"],
+      "@/api/*": ["./src/types/api/*", "./src/api/*"],
+      "@/lib/*": ["./src/types/lib/*", "./src/lib/*"],
       "@/*": ["./src/*"]
     },
     "jsx": "react-jsx",
@@ -16,6 +19,19 @@
     "resolveJsonModule": true,
     "types": []
   },
-  "include": ["src/components/**/*.js", "src/pages/**/*.jsx", "src/Layout.jsx"],
+  "include": [
+    "src/components/cronoprogramma/**/*.jsx",
+    "src/hooks/useCPM.js",
+    "src/utils/cpmEngine.js",
+    "src/utils/cronoprogrammaAIAgent.js",
+    "src/utils/excelToCsvConverter.js",
+    "src/utils/importMultimodalCronoprogramma.js",
+    "src/utils/parseCronoprogrammaSemplice.js",
+    "src/utils/parseGanttWithVision.js",
+    "src/utils/parseGoogleSheetColorBars.js",
+    "src/utils/parseSimpleGantt.js",
+    "src/utils/parseXLSXCronoprogramma.js",
+    "src/**/*.d.ts"
+  ],
   "exclude": ["node_modules", "dist", "src/vite-plugins", "src/components/ui", "src/api", "src/lib"]
 } 

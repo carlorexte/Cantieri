@@ -86,7 +86,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
 
   useEffect(() => {
     loadEntities();
-    
+
     // Inizializza entità selezionate
     if (documento?.entita_collegate?.length > 0) {
       const initialSelected = new Set(
@@ -162,12 +162,11 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
   const handleExtractText = async (fileUri) => {
     setIsExtractingText(true);
     try {
-      const { extractTextFromDocument } = await import("@/functions/extractTextFromDocument");
-      const result = await extractTextFromDocument({ 
+      const result = await base44.functions.invoke('extractTextFromDocument', {
         file_uri: fileUri,
         documento_id: documento?.id
       });
-      
+
       if (result.data.success) {
         toast.success("Testo estratto con successo!");
         setFormData(prev => ({
@@ -189,10 +188,9 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
   const handleAutoCategorize = async (fileUri) => {
     setIsCategorizing(true);
     try {
-      const { categorizzaDocumento } = await import("@/functions/categorizzaDocumento");
       toast.info("Analisi del documento in corso...", { duration: 3000 });
-      
-      const result = await categorizzaDocumento({
+
+      const result = await base44.functions.invoke('categorizzaDocumento', {
         file_uri: fileUri,
         nome_documento: formData.nome_documento,
         descrizione: formData.descrizione,
@@ -228,7 +226,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       if (newVersionFile) {
         toast.info("Caricamento nuova versione...", { duration: 3000 });
         const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: newVersionFile });
-        
+
         // Push old version to history
         const oldVersion = {
           numero: (formData.versioni?.length || 0) + 1,
@@ -238,15 +236,14 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
           note: "Archiviato automaticamente al caricamento nuova versione",
           // utente_id: currentUser?.id // Idealmente
         };
-        
+
         finalDocumentData.versioni = [...(formData.versioni || []), oldVersion];
         finalDocumentData.file_uri = file_uri;
         finalDocumentData.ocr_completato = false; // Reset OCR status for new file
-        
+
         // Auto-extract text for new version
         try {
-          const { extractTextFromDocument } = await import("@/functions/extractTextFromDocument");
-          const result = await extractTextFromDocument({ file_uri: file_uri });
+          const result = await base44.functions.invoke('extractTextFromDocument', { file_uri: file_uri });
           if (result.data.success) {
             finalDocumentData.testo_estratto = result.data.testo_estratto;
             finalDocumentData.ocr_completato = true;
@@ -258,15 +255,14 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
         toast.info("Caricamento del file...", { duration: 3000 });
         const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: fileToUpload });
         finalDocumentData.file_uri = file_uri;
-        
+
         // Estrai testo automaticamente dopo upload
         toast.info("Estrazione testo dal documento...", { duration: 5000 });
         try {
-          const { extractTextFromDocument } = await import("@/functions/extractTextFromDocument");
-          const result = await extractTextFromDocument({ 
+          const result = await base44.functions.invoke('extractTextFromDocument', {
             file_uri: file_uri
           });
-          
+
           if (result.data.success) {
             finalDocumentData.testo_estratto = result.data.testo_estratto;
             finalDocumentData.ocr_completato = true;
@@ -281,9 +277,9 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
         const [tipo, id] = key.split(':');
         return { entita_tipo: tipo, entita_id: id };
       });
-      
+
       finalDocumentData.entita_collegate = entitaCollegate;
-      
+
       // Mantieni compatibilità con vecchio sistema
       if (entitaCollegate.length > 0) {
         finalDocumentData.entita_collegata_tipo = entitaCollegate[0].entita_tipo;
@@ -323,8 +319,8 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
             </div>
             <div>
               <Label>Categoria Principale *</Label>
-              <Select 
-                value={formData.categoria_principale} 
+              <Select
+                value={formData.categoria_principale}
                 onValueChange={(value) => handleChange("categoria_principale", value)}
               >
                 <SelectTrigger>
@@ -370,10 +366,10 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
             <Label>Upload File</Label>
             <div className="flex items-center gap-2 p-2 border rounded-md">
               <UploadCloud className="w-5 h-5 text-slate-500" />
-              <Input 
-                type="file" 
-                onChange={(e) => setFileToUpload(e.target.files[0])} 
-                className="border-0 flex-1 shadow-none p-0 h-auto" 
+              <Input
+                type="file"
+                onChange={(e) => setFileToUpload(e.target.files[0])}
+                className="border-0 flex-1 shadow-none p-0 h-auto"
               />
             </div>
             {formData.file_uri && !fileToUpload && !newVersionFile && (
@@ -382,10 +378,10 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                   <Badge variant="secondary" className="bg-green-50 text-green-700">
                     File corrente presente
                   </Badge>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowVersionUpload(!showVersionUpload)}
                     className="ml-auto"
                   >
@@ -393,13 +389,13 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                     Carica Nuova Versione
                   </Button>
                 </div>
-                
+
                 {showVersionUpload && (
                   <div className="p-3 border border-indigo-100 bg-indigo-50 rounded-md">
                     <Label className="text-indigo-900 mb-1">Seleziona file per la nuova versione</Label>
-                    <Input 
-                      type="file" 
-                      onChange={(e) => setNewVersionFile(e.target.files[0])} 
+                    <Input
+                      type="file"
+                      onChange={(e) => setNewVersionFile(e.target.files[0])}
                       className="bg-white"
                     />
                     <p className="text-xs text-indigo-700 mt-1">
@@ -411,47 +407,47 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                 <div className="flex flex-wrap items-center gap-2">
                   {!formData.ocr_completato && (
                     <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleExtractText(formData.file_uri)}
-                    disabled={isExtractingText}
-                  >
-                    {isExtractingText ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Estrazione...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Estrai Testo (OCR)
-                      </>
-                    )}
-                  </Button>
-                )}
-                {(!formData.categoria_principale || !formData.tipo_documento) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAutoCategorize(formData.file_uri)}
-                    disabled={isCategorizing}
-                    className="gap-2"
-                  >
-                    {isCategorizing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Analisi...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-4 h-4" />
-                        Auto-Categorizza
-                      </>
-                    )}
-                  </Button>
-                )}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExtractText(formData.file_uri)}
+                      disabled={isExtractingText}
+                    >
+                      {isExtractingText ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Estrazione...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Estrai Testo (OCR)
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {(!formData.categoria_principale || !formData.tipo_documento) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAutoCategorize(formData.file_uri)}
+                      disabled={isCategorizing}
+                      className="gap-2"
+                    >
+                      {isCategorizing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Analisi...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-4 h-4" />
+                          Auto-Categorizza
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -692,8 +688,8 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                     </div>
                     {ver.file_uri && (
                       <Badge variant="outline" className="cursor-pointer hover:bg-slate-200" onClick={async () => {
-                         const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: ver.file_uri, expires_in: 300 });
-                         window.open(signed_url, '_blank');
+                        const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: ver.file_uri, expires_in: 300 });
+                        window.open(signed_url, '_blank');
                       }}>
                         Vedi File
                       </Badge>

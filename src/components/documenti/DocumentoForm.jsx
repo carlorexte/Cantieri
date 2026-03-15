@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { UploadPrivateFile } from "@/integrations/Core";
+import { UploadPrivateFile } from '@/api/integrations';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -223,7 +223,7 @@ export default function DocumentoForm({ documento, cantieri, soci, subappalti, s
       // For now, let's put it under a generic SAL folder. Adjust as per actual NAS structure
       basePath += `SAL_Documents\\${nomeEntita}\\`;
     } else { // "generale"
-        basePath += "Generale\\";
+      basePath += "Generale\\";
     }
 
     if (strutturaNAS[categoria]) {
@@ -364,7 +364,7 @@ export default function DocumentoForm({ documento, cantieri, soci, subappalti, s
               <Select disabled={false} value={formData.entita_collegata_tipo} onValueChange={(value) => {
                 handleChange("entita_collegata_tipo", value);
                 handleChange("entita_collegata_id", "");
-                generaPercorsoNAS(categoriaSelezionata, sottocartella, "", formData.nome_documento); 
+                generaPercorsoNAS(categoriaSelezionata, sottocartella, "", formData.nome_documento);
               }}>
                 <SelectTrigger>
                   <SelectValue />
@@ -481,7 +481,7 @@ export default function DocumentoForm({ documento, cantieri, soci, subappalti, s
         </CardContent>
       </Card>
 
-       <Card>
+      <Card>
         <CardHeader>
           <CardTitle>Informazioni Aggiuntive</CardTitle>
         </CardHeader>

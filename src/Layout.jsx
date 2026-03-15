@@ -1,47 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { 
-    SidebarProvider, 
-    Sidebar, 
-    SidebarContent, 
-    SidebarHeader, 
-    SidebarMenu, 
-    SidebarMenuItem, 
-    SidebarMenuButton, 
-    SidebarFooter, 
-    SidebarRail, 
-    SidebarGroup, 
-    SidebarGroupLabel, 
+import {
+    SidebarProvider,
+    Sidebar,
+    SidebarContent,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuItem,
+    SidebarMenuButton,
+    SidebarFooter,
+    SidebarRail,
+    SidebarGroup,
+    SidebarGroupLabel,
     SidebarGroupContent,
     SidebarSeparator,
     SidebarTrigger
 } from '@/components/ui/sidebar';
 import { createPageUrl } from '@/utils';
-import { 
-    LayoutDashboard, 
-    Sparkles, 
-    Building2, 
-    Building, 
-    Users, 
-    GitMerge, 
-    Calculator, 
-    ClipboardList, 
-    FileText, 
-    Calendar, 
-    BookOpen, 
-    Briefcase, 
-    UserCog, 
-    Shield, 
-    Key, 
+import {
+    LayoutDashboard,
+    Sparkles,
+    Building2,
+    Building,
+    Users,
+    GitMerge,
+    Calculator,
+    ClipboardList,
+    FileText,
+    Calendar,
+    BookOpen,
+    Briefcase,
+    UserCog,
+    Shield,
+    Key,
     User,
     LogOut,
     ChevronUp,
     ShoppingCart,
     Database
-    } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
-import { DataProvider } from '@/components/shared/DataContext';
+} from 'lucide-react';
 import { usePermissions } from '@/components/shared/PermissionGuard';
+import { DataProvider } from '@/components/shared/DataContext';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -50,7 +49,7 @@ function LayoutContent({ children }) {
     const { user, hasPermission, isAdmin } = usePermissions();
 
     const handleLogout = async () => {
-        await base44.auth.logout();
+        window.location.reload();
     };
 
     const generaleItems = [
@@ -206,7 +205,7 @@ function LayoutContent({ children }) {
                 </SidebarFooter>
                 <SidebarRail />
             </Sidebar>
-            
+
             <main className="flex-1 overflow-auto bg-slate-50">
                 {children}
             </main>

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { AttivitaInterna } from "@/entities/AttivitaInterna";
-import { User } from "@/entities/User";
-import { Cantiere } from "@/entities/Cantiere";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,10 +61,10 @@ export default function AttivitaInternePage() {
     setIsLoading(true);
     try {
       const [attivitaData, utentiData, cantieriData, user] = await Promise.all([
-        AttivitaInterna.list("-data_scadenza"),
-        User.list(),
-        Cantiere.list(),
-        User.me()
+        base44.entities.AttivitaInterna.list("-data_scadenza"),
+        base44.entities.User.list(),
+        base44.entities.Cantiere.list(),
+        base44.auth.me()
       ]);
       setAttivita(attivitaData);
       setUtenti(utentiData);
@@ -81,9 +79,9 @@ export default function AttivitaInternePage() {
   const handleSubmit = async (formData) => {
     try {
       if (editingAttivita) {
-        await AttivitaInterna.update(editingAttivita.id, formData);
+        await base44.entities.AttivitaInterna.update(editingAttivita.id, formData);
       } else {
-        await AttivitaInterna.create(formData);
+        await base44.entities.AttivitaInterna.create(formData);
       }
       setShowForm(false);
       setEditingAttivita(null);
@@ -102,13 +100,13 @@ export default function AttivitaInternePage() {
     setEditingAttivita(null);
     setShowForm(true);
   };
-  
+
   const handleDelete = async (id) => {
-    if(confirm("Sei sicuro di voler eliminare questa attività?")) {
+    if (confirm("Sei sicuro di voler eliminare questa attività?")) {
       try {
-        await AttivitaInterna.delete(id);
+        await base44.entities.AttivitaInterna.delete(id);
         loadData();
-      } catch(error) {
+      } catch (error) {
         console.error("Errore eliminazione attività:", error)
       }
     }
@@ -118,7 +116,7 @@ export default function AttivitaInternePage() {
     const item = collection.find(i => i.id === id);
     return item ? item[field] : "N/D";
   };
-  
+
   const getCantiereName = (id) => {
     const cantiere = cantieri.find(c => c.id === id);
     return cantiere ? cantiere.denominazione : "Generale";
@@ -143,224 +141,224 @@ export default function AttivitaInternePage() {
 
   return (
     <PermissionGuard module="attivita_interne" action="view">
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="p-8">
-        <div className="max-w-full mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Attività Interne</h1>
-              <p className="text-slate-600 mt-1">Gestione e monitoraggio dei compiti del team</p>
-            </div>
-            {(currentUser?.role === 'admin' || hasPermission('attivita_interne', 'edit')) && (
-              <Dialog open={showForm} onOpenChange={setShowForm}>
-                <DialogTrigger asChild>
-                  <Button onClick={handleAddNew} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nuova Attività
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingAttivita ? "Modifica Attività" : "Nuova Attività"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <AttivitaInternaForm
-                    attivita={editingAttivita}
-                    onSubmit={handleSubmit}
-                    onCancel={() => setShowForm(false)}
-                    utenti={utenti}
-                    cantieri={cantieri}
-                  />
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Totale</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totali}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                    <ClipboardList className="w-6 h-6 text-slate-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Da Fare</p>
-                    <p className="text-2xl font-bold text-slate-700 mt-1">{stats.daFare}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-slate-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">In Corso</p>
-                    <p className="text-2xl font-bold text-cyan-600 mt-1">{stats.inCorso}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center">
-                    <PlayCircle className="w-6 h-6 text-cyan-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Completate</p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.completate}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-emerald-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="border-0 shadow-sm mb-6 bg-white">
-            <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center">
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                <Filter className="w-4 h-4"/>
-                Filtra per:
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="p-8">
+          <div className="max-w-full mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Attività Interne</h1>
+                <p className="text-slate-600 mt-1">Gestione e monitoraggio dei compiti del team</p>
               </div>
-              <Select value={filtroStato} onValueChange={setFiltroStato}>
-                <SelectTrigger className="w-full md:w-48 h-10 border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tutti">Tutti gli stati</SelectItem>
-                  <SelectItem value="da_fare">Da Fare</SelectItem>
-                  <SelectItem value="in_corso">In Corso</SelectItem>
-                  <SelectItem value="in_revisione">In Revisione</SelectItem>
-                  <SelectItem value="completato">Completato</SelectItem>
-                  <SelectItem value="bloccato">Bloccato</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filtroAssegnatario} onValueChange={setFiltroAssegnatario}>
-                <SelectTrigger className="w-full md:w-48 h-10 border-slate-200">
-                  <SelectValue placeholder="Tutti gli assegnatari" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tutti">Tutti gli assegnatari</SelectItem>
-                  {utenti.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={filtroPriorita} onValueChange={setFiltroPriorita}>
-                <SelectTrigger className="w-full md:w-48 h-10 border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tutti">Tutte le priorità</SelectItem>
-                  <SelectItem value="bassa">Bassa</SelectItem>
-                  <SelectItem value="media">Media</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="critica">Critica</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-sm bg-white overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50 border-b border-slate-200">
-                    <TableHead className="font-semibold text-slate-700">Descrizione</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Cantiere</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Assegnato a</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Scadenza</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Priorità</TableHead>
-                    <TableHead className="text-center font-semibold text-slate-700">Stato</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-700">Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={7} className="text-center p-4">
-                          <div className="animate-pulse h-6 bg-slate-200 rounded"></div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : filteredAttivita.map(item => {
-                    const priorita = prioritaMap[item.priorita] || prioritaMap.bassa;
-                    return (
-                      <TableRow key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <TableCell className="font-medium text-slate-900">{item.descrizione}</TableCell>
-                        <TableCell className="text-slate-600 text-sm">{getCantiereName(item.cantiere_id)}</TableCell>
-                        <TableCell className="text-slate-600 text-sm">{getNameById(utenti, item.assegnatario_id)}</TableCell>
-                        <TableCell className="text-slate-600 text-sm">
-                          {item.data_scadenza ? new Date(item.data_scadenza).toLocaleDateString('it-IT') : 'N/D'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={`${priorita.color} border capitalize text-xs`}>
-                            {priorita.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="secondary" className={`${statoColors[item.stato]} border capitalize text-xs`}>
-                            {item.stato.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(currentUser?.role === 'admin' || hasPermission('attivita_interne', 'edit')) && (
-                            <div className="flex justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleEdit(item)}
-                                className="h-8 w-8 hover:bg-indigo-50 hover:text-indigo-600"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 hover:bg-red-50 hover:text-red-600" 
-                                onClick={() => handleDelete(item.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+              {(currentUser?.role === 'admin' || hasPermission('attivita_interne', 'edit')) && (
+                <Dialog open={showForm} onOpenChange={setShowForm}>
+                  <DialogTrigger asChild>
+                    <Button onClick={handleAddNew} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nuova Attività
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingAttivita ? "Modifica Attività" : "Nuova Attività"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <AttivitaInternaForm
+                      attivita={editingAttivita}
+                      onSubmit={handleSubmit}
+                      onCancel={() => setShowForm(false)}
+                      utenti={utenti}
+                      cantieri={cantieri}
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
-            {filteredAttivita.length === 0 && !isLoading && (
-              <div className="text-center p-12 text-slate-500">
-                <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="font-semibold">Nessuna attività trovata</p>
-                <p className="text-sm mt-1">Inizia creando la prima attività per il tuo team</p>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              <Card className="border-0 shadow-sm bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Totale</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totali}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                      <ClipboardList className="w-6 h-6 text-slate-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-sm bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Da Fare</p>
+                      <p className="text-2xl font-bold text-slate-700 mt-1">{stats.daFare}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-slate-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-sm bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">In Corso</p>
+                      <p className="text-2xl font-bold text-cyan-600 mt-1">{stats.inCorso}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center">
+                      <PlayCircle className="w-6 h-6 text-cyan-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-0 shadow-sm bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">Completate</p>
+                      <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.completate}</p>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-emerald-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-0 shadow-sm mb-6 bg-white">
+              <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                  <Filter className="w-4 h-4" />
+                  Filtra per:
+                </div>
+                <Select value={filtroStato} onValueChange={setFiltroStato}>
+                  <SelectTrigger className="w-full md:w-48 h-10 border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tutti">Tutti gli stati</SelectItem>
+                    <SelectItem value="da_fare">Da Fare</SelectItem>
+                    <SelectItem value="in_corso">In Corso</SelectItem>
+                    <SelectItem value="in_revisione">In Revisione</SelectItem>
+                    <SelectItem value="completato">Completato</SelectItem>
+                    <SelectItem value="bloccato">Bloccato</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filtroAssegnatario} onValueChange={setFiltroAssegnatario}>
+                  <SelectTrigger className="w-full md:w-48 h-10 border-slate-200">
+                    <SelectValue placeholder="Tutti gli assegnatari" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tutti">Tutti gli assegnatari</SelectItem>
+                    {utenti.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filtroPriorita} onValueChange={setFiltroPriorita}>
+                  <SelectTrigger className="w-full md:w-48 h-10 border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tutti">Tutte le priorità</SelectItem>
+                    <SelectItem value="bassa">Bassa</SelectItem>
+                    <SelectItem value="media">Media</SelectItem>
+                    <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="critica">Critica</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm bg-white overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 border-b border-slate-200">
+                      <TableHead className="font-semibold text-slate-700">Descrizione</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Cantiere</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Assegnato a</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Scadenza</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Priorità</TableHead>
+                      <TableHead className="text-center font-semibold text-slate-700">Stato</TableHead>
+                      <TableHead className="text-right font-semibold text-slate-700">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      Array(5).fill(0).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell colSpan={7} className="text-center p-4">
+                            <div className="animate-pulse h-6 bg-slate-200 rounded"></div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : filteredAttivita.map(item => {
+                      const priorita = prioritaMap[item.priorita] || prioritaMap.bassa;
+                      return (
+                        <TableRow key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <TableCell className="font-medium text-slate-900">{item.descrizione}</TableCell>
+                          <TableCell className="text-slate-600 text-sm">{getCantiereName(item.cantiere_id)}</TableCell>
+                          <TableCell className="text-slate-600 text-sm">{getNameById(utenti, item.assegnatario_id)}</TableCell>
+                          <TableCell className="text-slate-600 text-sm">
+                            {item.data_scadenza ? new Date(item.data_scadenza).toLocaleDateString('it-IT') : 'N/D'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={`${priorita.color} border capitalize text-xs`}>
+                              {priorita.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className={`${statoColors[item.stato]} border capitalize text-xs`}>
+                              {item.stato.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {(currentUser?.role === 'admin' || hasPermission('attivita_interne', 'edit')) && (
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEdit(item)}
+                                  className="h-8 w-8 hover:bg-indigo-50 hover:text-indigo-600"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                                  onClick={() => handleDelete(item.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
               </div>
-            )}
-          </Card>
+              {filteredAttivita.length === 0 && !isLoading && (
+                <div className="text-center p-12 text-slate-500">
+                  <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="font-semibold">Nessuna attività trovata</p>
+                  <p className="text-sm mt-1">Inizia creando la prima attività per il tuo team</p>
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
     </PermissionGuard>
   );
 }

@@ -15,24 +15,10 @@ import { useData } from "@/components/shared/DataContext";
 export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
   const { cantieri } = useData();
   const [users, setUsers] = useState([]);
+  const [aziende, setAziende] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
-
-  // Load users for "Responsabile" selection
-  useEffect(() => {
-    const loadUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const usersList = await base44.entities.User.list();
-        setUsers(usersList);
-      } catch (e) {
-        console.error("Error loading users", e);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-    loadUsers();
-  }, []);
+  const [loadingAziende, setLoadingAziende] = useState(false);
 
   const form = useForm({
     defaultValues: ordine || {
@@ -44,6 +30,13 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
       priorita: "media",
       stato: "bozza",
       responsabile_id: "",
+      societa_intestataria_id: "",
+      societa_intestataria_ragione_sociale: "",
+      societa_intestataria_partita_iva: "",
+      societa_intestataria_codice_fiscale: "",
+      societa_intestataria_indirizzo: "",
+      societa_intestataria_email: "",
+      societa_intestataria_pec: "",
       importo_totale: 0,
       tipo_operazione: "acquisto",
       durata_noleggio: "",
@@ -52,6 +45,39 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
       note: ""
     }
   });
+
+  // Load users for "Responsabile" selection
+  useEffect(() => {
+    const loadDependencies = async () => {
+      setLoadingUsers(true);
+      setLoadingAziende(true);
+      try {
+        const [usersList, aziendeList] = await Promise.all([
+          base44.entities.User.list(),
+          base44.entities.Azienda.list()
+        ]);
+        setUsers(usersList);
+        setAziende(aziendeList);
+
+        if (!ordine && !form.getValues("societa_intestataria_id") && aziendeList.length > 0) {
+          const defaultAzienda = aziendeList[0];
+          form.setValue("societa_intestataria_id", defaultAzienda.id);
+          form.setValue("societa_intestataria_ragione_sociale", defaultAzienda.ragione_sociale || "");
+          form.setValue("societa_intestataria_partita_iva", defaultAzienda.partita_iva || "");
+          form.setValue("societa_intestataria_codice_fiscale", defaultAzienda.codice_fiscale || "");
+          form.setValue("societa_intestataria_indirizzo", defaultAzienda.indirizzo_legale || "");
+          form.setValue("societa_intestataria_email", defaultAzienda.email || "");
+          form.setValue("societa_intestataria_pec", defaultAzienda.pec || "");
+        }
+      } catch (e) {
+        console.error("Error loading dependencies", e);
+      } finally {
+        setLoadingUsers(false);
+        setLoadingAziende(false);
+      }
+    };
+    loadDependencies();
+  }, [ordine, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -154,6 +180,46 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="societa_intestataria_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Societa Intestataria Ordine</FormLabel>
+              <Select
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  const aziendaSelezionata = aziende.find(a => a.id === value);
+                  form.setValue("societa_intestataria_ragione_sociale", aziendaSelezionata?.ragione_sociale || "");
+                  form.setValue("societa_intestataria_partita_iva", aziendaSelezionata?.partita_iva || "");
+                  form.setValue("societa_intestataria_codice_fiscale", aziendaSelezionata?.codice_fiscale || "");
+                  form.setValue("societa_intestataria_indirizzo", aziendaSelezionata?.indirizzo_legale || "");
+                  form.setValue("societa_intestataria_email", aziendaSelezionata?.email || "");
+                  form.setValue("societa_intestataria_pec", aziendaSelezionata?.pec || "");
+                }}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingAziende ? "Caricamento societa..." : "Seleziona societa intestataria"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {aziende.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.ragione_sociale || "Societa senza nome"}{a.partita_iva ? ` - P.IVA ${a.partita_iva}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500 mt-1">
+                L'ordine verra intestato alla societa selezionata.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Descrizione Generale */}
         <FormField

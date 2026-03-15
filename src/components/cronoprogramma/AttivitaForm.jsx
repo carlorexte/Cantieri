@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,19 +8,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Calendar, Trash2, Flag, Route, Plus, Minus } from "lucide-react";
-import { toast } from "sonner";
 
 const TIPO_DIPENDENZA_LABELS = {
-  'FS': 'Finish-to-Start (Fine → Inizio)',
-  'SS': 'Start-to-Start (Inizio → Inizio)',
-  'FF': 'Finish-to-Finish (Fine → Fine)',
-  'SF': 'Start-to-Finish (Inizio → Fine)'
+  FS: "Finish-to-Start (Fine -> Inizio)",
+  SS: "Start-to-Start (Inizio -> Inizio)",
+  FF: "Finish-to-Finish (Fine -> Fine)",
+  SF: "Start-to-Finish (Inizio -> Fine)"
 };
 
-export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel, onDelete }) {
-  const [formData, setFormData] = useState(attivita || {
-    cantiere_id: cantiere_id,
+const TIPO_VINCOLO_LABELS = {
+  asap: "ASAP - Al piu presto",
+  alap: "ALAP - Il piu tardi possibile",
+  snet: "SNET - Inizio non prima del",
+  snlt: "SNLT - Inizio non oltre il",
+  fnet: "FNET - Fine non prima del",
+  fnlt: "FNLT - Fine non oltre il",
+  mso: "MSO - Deve iniziare il",
+  mfo: "MFO - Deve finire il"
+};
+
+function createInitialFormData(attivita, cantiereId) {
+  return attivita || {
+    cantiere_id: cantiereId,
     gruppo_fase: "",
+    wbs: "",
+    parent_id: null,
     descrizione: "",
     tipo_attivita: "task",
     data_inizio: "",
@@ -36,99 +48,105 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
     assegnatario_tipo: "",
     assegnatario_id: "",
     note: "",
-    stato: "pianificata"
-  });
+    stato: "pianificata",
+    vincolo_tipo: "asap",
+    vincolo_data: "",
+    baseline_start_date: "",
+    baseline_end_date: ""
+  };
+}
 
+export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel, onDelete }) {
+  const [formData, setFormData] = useState(createInitialFormData(attivita, cantiere_id));
   const [attivitaDisponibili, setAttivitaDisponibili] = useState([]);
   const [imprese, setImprese] = useState([]);
   const [subappalti, setSubappalti] = useState([]);
   const [persone, setPersone] = useState([]);
   const [teams, setTeams] = useState([]);
-  const [attivitaParentId, setAttivitaParentId] = useState("");
+
+  useEffect(() => {
+    setFormData(createInitialFormData(attivita, cantiere_id));
+  }, [attivita, cantiere_id]);
 
   useEffect(() => {
     const loadData = async () => {
-      if (cantiere_id) {
-        try {
-          const [attivitaList, impreseList, subappaltiList, personeList, teamsList] = await Promise.all([
-            base44.entities.Attivita.filter({ cantiere_id }, "data_inizio"),
-            base44.entities.Impresa.list("ragione_sociale"),
-            base44.entities.Subappalto.filter({ cantiere_id }),
-            base44.entities.PersonaEsterna.list("cognome"),
-            base44.entities.Team.list("nome")
-          ]);
-          
-          const disponibili = attivitaList.filter(a => !attivita || a.id !== attivita.id);
-          setAttivitaDisponibili(disponibili);
-          setImprese(impreseList);
-          setSubappalti(subappaltiList);
-          setPersone(personeList);
-          setTeams(teamsList);
-          
-          if (attivita?.gruppo_fase) {
-            const parent = disponibili.find(a => a.descrizione === attivita.gruppo_fase);
-            if (parent) {
-              setAttivitaParentId(parent.id);
-            }
+      if (!cantiere_id) return;
+
+      try {
+        const [attivitaList, impreseList, subappaltiList, personeList, teamsList] = await Promise.all([
+          base44.entities.Attivita.filter({ cantiere_id }, "data_inizio"),
+          base44.entities.Impresa.list("ragione_sociale"),
+          base44.entities.Subappalto.filter({ cantiere_id }),
+          base44.entities.PersonaEsterna.list("cognome"),
+          base44.entities.Team.list("nome")
+        ]);
+
+        const disponibili = attivitaList.filter((item) => !attivita || item.id !== attivita.id);
+        setAttivitaDisponibili(disponibili);
+        setImprese(impreseList);
+        setSubappalti(subappaltiList);
+        setPersone(personeList);
+        setTeams(teamsList);
+
+        if (attivita?.gruppo_fase && !attivita?.parent_id) {
+          const parent = disponibili.find((item) => item.descrizione === attivita.gruppo_fase);
+          if (parent) {
+            setFormData((prev) => ({ ...prev, parent_id: parent.id }));
           }
-        } catch (error) {
-          console.error("Errore caricamento dati:", error);
         }
+      } catch (error) {
+        console.error("Errore caricamento dati:", error);
       }
     };
+
     loadData();
   }, [cantiere_id, attivita]);
 
-  // Quando cambia il tipo di attività, aggiorna la durata
   useEffect(() => {
-    if (formData.tipo_attivita === 'milestone') {
-      setFormData(prev => ({
+    if (formData.tipo_attivita === "milestone") {
+      setFormData((prev) => ({
         ...prev,
-        durata_giorni: 0,
-        data_fine: prev.data_inizio // Per milestone, data fine = data inizio
+        durata_giorni: 1,
+        data_fine: prev.data_inizio
       }));
     }
   }, [formData.tipo_attivita]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        [field]: value
+      };
 
-    // Calcolo automatico durata per task normali
-    if (formData.tipo_attivita === 'task') {
-      if (field === "data_inizio" || field === "data_fine") {
-        const inizio = new Date(field === "data_inizio" ? value : formData.data_inizio);
-        const fine = new Date(field === "data_fine" ? value : formData.data_fine);
-        
-        if (inizio && fine && fine >= inizio) {
-          const diffTime = Math.abs(fine - inizio);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-          setFormData(prev => ({
-            ...prev,
-            durata_giorni: diffDays
-          }));
+      if (next.tipo_attivita === "task" && (field === "data_inizio" || field === "data_fine")) {
+        const start = new Date((field === "data_inizio" ? value : next.data_inizio) || "");
+        const end = new Date((field === "data_fine" ? value : next.data_fine) || "");
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end >= start) {
+          next.durata_giorni = Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1;
         }
       }
-    }
+
+      return next;
+    });
   };
 
-  const handleParentChange = (parentId) => {
-    setAttivitaParentId(parentId);
-    
-    if (parentId === "nessuno") {
-      setFormData(prev => ({ ...prev, gruppo_fase: "" }));
-    } else {
-      const parent = attivitaDisponibili.find(a => a.id === parentId);
-      if (parent) {
-        setFormData(prev => ({ ...prev, gruppo_fase: parent.descrizione }));
-      }
+  const handleParentChange = (value) => {
+    if (value === "nessuno") {
+      setFormData((prev) => ({ ...prev, parent_id: null, gruppo_fase: "" }));
+      return;
     }
+
+    const parent = attivitaDisponibili.find((item) => item.id === value);
+    setFormData((prev) => ({
+      ...prev,
+      parent_id: value,
+      gruppo_fase: parent?.descrizione || ""
+    }));
   };
 
   const aggiungiPredecessore = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       predecessori: [
         ...(prev.predecessori || []),
@@ -138,48 +156,45 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
   };
 
   const rimuoviPredecessore = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      predecessori: prev.predecessori.filter((_, i) => i !== index)
+      predecessori: prev.predecessori.filter((_, currentIndex) => currentIndex !== index)
     }));
   };
 
   const aggiornaPredecessore = (index, field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      predecessori: prev.predecessori.map((p, i) => 
-        i === index ? { ...p, [field]: value } : p
+      predecessori: prev.predecessori.map((item, currentIndex) =>
+        currentIndex === index ? { ...item, [field]: value } : item
       )
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Validazione predecessori
-    const predecessoriValidi = (formData.predecessori || []).filter(p => p.attivita_id);
-    
-    // Per milestone, forza durata a 0 e data_fine = data_inizio
-    const dataToSubmit = formData.tipo_attivita === 'milestone' 
-      ? {
-          ...formData,
-          durata_giorni: 0,
-          data_fine: formData.data_inizio,
-          predecessori: predecessoriValidi
-        }
-      : {
-          ...formData,
-          durata_giorni: parseInt(formData.durata_giorni) || 1,
-          percentuale_completamento: parseInt(formData.percentuale_completamento) || 0,
-          importo_previsto: parseFloat(formData.importo_previsto) || 0,
-          predecessori: predecessoriValidi
-        };
-    
-    onSubmit(dataToSubmit);
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    const predecessoriValidi = (formData.predecessori || []).filter((item) => item.attivita_id);
+    const duration = formData.tipo_attivita === "milestone"
+      ? 1
+      : Math.max(1, parseInt(formData.durata_giorni, 10) || 1);
+
+    const payload = {
+      ...formData,
+      durata_giorni: duration,
+      data_fine: formData.tipo_attivita === "milestone" ? formData.data_inizio : formData.data_fine,
+      percentuale_completamento: parseInt(formData.percentuale_completamento, 10) || 0,
+      importo_previsto: parseFloat(formData.importo_previsto) || 0,
+      predecessori: predecessoriValidi,
+      vincolo_data: ["asap", "alap"].includes(formData.vincolo_tipo) ? "" : formData.vincolo_data
+    };
+
+    onSubmit(payload);
   };
 
   const handleDelete = () => {
-    if (window.confirm("Sei sicuro di voler eliminare questa attività? L'azione è irreversibile.")) {
+    if (!attivita?.id || !onDelete) return;
+    if (window.confirm("Sei sicuro di voler eliminare questa attivita? L'azione e irreversibile.")) {
       onDelete(attivita.id);
     }
   };
@@ -190,90 +205,64 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            {attivita ? "Modifica Attività" : "Nuova Attività"}
+            {attivita ? "Modifica Attivita" : "Nuova Attivita"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Tipo Attività */}
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <Label>Tipo Attività</Label>
+            <Label>Tipo Attivita</Label>
             <Select value={formData.tipo_attivita} onValueChange={(value) => handleChange("tipo_attivita", value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="task">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Task Standard
-                  </div>
-                </SelectItem>
-                <SelectItem value="milestone">
-                  <div className="flex items-center gap-2">
-                    <Flag className="w-4 h-4" />
-                    Milestone (Evento significativo)
-                  </div>
-                </SelectItem>
-                <SelectItem value="raggruppamento">
-                  <div className="flex items-center gap-2">
-                    <Route className="w-4 h-4" />
-                    Raggruppamento (Fase/WBS)
-                  </div>
-                </SelectItem>
+                <SelectItem value="task">Task Standard</SelectItem>
+                <SelectItem value="milestone">Milestone</SelectItem>
+                <SelectItem value="raggruppamento">Raggruppamento WBS</SelectItem>
               </SelectContent>
             </Select>
-            {formData.tipo_attivita === 'milestone' && (
-              <p className="text-xs text-indigo-700 mt-2">
-                💡 Le milestone hanno durata zero e marcano eventi importanti del progetto
-              </p>
-            )}
           </div>
 
-          {/* Selezione Attività Parent */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <Label htmlFor="parent_id">Attività Parent (WBS)</Label>
-            <Select 
-              value={formData.parent_id || "nessuno"} 
-              onValueChange={(value) => {
-                const newVal = value === "nessuno" ? null : value;
-                handleChange("parent_id", newVal);
-                // Aggiorna anche il legacy gruppo_fase per compatibilità
-                if (newVal) {
-                  const parent = attivitaDisponibili.find(a => a.id === newVal);
-                  if (parent) handleChange("gruppo_fase", parent.descrizione);
-                } else {
-                  handleChange("gruppo_fase", "");
-                }
-              }}
-            >
+            <Label htmlFor="parent_id">Attivita Parent (WBS)</Label>
+            <Select value={formData.parent_id || "nessuno"} onValueChange={handleParentChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona livello superiore..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="nessuno">🔹 Radice (Livello 0)</SelectItem>
+                <SelectItem value="nessuno">Radice (Livello 0)</SelectItem>
                 {attivitaDisponibili
-                  .filter(a => a.tipo_attivita === 'raggruppamento' || !a.tipo_attivita || a.tipo_attivita === 'task') // Permetti task come parent temporaneamente se servisse, meglio raggruppamento
-                  .map(att => (
-                  <SelectItem key={att.id} value={att.id}>
-                    {att.wbs_code ? `${att.wbs_code} - ` : ''}{att.descrizione}
-                  </SelectItem>
-                ))}
+                  .filter((item) => item.tipo_attivita === "raggruppamento" || !item.tipo_attivita)
+                  .map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.wbs_code ? `${item.wbs_code} - ` : ""}{item.descrizione}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-blue-700 mt-2">
-              Struttura gerarchica WBS. Seleziona un "Raggruppamento" come padre.
-            </p>
+            <p className="text-xs text-blue-700 mt-2">Struttura gerarchica WBS del planning.</p>
           </div>
 
-          <div>
-            <Label htmlFor="descrizione">Descrizione Attività *</Label>
-            <Input
-              id="descrizione"
-              value={formData.descrizione}
-              onChange={(e) => handleChange("descrizione", e.target.value)}
-              placeholder="es. Consegna lavori"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="wbs">Codice WBS</Label>
+              <Input
+                id="wbs"
+                value={formData.wbs || ""}
+                onChange={(event) => handleChange("wbs", event.target.value)}
+                placeholder="es. 1.2.3"
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Label htmlFor="descrizione">Descrizione Attivita *</Label>
+              <Input
+                id="descrizione"
+                value={formData.descrizione}
+                onChange={(event) => handleChange("descrizione", event.target.value)}
+                placeholder="es. Getto fondazioni"
+                required
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -283,38 +272,93 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                 id="data_inizio"
                 type="date"
                 value={formData.data_inizio}
-                onChange={(e) => handleChange("data_inizio", e.target.value)}
+                onChange={(event) => handleChange("data_inizio", event.target.value)}
                 required
               />
             </div>
-            {formData.tipo_attivita === 'task' && (
-              <>
-                <div>
-                  <Label htmlFor="data_fine">Data Fine *</Label>
-                  <Input
-                    id="data_fine"
-                    type="date"
-                    value={formData.data_fine}
-                    onChange={(e) => handleChange("data_fine", e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="durata_giorni">Durata (giorni)</Label>
-                  <Input
-                    id="durata_giorni"
-                    type="number"
-                    value={formData.durata_giorni}
-                    onChange={(e) => handleChange("durata_giorni", e.target.value)}
-                    placeholder="Calcolato automaticamente"
-                    readOnly
-                  />
-                </div>
-              </>
-            )}
+            <div>
+              <Label htmlFor="data_fine">Data Fine {formData.tipo_attivita === "milestone" ? "" : "*"}</Label>
+              <Input
+                id="data_fine"
+                type="date"
+                value={formData.tipo_attivita === "milestone" ? formData.data_inizio : formData.data_fine}
+                onChange={(event) => handleChange("data_fine", event.target.value)}
+                required={formData.tipo_attivita !== "milestone"}
+                disabled={formData.tipo_attivita === "milestone"}
+              />
+            </div>
+            <div>
+              <Label htmlFor="durata_giorni">Durata (giorni)</Label>
+              <Input
+                id="durata_giorni"
+                type="number"
+                min="1"
+                value={formData.durata_giorni}
+                onChange={(event) => handleChange("durata_giorni", event.target.value)}
+                readOnly={formData.tipo_attivita === "task"}
+              />
+            </div>
           </div>
 
-          {/* Predecessori/Dipendenze */}
+          <div className="border-t pt-4 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Flag className="w-5 h-5 text-amber-600" />
+              <Label className="text-base font-semibold">Vincoli di pianificazione</Label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="vincolo_tipo">Tipo vincolo</Label>
+                <Select value={formData.vincolo_tipo || "asap"} onValueChange={(value) => handleChange("vincolo_tipo", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TIPO_VINCOLO_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="vincolo_data">Data vincolo</Label>
+                <Input
+                  id="vincolo_data"
+                  type="date"
+                  value={formData.vincolo_data || ""}
+                  onChange={(event) => handleChange("vincolo_data", event.target.value)}
+                  disabled={["asap", "alap"].includes(formData.vincolo_tipo || "asap")}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-5 h-5 text-emerald-600" />
+              <Label className="text-base font-semibold">Baseline</Label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="baseline_start_date">Inizio baseline</Label>
+                <Input
+                  id="baseline_start_date"
+                  type="date"
+                  value={formData.baseline_start_date || ""}
+                  onChange={(event) => handleChange("baseline_start_date", event.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="baseline_end_date">Fine baseline</Label>
+                <Input
+                  id="baseline_end_date"
+                  type="date"
+                  value={formData.baseline_end_date || ""}
+                  onChange={(event) => handleChange("baseline_end_date", event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="border-t pt-4 mt-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -326,43 +370,31 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                 Aggiungi Dipendenza
               </Button>
             </div>
-            
+
             {(!formData.predecessori || formData.predecessori.length === 0) && (
-              <p className="text-sm text-slate-500 italic">
-                Nessuna dipendenza. Questa attività può iniziare indipendentemente.
-              </p>
+              <p className="text-sm text-slate-500 italic">Nessuna dipendenza. L'attivita puo iniziare indipendentemente.</p>
             )}
 
-            {formData.predecessori && formData.predecessori.map((pred, index) => (
-              <div key={index} className="border rounded-lg p-3 mb-3 bg-slate-50">
+            {formData.predecessori?.map((pred, index) => (
+              <div key={`${pred.attivita_id || "pred"}-${index}`} className="border rounded-lg p-3 mb-3 bg-slate-50">
                 <div className="flex items-start justify-between mb-2">
-                  <Badge variant="secondary" className="bg-indigo-100 text-indigo-800">
-                    Dipendenza {index + 1}
-                  </Badge>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => rimuoviPredecessore(index)}
-                  >
+                  <Badge variant="secondary">Dipendenza {index + 1}</Badge>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => rimuoviPredecessore(index)}>
                     <Minus className="w-4 h-4" />
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-sm">Attività Predecessore *</Label>
-                    <Select 
-                      value={pred.attivita_id} 
-                      onValueChange={(value) => aggiornaPredecessore(index, 'attivita_id', value)}
-                    >
+                    <Label className="text-sm">Attivita predecessore *</Label>
+                    <Select value={pred.attivita_id} onValueChange={(value) => aggiornaPredecessore(index, "attivita_id", value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {attivitaDisponibili.map(att => (
-                          <SelectItem key={att.id} value={att.id}>
-                            {att.descrizione}
+                        {attivitaDisponibili.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.wbs_code ? `${item.wbs_code} - ` : ""}{item.descrizione}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -370,19 +402,14 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                   </div>
 
                   <div>
-                    <Label className="text-sm">Tipo Dipendenza</Label>
-                    <Select 
-                      value={pred.tipo_dipendenza || 'FS'} 
-                      onValueChange={(value) => aggiornaPredecessore(index, 'tipo_dipendenza', value)}
-                    >
+                    <Label className="text-sm">Tipo dipendenza</Label>
+                    <Select value={pred.tipo_dipendenza || "FS"} onValueChange={(value) => aggiornaPredecessore(index, "tipo_dipendenza", value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(TIPO_DIPENDENZA_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -393,29 +420,15 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                     <Input
                       type="number"
                       value={pred.lag_giorni || 0}
-                      onChange={(e) => aggiornaPredecessore(index, 'lag_giorni', parseInt(e.target.value) || 0)}
-                      placeholder="0"
+                      onChange={(event) => aggiornaPredecessore(index, "lag_giorni", parseInt(event.target.value, 10) || 0)}
                     />
-                    <p className="text-xs text-slate-500 mt-1">
-                      Positivo = ritardo, Negativo = anticipo
-                    </p>
                   </div>
                 </div>
               </div>
             ))}
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
-              <p className="text-xs text-blue-800 font-medium">📌 Tipi di Dipendenza:</p>
-              <ul className="text-xs text-blue-700 mt-1 space-y-1">
-                <li><strong>FS</strong> (Finish-to-Start): L'attività inizia quando il predecessore finisce</li>
-                <li><strong>SS</strong> (Start-to-Start): L'attività inizia quando il predecessore inizia</li>
-                <li><strong>FF</strong> (Finish-to-Finish): L'attività finisce quando il predecessore finisce</li>
-                <li><strong>SF</strong> (Start-to-Finish): L'attività finisce quando il predecessore inizia</li>
-              </ul>
-            </div>
           </div>
 
-          {formData.tipo_attivita === 'task' && (
+          {formData.tipo_attivita === "task" && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -460,28 +473,18 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                     min="0"
                     max="100"
                     value={formData.percentuale_completamento}
-                    onChange={(e) => handleChange("percentuale_completamento", e.target.value)}
+                    onChange={(event) => handleChange("percentuale_completamento", event.target.value)}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="importo_previsto">Importo Previsto (€)</Label>
+                  <Label htmlFor="importo_previsto">Importo Previsto (EUR)</Label>
                   <Input
                     id="importo_previsto"
                     type="number"
                     min="0"
                     step="0.01"
                     value={formData.importo_previsto}
-                    onChange={(e) => handleChange("importo_previsto", parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="responsabile">Responsabile (Legacy)</Label>
-                  <Input
-                    id="responsabile"
-                    value={formData.responsabile}
-                    onChange={(e) => handleChange("responsabile", e.target.value)}
-                    placeholder="Nome responsabile"
+                    onChange={(event) => handleChange("importo_previsto", parseFloat(event.target.value) || 0)}
                   />
                 </div>
               </div>
@@ -510,17 +513,17 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                         <SelectValue placeholder="Seleziona..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {formData.assegnatario_tipo === 'impresa' && imprese.map(i => (
-                          <SelectItem key={i.id} value={i.id}>{i.ragione_sociale}</SelectItem>
+                        {formData.assegnatario_tipo === "impresa" && imprese.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>{item.ragione_sociale}</SelectItem>
                         ))}
-                        {formData.assegnatario_tipo === 'subappalto' && subappalti.map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.ragione_sociale} ({s.categoria_lavori})</SelectItem>
+                        {formData.assegnatario_tipo === "subappalto" && subappalti.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>{item.ragione_sociale} ({item.categoria_lavori})</SelectItem>
                         ))}
-                        {formData.assegnatario_tipo === 'interno' && persone.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.cognome} {p.nome} ({p.qualifica})</SelectItem>
+                        {formData.assegnatario_tipo === "interno" && persone.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>{item.cognome} {item.nome} ({item.qualifica})</SelectItem>
                         ))}
-                        {formData.assegnatario_tipo === 'team' && teams.map(t => (
-                          <SelectItem key={t.id} value={t.id}>Team: {t.nome}</SelectItem>
+                        {formData.assegnatario_tipo === "team" && teams.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>Team: {item.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -535,10 +538,10 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
                     id="colore"
                     type="color"
                     value={formData.colore}
-                    onChange={(e) => handleChange("colore", e.target.value)}
+                    onChange={(event) => handleChange("colore", event.target.value)}
                     className="w-20 h-10"
                   />
-                  <span className="text-sm text-slate-600">Seleziona il colore per il cronoprogramma</span>
+                  <span className="text-sm text-slate-600">Colore della barra sul cronoprogramma</span>
                 </div>
               </div>
             </>
@@ -549,8 +552,8 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
             <Textarea
               id="note"
               value={formData.note}
-              onChange={(e) => handleChange("note", e.target.value)}
-              placeholder="Note aggiuntive sull'attività"
+              onChange={(event) => handleChange("note", event.target.value)}
+              placeholder="Note aggiuntive sull'attivita"
               rows={3}
             />
           </div>
@@ -560,12 +563,7 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
       <div className="flex justify-between gap-3">
         <div>
           {attivita && onDelete && (
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <Button type="button" variant="destructive" onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
               <Trash2 className="w-4 h-4 mr-2" />
               Elimina
             </Button>
@@ -578,7 +576,7 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
           </Button>
           <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
             <Save className="w-4 h-4 mr-2" />
-            {attivita ? "Aggiorna" : "Salva"} Attività
+            {attivita ? "Aggiorna" : "Salva"} Attivita
           </Button>
         </div>
       </div>

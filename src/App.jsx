@@ -14,6 +14,26 @@ const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 
+const remoteLoggerUrl = import.meta.env.VITE_REMOTE_LOGGER_URL;
+const shouldUseRemoteLogger = Boolean(remoteLoggerUrl);
+
+// --- START REMOTE LOGGER ---
+if (typeof window !== 'undefined' && shouldUseRemoteLogger && !window._loggerInjected) {
+  window._loggerInjected = true;
+  const oldLog = console.log;
+  console.log = function (...args) {
+    if (args.join(' ').includes('GanttAvanzato') || args.join(' ').includes('INIEZIONE DEBUG')) {
+      fetch(remoteLoggerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: 'LOG', message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })
+      }).catch(() => { });
+    }
+    oldLog.apply(console, args);
+  }
+}
+// --- END REMOTE LOGGER ---
+
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;

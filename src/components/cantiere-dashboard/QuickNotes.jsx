@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { StickyNote, Save, Edit2, X } from 'lucide-react';
-import { Cantiere } from '@/entities/Cantiere';
+import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
 export default function QuickNotes({ cantiere, onUpdate }) {
@@ -18,7 +18,7 @@ export default function QuickNotes({ cantiere, onUpdate }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await Cantiere.update(cantiere.id, { note });
+      await base44.entities.Cantiere.update(cantiere.id, { note });
       toast.success("Note aggiornate");
       setIsEditing(false);
       if (onUpdate) onUpdate();
@@ -39,9 +39,9 @@ export default function QuickNotes({ cantiere, onUpdate }) {
             Note Rapide Team
           </CardTitle>
           {!isEditing && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setIsEditing(true)}
               className="text-yellow-700 hover:text-yellow-900 hover:bg-yellow-100"
             >
@@ -60,9 +60,9 @@ export default function QuickNotes({ cantiere, onUpdate }) {
               className="flex-1 min-h-[150px] bg-white border-yellow-200 focus-visible:ring-yellow-400"
             />
             <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setNote(cantiere?.note || "");
                   setIsEditing(false);
@@ -71,8 +71,8 @@ export default function QuickNotes({ cantiere, onUpdate }) {
               >
                 <X className="w-4 h-4 mr-1" /> Annulla
               </Button>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={handleSave}
                 disabled={isSaving}
                 className="bg-yellow-600 hover:bg-yellow-700 text-white"
@@ -82,7 +82,7 @@ export default function QuickNotes({ cantiere, onUpdate }) {
             </div>
           </div>
         ) : (
-          <div 
+          <div
             className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap cursor-pointer h-full min-h-[100px]"
             onClick={() => setIsEditing(true)}
           >

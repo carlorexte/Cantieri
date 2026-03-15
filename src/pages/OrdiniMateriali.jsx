@@ -77,12 +77,44 @@ export default function OrdiniMateriali() {
 
   const handleStatusChange = async (id, newStatus, note = null) => {
     try {
+      const ordineCorrente = ordini.find(o => o.id === id) || selectedOrdine;
+
+      if (newStatus === 'inviato_fornitore' && !ordineCorrente?.societa_intestataria_id) {
+        toast.error("Seleziona prima la societa intestataria dell'ordine.");
+        return;
+      }
+
       const updateData = { stato: newStatus };
       if (note !== null) {
           updateData.note_approvazione = note;
       }
 
       await base44.entities.OrdineMateriale.update(id, updateData);
+
+      const taskId = ordineCorrente?.attivita_collegata_id;
+      if (taskId) {
+        const taskUpdate = {};
+        const dataOggi = new Date().toISOString().split('T')[0];
+
+        if (newStatus === 'approvato' || newStatus === 'rifiutato') {
+          taskUpdate.stato = 'completato';
+          taskUpdate.data_completamento = dataOggi;
+        } else if (newStatus === 'bozza') {
+          taskUpdate.stato = 'in_revisione';
+        } else if (newStatus === 'in_attesa_approvazione') {
+          taskUpdate.stato = 'da_fare';
+          taskUpdate.data_completamento = null;
+        }
+
+        if (note) {
+          taskUpdate.note = note;
+        }
+
+        if (Object.keys(taskUpdate).length > 0) {
+          await base44.entities.AttivitaInterna.update(taskId, taskUpdate);
+        }
+      }
+
       toast.success(`Stato aggiornato a ${newStatus.replace(/_/g, ' ')}`);
       
       // Update local state immediately
@@ -277,6 +309,8 @@ export default function OrdiniMateriali() {
             open={isDetailOpen} 
             onClose={() => setIsDetailOpen(false)}
             onStatusChange={handleStatusChange}
+            canApprove={hasPermission('ordini_materiale', 'accept')}
+            canEdit={hasPermission('ordini_materiale', 'edit')}
         />
 
       </div>

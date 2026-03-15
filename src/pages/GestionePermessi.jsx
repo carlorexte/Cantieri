@@ -73,7 +73,7 @@ export default function GestionePermessiPage() {
     try {
       const res = await base44.functions.invoke('managePermissions', {
         action: 'assign_role',
-        data: { userId, roleId: ruoloId }
+        data: { userId: userId, roleId: ruoloId }
       });
 
       if (res.data?.error) throw new Error(res.data.error);

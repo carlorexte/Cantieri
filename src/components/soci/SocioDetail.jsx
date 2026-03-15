@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import { SALSocio } from "@/entities/SALSocio";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
   const loadSAL = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await SALSocio.filter({ socio_id: socio.id }, "numero_sal");
+      const data = await base44.entities.SALSocio.filter({ socio_id: socio.id }, "numero_sal");
       setSalList(data);
     } catch (error) {
       console.error("Errore caricamento SAL:", error);
@@ -58,11 +58,11 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
       };
 
       if (salData.id) {
-        await SALSocio.update(salData.id, dataToSave);
+        await base44.entities.SALSocio.update(salData.id, dataToSave);
       } else {
-        await SALSocio.create(dataToSave);
+        await base44.entities.SALSocio.create(dataToSave);
       }
-      
+
       await loadSAL(); // Ensure SAL list is reloaded after save
       setEditingRow(null);
       setNewSal({
@@ -148,7 +148,7 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
               <p className="text-lg font-bold text-purple-600">€ {socio.importo_contrattuale?.toLocaleString('it-IT') || '0'}</p>
             </div>
           </div>
-          
+
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-100 p-3 rounded">
               <h4 className="font-semibold text-slate-700 mb-2">ONERI SICUREZZA</h4>
@@ -246,33 +246,33 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
                 {editingRow === 'new' && (
                   <TableRow className="bg-green-50">
                     <TableCell>
-                      <Input 
-                        type="number" 
-                        value={newSal.numero_sal} 
-                        onChange={(e) => setNewSal({...newSal, numero_sal: parseInt(e.target.value)})}
+                      <Input
+                        type="number"
+                        value={newSal.numero_sal}
+                        onChange={(e) => setNewSal({ ...newSal, numero_sal: parseInt(e.target.value) })}
                         className="w-16"
                       />
                     </TableCell>
                     <TableCell>-</TableCell>
                     <TableCell>
-                      <Input 
-                        type="date" 
-                        value={newSal.data_sal} 
-                        onChange={(e) => setNewSal({...newSal, data_sal: e.target.value})}
+                      <Input
+                        type="date"
+                        value={newSal.data_sal}
+                        onChange={(e) => setNewSal({ ...newSal, data_sal: e.target.value })}
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        value={newSal.numero_fattura} 
-                        onChange={(e) => setNewSal({...newSal, numero_fattura: e.target.value})}
+                      <Input
+                        value={newSal.numero_fattura}
+                        onChange={(e) => setNewSal({ ...newSal, numero_fattura: e.target.value })}
                         placeholder="N. fatt."
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="number" 
-                        value={newSal.imponibile} 
-                        onChange={(e) => setNewSal({...newSal, imponibile: parseFloat(e.target.value) || 0})}
+                      <Input
+                        type="number"
+                        value={newSal.imponibile}
+                        onChange={(e) => setNewSal({ ...newSal, imponibile: parseFloat(e.target.value) || 0 })}
                         step="0.01"
                       />
                     </TableCell>
@@ -283,17 +283,17 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
                       € {(newSal.imponibile * 1.1).toLocaleString('it-IT')}
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="date" 
-                        value={newSal.data_pagamento} 
-                        onChange={(e) => setNewSal({...newSal, data_pagamento: e.target.value})}
+                      <Input
+                        type="date"
+                        value={newSal.data_pagamento}
+                        onChange={(e) => setNewSal({ ...newSal, data_pagamento: e.target.value })}
                       />
                     </TableCell>
                     <TableCell>
-                      <Input 
-                        type="number" 
-                        value={newSal.importo_pagamento} 
-                        onChange={(e) => setNewSal({...newSal, importo_pagamento: parseFloat(e.target.value) || 0})}
+                      <Input
+                        type="number"
+                        value={newSal.importo_pagamento}
+                        onChange={(e) => setNewSal({ ...newSal, importo_pagamento: parseFloat(e.target.value) || 0 })}
                         step="0.01"
                       />
                     </TableCell>

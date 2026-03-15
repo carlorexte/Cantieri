@@ -57,18 +57,20 @@ export function calcolaCriticalPath(attivita) {
                   predDate = addDays(predAtt.earliest_start, lagGiorni);
                 }
                 break;
-              case 'FF': // Finish-to-Finish
+              case 'FF': { // Finish-to-Finish
                 if (predAtt.earliest_finish && att.durata_giorni) {
                   const targetFinish = addDays(predAtt.earliest_finish, lagGiorni);
                   predDate = addDays(targetFinish, -att.durata_giorni + 1);
                 }
                 break;
-              case 'SF': // Start-to-Finish
+              }
+              case 'SF': { // Start-to-Finish
                 if (predAtt.earliest_start && att.durata_giorni) {
                   const targetFinish = addDays(predAtt.earliest_start, lagGiorni);
                   predDate = addDays(targetFinish, -att.durata_giorni + 1);
                 }
                 break;
+              }
             }
 
             if (predDate && (!newEarliestStart || predDate > newEarliestStart)) {
@@ -131,7 +133,8 @@ export function calcolaCriticalPath(attivita) {
 
         if (successori.length === 0) return; // Già inizializzata
 
-        let newLatestFinish = null;
+	        /** @type {Date | null} */
+	        let newLatestFinish = null;
 
         successori.forEach(succ => {
           if (!succ.latest_start) return;
@@ -247,7 +250,8 @@ export function ricalcolaDateDipendenti(attivitaModificata, tutteLeAttivita) {
   const updates = [];
 
   attivitaDaAggiornare.forEach(att => {
-    let nuovaDataInizio = null;
+	    /** @type {Date | null} */
+	    let nuovaDataInizio = null;
 
     att.predecessori.forEach(pred => {
       const predAtt = attivitaMap.get(pred.attivita_id);
@@ -257,12 +261,14 @@ export function ricalcolaDateDipendenti(attivitaModificata, tutteLeAttivita) {
       let calcData;
 
       switch (pred.tipo_dipendenza) {
-        case 'FS':
+        case 'FS': {
           calcData = addDays(parseISO(predAtt.data_fine), lagGiorni);
           break;
-        case 'SS':
+        }
+        case 'SS': {
           calcData = addDays(parseISO(predAtt.data_inizio), lagGiorni);
           break;
+        }
         case 'FF': {
           const targetFinish = addDays(parseISO(predAtt.data_fine), lagGiorni);
           calcData = addDays(targetFinish, -(att.durata_giorni || 1) + 1);

@@ -116,8 +116,7 @@ export default function DocumentiPage() {
   const handleArchive = async (id) => {
     if (window.confirm("Sei sicuro di voler archiviare questo documento?")) {
       try {
-        const { archiveDocument } = await import("@/functions/archiveDocument");
-        await archiveDocument({ document_id: id });
+        await base44.functions.invoke('archiveDocument', { document_id: id });
         toast.success("Documento archiviato");
         loadData();
       } catch (error) {
@@ -148,9 +147,9 @@ export default function DocumentiPage() {
         if (!url) return;
         // Genera un ID stabile basato su cantiere e tipo
         const safeUrlId = url.split('/').pop() || 'unknown';
-        
+
         cantiereDocs.push({
-          id: `virtual-${c.id}-${safeUrlId}`, 
+          id: `virtual-${c.id}-${safeUrlId}`,
           nome_documento: `${label} - ${c.denominazione}`,
           descrizione: `Documento estratto automaticamente dal cantiere: ${c.denominazione}. ${extraInfo}`,
           file_uri: url.startsWith('http') ? null : url,
@@ -171,10 +170,10 @@ export default function DocumentiPage() {
       add(c.polizza_car_url, 'polizze_car', 'polizze', 'Polizza CAR', null, `Scad: ${c.polizza_car_scadenza || 'N/D'}`);
       add(c.polizza_anticipazione_url, 'polizze_rct', 'polizze', 'Polizza Anticipazione', null, `Scad: ${c.polizza_anticipazione_scadenza || 'N/D'}`);
       add(c.verbale_inizio_lavori_url, 'cantiere_verbale_consegna', 'tecnici', 'Verbale Inizio Lavori', c.data_inizio);
-      
+
       if (Array.isArray(c.verbali_consegna)) {
         c.verbali_consegna.forEach((url, idx) => {
-             add(url, 'cantiere_verbale_consegna', 'tecnici', `Verbale Consegna ${idx+1}`, null);
+          add(url, 'cantiere_verbale_consegna', 'tecnici', `Verbale Consegna ${idx + 1}`, null);
         });
       }
     });
@@ -209,7 +208,7 @@ export default function DocumentiPage() {
       const cat = doc.categoria_principale || 'altro';
       byCategoria[cat] = (byCategoria[cat] || 0) + 1;
     });
-    
+
     return {
       totale: allDocuments.length,
       conOCR: allDocuments.filter(d => d.ocr_completato).length,
@@ -219,7 +218,7 @@ export default function DocumentiPage() {
 
   const getEntitaCollegate = useCallback((documento) => {
     const entita = [];
-    
+
     // Helper function to add entity
     const addEntita = (type, id) => {
       if (type === 'cantiere') {
@@ -236,144 +235,144 @@ export default function DocumentiPage() {
     if (documento.entita_collegate?.length > 0) {
       documento.entita_collegate.forEach(e => addEntita(e.entita_tipo, e.entita_id));
     }
-    
+
     // Legacy/Fallback check
     if (entita.length === 0 && documento.entita_collegata_tipo && documento.entita_collegata_id) {
       addEntita(documento.entita_collegata_tipo, documento.entita_collegata_id);
     }
-    
+
     return entita;
   }, [cantieri, imprese]);
 
   return (
     <PermissionGuard module="documenti" action="view">
-    <div className="min-h-screen bg-slate-50">
-      <div className="p-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Documenti</h1>
-              <p className="text-slate-600 mt-1">Gestione centralizzata con OCR e categorizzazione automatica</p>
+      <div className="min-h-screen bg-slate-50">
+        <div className="p-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Documenti</h1>
+                <p className="text-slate-600 mt-1">Gestione centralizzata con OCR e categorizzazione automatica</p>
+              </div>
+              {(currentUser?.role === 'admin' || hasPermission('documenti', 'edit')) && (
+                <Button
+                  onClick={() => {
+                    setEditingDocumento(null);
+                    setShowForm(true);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Nuovo Documento
+                </Button>
+              )}
             </div>
-            {(currentUser?.role === 'admin' || hasPermission('documenti', 'edit')) && (
-              <Button 
-                onClick={() => {
-                  setEditingDocumento(null);
-                  setShowForm(true);
-                }} 
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Nuovo Documento
-              </Button>
-            )}
-          </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-bold text-slate-900">{stats.totale}</div>
-                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Totali</div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
-              <CardContent className="p-4 text-center">
-                <div className="text-3xl font-bold text-indigo-600">{stats.conOCR}</div>
-                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Con OCR</div>
-              </CardContent>
-            </Card>
-            {Object.entries(categorieDocumenti).slice(0, 4).map(([key, val]) => (
-              <Card key={key} className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+              <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold text-slate-900">{stats.byCategoria[key] || 0}</div>
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">{val.label}</div>
+                  <div className="text-3xl font-bold text-slate-900">{stats.totale}</div>
+                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Totali</div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              <Card className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
+                <CardContent className="p-4 text-center">
+                  <div className="text-3xl font-bold text-indigo-600">{stats.conOCR}</div>
+                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Con OCR</div>
+                </CardContent>
+              </Card>
+              {Object.entries(categorieDocumenti).slice(0, 4).map(([key, val]) => (
+                <Card key={key} className="border-0 shadow-sm bg-white hover:shadow-md transition-all">
+                  <CardContent className="p-4 text-center">
+                    <div className="text-3xl font-bold text-slate-900">{stats.byCategoria[key] || 0}</div>
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">{val.label}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-          {/* Tabs */}
-          <Tabs defaultValue="tutti" className="space-y-6">
-            <TabsList className="bg-white border border-slate-200">
-              <TabsTrigger value="tutti">Tutti i Documenti</TabsTrigger>
-              <TabsTrigger value="ricerca">
-                <Search className="w-4 h-4 mr-2" />
-                Ricerca Avanzata
-              </TabsTrigger>
-            </TabsList>
+            {/* Tabs */}
+            <Tabs defaultValue="tutti" className="space-y-6">
+              <TabsList className="bg-white border border-slate-200">
+                <TabsTrigger value="tutti">Tutti i Documenti</TabsTrigger>
+                <TabsTrigger value="ricerca">
+                  <Search className="w-4 h-4 mr-2" />
+                  Ricerca Avanzata
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Tab Tutti Documenti */}
-            <TabsContent value="tutti" className="space-y-6">
-              {/* Filtri Rapidi */}
-              <Card className="border-0 shadow-sm bg-white">
-                <CardContent className="p-6">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row gap-4">
+              {/* Tab Tutti Documenti */}
+              <TabsContent value="tutti" className="space-y-6">
+                {/* Filtri Rapidi */}
+                <Card className="border-0 shadow-sm bg-white">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col md:flex-row gap-4">
                         <div className="flex-1">
-                             <AdvancedSearch 
-                                data={baseFilteredDocs}
-                                searchFields={searchFields}
-                                onFilter={setFinalFilteredDocs}
-                                placeholder="Cerca documenti (es. testo:fattura emittente:rossi*)..."
-                            />
+                          <AdvancedSearch
+                            data={baseFilteredDocs}
+                            searchFields={searchFields}
+                            onFilter={setFinalFilteredDocs}
+                            placeholder="Cerca documenti (es. testo:fattura emittente:rossi*)..."
+                          />
                         </div>
                         <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-                        <SelectTrigger className="w-48">
+                          <SelectTrigger className="w-48">
                             <SelectValue placeholder="Tutte le categorie" />
-                        </SelectTrigger>
-                        <SelectContent>
+                          </SelectTrigger>
+                          <SelectContent>
                             <SelectItem value={null}>Tutte le categorie</SelectItem>
                             {Object.entries(categorieDocumenti).map(([key, val]) => (
-                            <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                              <SelectItem key={key} value={key}>{val.label}</SelectItem>
                             ))}
-                        </SelectContent>
+                          </SelectContent>
                         </Select>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              {/* Lista Documenti */}
-              <div className="grid gap-4">
-                {isLoading ? (
-                  Array(5).fill(0).map((_, i) => (
-                    <Card key={i} className="animate-pulse border-0 shadow-sm bg-white">
-                      <CardContent className="p-6">
-                        <div className="h-6 bg-slate-200 rounded w-1/3 mb-2"></div>
-                        <div className="h-4 bg-slate-200 rounded w-2/3"></div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  finalFilteredDocs.map(doc => {
-                    const entitaCollegate = getEntitaCollegate(doc);
-                    
-                    return (
-                      <Card key={doc.id} className="border-0 shadow-sm hover:shadow-md transition-all bg-white">
+                {/* Lista Documenti */}
+                <div className="grid gap-4">
+                  {isLoading ? (
+                    Array(5).fill(0).map((_, i) => (
+                      <Card key={i} className="animate-pulse border-0 shadow-sm bg-white">
                         <CardContent className="p-6">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FileText className="w-5 h-5 text-slate-500" />
-                                <h3 className="font-semibold text-slate-900 truncate">{doc.nome_documento}</h3>
-                                {doc.categoria_principale && (
-                                  <Badge variant="secondary" className={categorieDocumenti[doc.categoria_principale]?.color}>
-                                  {categorieDocumenti[doc.categoria_principale]?.label}
-                                  </Badge>
+                          <div className="h-6 bg-slate-200 rounded w-1/3 mb-2"></div>
+                          <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    finalFilteredDocs.map(doc => {
+                      const entitaCollegate = getEntitaCollegate(doc);
+
+                      return (
+                        <Card key={doc.id} className="border-0 shadow-sm hover:shadow-md transition-all bg-white">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FileText className="w-5 h-5 text-slate-500" />
+                                  <h3 className="font-semibold text-slate-900 truncate">{doc.nome_documento}</h3>
+                                  {doc.categoria_principale && (
+                                    <Badge variant="secondary" className={categorieDocumenti[doc.categoria_principale]?.color}>
+                                      {categorieDocumenti[doc.categoria_principale]?.label}
+                                    </Badge>
                                   )}
                                   {doc.readonly && (
-                                  <Badge variant="outline" className="text-slate-500 border-slate-300">
-                                  <Building2 className="w-3 h-3 mr-1" />
-                                  Cantiere
-                                  </Badge>
+                                    <Badge variant="outline" className="text-slate-500 border-slate-300">
+                                      <Building2 className="w-3 h-3 mr-1" />
+                                      Cantiere
+                                    </Badge>
                                   )}
                                   {doc.ocr_completato && (
-                                  <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                  <Sparkles className="w-3 h-3 mr-1" />
-                                  OCR
-                                  </Badge>
+                                    <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                      <Sparkles className="w-3 h-3 mr-1" />
+                                      OCR
+                                    </Badge>
                                   )}
                                   {doc.versioni?.length > 0 && (
                                     <Badge variant="outline" className="text-slate-500 border-slate-300">
@@ -381,171 +380,171 @@ export default function DocumentiPage() {
                                       v{doc.versioni.length + 1}
                                     </Badge>
                                   )}
-                                  </div>
-                              
-                              {doc.descrizione && (
-                                <p className="text-sm text-slate-600 mb-2 line-clamp-2">{doc.descrizione}</p>
-                              )}
-                              
-                              <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-2">
-                                {doc.data_emissione && (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {format(new Date(doc.data_emissione), 'dd/MM/yyyy')}
-                                  </span>
-                                )}
-                                {doc.data_scadenza && (
-                                  <span className="text-amber-700">
-                                    • Scad: {format(new Date(doc.data_scadenza), 'dd/MM/yyyy')}
-                                  </span>
-                                )}
-                                {doc.emittente && (
-                                  <span>• {doc.emittente}</span>
-                                )}
-                              </div>
+                                </div>
 
-                              {entitaCollegate.length > 0 && (
-                                <div className="flex items-center gap-2 mb-2">
+                                {doc.descrizione && (
+                                  <p className="text-sm text-slate-600 mb-2 line-clamp-2">{doc.descrizione}</p>
+                                )}
+
+                                <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-2">
+                                  {doc.data_emissione && (
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      {format(new Date(doc.data_emissione), 'dd/MM/yyyy')}
+                                    </span>
+                                  )}
+                                  {doc.data_scadenza && (
+                                    <span className="text-amber-700">
+                                      • Scad: {format(new Date(doc.data_scadenza), 'dd/MM/yyyy')}
+                                    </span>
+                                  )}
+                                  {doc.emittente && (
+                                    <span>• {doc.emittente}</span>
+                                  )}
+                                </div>
+
+                                {entitaCollegate.length > 0 && (
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex flex-wrap gap-1">
+                                      {entitaCollegate.map((ent, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1 bg-slate-50/50">
+                                          <ent.icon className="w-3 h-3 text-slate-400" />
+                                          <span className="text-slate-500">{ent.type}:</span>
+                                          <span className="font-medium">{ent.label}</span>
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {doc.tags?.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
-                                    {entitaCollegate.map((ent, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1 bg-slate-50/50">
-                                        <ent.icon className="w-3 h-3 text-slate-400" />
-                                        <span className="text-slate-500">{ent.type}:</span>
-                                        <span className="font-medium">{ent.label}</span>
+                                    {doc.tags.map(tag => (
+                                      <Badge key={tag} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                                        <Tag className="w-3 h-3 mr-1" />
+                                        {tag}
                                       </Badge>
                                     ))}
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
 
-                              {doc.tags?.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {doc.tags.map(tag => (
-                                    <Badge key={tag} variant="secondary" className="text-xs bg-slate-100 text-slate-700">
-                                      <Tag className="w-3 h-3 mr-1" />
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex gap-2 flex-shrink-0">
-                              {(doc.file_uri || doc.cloud_file_url) && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleViewDocument(doc)}
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDownloadDocument(doc)}
-                                  >
-                                    <Download className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                              {(currentUser?.role === 'admin' || hasPermission('documenti', 'edit')) && !doc.readonly && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      setEditingDocumento(doc);
-                                      setShowForm(true);
-                                    }}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  {(currentUser?.role === 'admin' || hasPermission('documenti', 'archive')) && (
+                              <div className="flex gap-2 flex-shrink-0">
+                                {(doc.file_uri || doc.cloud_file_url) && (
+                                  <>
                                     <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleViewDocument(doc)}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDownloadDocument(doc)}
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                {(currentUser?.role === 'admin' || hasPermission('documenti', 'edit')) && !doc.readonly && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setEditingDocumento(doc);
+                                        setShowForm(true);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    {(currentUser?.role === 'admin' || hasPermission('documenti', 'archive')) && (
+                                      <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleArchive(doc.id)}
                                         className="hover:bg-amber-50 hover:text-amber-600"
                                         title="Archivia"
-                                    >
+                                      >
                                         <Archive className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                  {(currentUser?.role === 'admin' || hasPermission('documenti', 'delete')) && (
-                                    <Button
+                                      </Button>
+                                    )}
+                                    {(currentUser?.role === 'admin' || hasPermission('documenti', 'delete')) && (
+                                      <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleDelete(doc.id)}
                                         className="hover:bg-red-50 hover:text-red-600"
-                                    >
+                                      >
                                         <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                </>
-                              )}
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+
+                {finalFilteredDocs.length === 0 && !isLoading && (
+                  <Card className="border-0 shadow-sm bg-white">
+                    <CardContent className="p-12 text-center">
+                      <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">Nessun documento trovato</h3>
+                      <p className="text-slate-600">Prova a modificare i filtri di ricerca</p>
+                    </CardContent>
+                  </Card>
                 )}
-              </div>
+              </TabsContent>
 
-              {finalFilteredDocs.length === 0 && !isLoading && (
-                <Card className="border-0 shadow-sm bg-white">
-                  <CardContent className="p-12 text-center">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Nessun documento trovato</h3>
-                    <p className="text-slate-600">Prova a modificare i filtri di ricerca</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+              {/* Tab Ricerca Avanzata */}
+              <TabsContent value="ricerca">
+                <RicercaAvanzataDocumenti
+                  onDocumentoSelect={(doc) => {
+                    setEditingDocumento(doc);
+                    setShowForm(true);
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
 
-            {/* Tab Ricerca Avanzata */}
-            <TabsContent value="ricerca">
-              <RicercaAvanzataDocumenti 
-                onDocumentoSelect={(doc) => {
-                  setEditingDocumento(doc);
-                  setShowForm(true);
-                }}
-              />
-            </TabsContent>
-          </Tabs>
+            {/* Dialog Form */}
+            <Dialog open={showForm} onOpenChange={setShowForm}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingDocumento ? "Modifica Documento" : "Nuovo Documento"}
+                  </DialogTitle>
+                </DialogHeader>
+                <DocumentoFormEnhanced
+                  documento={editingDocumento}
+                  onSubmit={handleSubmit}
+                  onCancel={() => {
+                    setShowForm(false);
+                    setEditingDocumento(null);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
 
-          {/* Dialog Form */}
-          <Dialog open={showForm} onOpenChange={setShowForm}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingDocumento ? "Modifica Documento" : "Nuovo Documento"}
-                </DialogTitle>
-              </DialogHeader>
-              <DocumentoFormEnhanced
-                documento={editingDocumento}
-                onSubmit={handleSubmit}
-                onCancel={() => {
-                  setShowForm(false);
-                  setEditingDocumento(null);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-
-          {/* Document Viewer */}
-          <DocumentViewer
-            documento={viewingDocument}
-            isOpen={showViewer}
-            onClose={() => {
-              setShowViewer(false);
-              setViewingDocument(null);
-            }}
-          />
+            {/* Document Viewer */}
+            <DocumentViewer
+              documento={viewingDocument}
+              isOpen={showViewer}
+              onClose={() => {
+                setShowViewer(false);
+                setViewingDocument(null);
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
     </PermissionGuard>
   );
 
@@ -559,7 +558,7 @@ export default function DocumentiPage() {
         });
         url = result.signed_url;
       }
-      
+
       const a = document.createElement('a');
       a.href = url;
       a.download = doc.nome_documento;

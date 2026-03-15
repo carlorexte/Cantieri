@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Impresa } from "@/entities/Impresa";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,7 +20,7 @@ export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagra
   const loadImprese = async () => {
     setIsLoading(true);
     try {
-      const data = await Impresa.list("ragione_sociale");
+      const data = await base44.entities.Impresa.list("ragione_sociale");
       setImprese(data);
     } catch (error) {
       console.error("Errore caricamento imprese:", error);
@@ -50,7 +50,7 @@ export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagra
         <Building2 className="w-4 h-4" />
         {label}
       </Label>
-      
+
       <div className="flex gap-2">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -106,7 +106,7 @@ export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagra
             </Command>
           </PopoverContent>
         </Popover>
-        
+
         {selectedImpresa && (
           <Button
             variant="outline"
@@ -117,7 +117,7 @@ export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagra
           </Button>
         )}
       </div>
-      
+
       {selectedImpresa && (
         <div className="text-sm text-slate-600 bg-blue-50 border border-blue-200 rounded-md p-3">
           <p className="font-medium text-blue-900">Impresa selezionata: {selectedImpresa.ragione_sociale}</p>

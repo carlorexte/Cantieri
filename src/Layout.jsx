@@ -48,7 +48,7 @@ import rcsLogo from '@/assets/logo-rcs3.png';
 
 function LayoutContent({ children }) {
     const location = useLocation();
-    const { user, hasPermission, isAdmin } = usePermissions();
+    const { user, hasPermission, isAdmin, isLoading, ruolo } = usePermissions();
 
     const handleLogout = async () => {
         try {
@@ -87,8 +87,10 @@ function LayoutContent({ children }) {
 
     const filterItems = (items) => {
         return items.filter(item => {
-            if (isAdmin) return true;
+            if (isLoading) return true;        // mostra tutto mentre carica
+            if (isAdmin) return true;          // admin vede tutto
             if (item.module === "all") return true;
+            if (!ruolo) return true;           // nessun ruolo assegnato → nessuna restrizione
             return hasPermission(item.module, item.action);
         });
     };

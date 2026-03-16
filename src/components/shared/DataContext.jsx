@@ -148,6 +148,7 @@ export const DataProvider = ({ children }) => {
     currentRole,
     cantierePermissions,
     isLoadingUser,
+    isLoading: isLoadingUser,
     isLoadingData,
     refreshData,
     loadUserAndPermissions,

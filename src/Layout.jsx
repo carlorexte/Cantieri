@@ -87,10 +87,10 @@ function LayoutContent({ children }) {
 
     const filterItems = (items) => {
         return items.filter(item => {
-            if (isLoading) return true;        // mostra tutto mentre carica
-            if (isAdmin) return true;          // admin vede tutto
+            if (isLoading || !user) return true; // caricamento o profilo non ancora caricato
+            if (isAdmin) return true;            // admin vede tutto
             if (item.module === "all") return true;
-            if (!ruolo) return true;           // nessun ruolo assegnato → nessuna restrizione
+            if (!ruolo) return true;             // nessun ruolo assegnato → nessuna restrizione
             return hasPermission(item.module, item.action);
         });
     };

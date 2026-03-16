@@ -1,11 +1,11 @@
 -- ============================================================
--- RBAC MIGRATION: profiles, ruoli, teams, team_members, team_cantieri
+-- RBAC MIGRATION v2 - idempotente (sicuro da eseguire più volte)
 -- ============================================================
 
 BEGIN;
 
 -- ============================================================
--- 1. TABELLA RUOLI (prima di profiles per la FK)
+-- 1. TABELLA RUOLI
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.ruoli (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,20 +20,53 @@ CREATE TABLE IF NOT EXISTS public.ruoli (
 CREATE INDEX IF NOT EXISTS idx_ruoli_is_system ON public.ruoli(is_system);
 
 -- ============================================================
--- 2. TABELLA PROFILES
+-- 2. TABELLA PROFILES (aggiunge colonne se già esiste)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id                      UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email                   TEXT NOT NULL,
-  full_name               TEXT,
-  avatar_url              TEXT,
-  role                    TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
-  ruolo_id                UUID REFERENCES public.ruoli(id) ON DELETE SET NULL,
-  force_all_cantieri_view BOOLEAN NOT NULL DEFAULT false,
-  cantieri_assegnati      UUID[] NOT NULL DEFAULT '{}',
-  created_at              TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at              TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
 );
+
+-- Aggiunge le colonne mancanti (safe se già esistono)
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS email                   TEXT,
+  ADD COLUMN IF NOT EXISTS full_name               TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_url              TEXT,
+  ADD COLUMN IF NOT EXISTS role                    TEXT NOT NULL DEFAULT 'member',
+  ADD COLUMN IF NOT EXISTS ruolo_id                UUID,
+  ADD COLUMN IF NOT EXISTS force_all_cantieri_view BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS cantieri_assegnati      UUID[] NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS created_at              TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at              TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Aggiunge constraint CHECK su role se non esiste
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'profiles_role_check' AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('admin', 'member'));
+  END IF;
+END$$;
+
+-- Aggiunge FK su ruolo_id se non esiste
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'profiles_ruolo_id_fkey' AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_ruolo_id_fkey
+      FOREIGN KEY (ruolo_id) REFERENCES public.ruoli(id) ON DELETE SET NULL;
+  END IF;
+END$$;
+
+-- Aggiorna email dai dati auth per righe esistenti senza email
+UPDATE public.profiles p
+SET email = u.email
+FROM auth.users u
+WHERE p.id = u.id AND (p.email IS NULL OR p.email = '');
 
 CREATE INDEX IF NOT EXISTS idx_profiles_email  ON public.profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_role   ON public.profiles(role);
@@ -81,7 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_team_cantieri_team     ON public.team_cantieri(te
 CREATE INDEX IF NOT EXISTS idx_team_cantieri_cantiere ON public.team_cantieri(cantiere_id);
 
 -- ============================================================
--- 6. HELPER FUNCTIONS (prima delle RLS policy)
+-- 6. HELPER FUNCTIONS
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -113,7 +146,7 @@ RETURNS UUID[] LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS 
 $$;
 
 -- ============================================================
--- 7. TRIGGER: crea profile automaticamente al signup
+-- 7. TRIGGER: crea/aggiorna profile al signup
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -128,7 +161,9 @@ BEGIN
       ELSE 'member'
     END
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE
+    SET email     = EXCLUDED.email,
+        full_name = COALESCE(public.profiles.full_name, EXCLUDED.full_name);
   RETURN NEW;
 END;
 $$;
@@ -143,6 +178,9 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS set_profiles_updated_at ON public.profiles;
+DROP TRIGGER IF EXISTS set_ruoli_updated_at    ON public.ruoli;
+DROP TRIGGER IF EXISTS set_teams_updated_at    ON public.teams;
 CREATE TRIGGER set_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER set_ruoli_updated_at    BEFORE UPDATE ON public.ruoli    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER set_teams_updated_at    BEFORE UPDATE ON public.teams    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -153,57 +191,42 @@ CREATE TRIGGER set_teams_updated_at    BEFORE UPDATE ON public.teams    FOR EACH
 
 -- PROFILES
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "profiles_select"       ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own"   ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_admin" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_delete_admin" ON public.profiles;
 CREATE POLICY "profiles_select"        ON public.profiles FOR SELECT USING (id = auth.uid() OR is_admin());
 CREATE POLICY "profiles_update_own"    ON public.profiles FOR UPDATE USING (id = auth.uid() OR is_admin());
-CREATE POLICY "profiles_insert_admin"  ON public.profiles FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "profiles_insert_admin"  ON public.profiles FOR INSERT WITH CHECK (true);
 CREATE POLICY "profiles_delete_admin"  ON public.profiles FOR DELETE USING (is_admin());
 
 -- RUOLI
 ALTER TABLE public.ruoli ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ruoli_select"      ON public.ruoli;
+DROP POLICY IF EXISTS "ruoli_write_admin" ON public.ruoli;
 CREATE POLICY "ruoli_select"       ON public.ruoli FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "ruoli_write_admin"  ON public.ruoli FOR ALL    USING (is_admin()) WITH CHECK (is_admin());
 
 -- TEAMS
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "teams_select"      ON public.teams;
+DROP POLICY IF EXISTS "teams_write_admin" ON public.teams;
 CREATE POLICY "teams_select"       ON public.teams FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "teams_write_admin"  ON public.teams FOR ALL    USING (is_admin()) WITH CHECK (is_admin());
 
 -- TEAM_MEMBERS
 ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "team_members_select"      ON public.team_members;
+DROP POLICY IF EXISTS "team_members_write_admin" ON public.team_members;
 CREATE POLICY "team_members_select"      ON public.team_members FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "team_members_write_admin" ON public.team_members FOR ALL    USING (is_admin()) WITH CHECK (is_admin());
 
 -- TEAM_CANTIERI
 ALTER TABLE public.team_cantieri ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "team_cantieri_select"      ON public.team_cantieri;
+DROP POLICY IF EXISTS "team_cantieri_write_admin" ON public.team_cantieri;
 CREATE POLICY "team_cantieri_select"      ON public.team_cantieri FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "team_cantieri_write_admin" ON public.team_cantieri FOR ALL    USING (is_admin()) WITH CHECK (is_admin());
-
--- CANTIERI (abilita RLS se non gia' abilitato)
-ALTER TABLE public.cantieri ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "cantieri_select"       ON public.cantieri;
-DROP POLICY IF EXISTS "cantieri_insert_admin" ON public.cantieri;
-DROP POLICY IF EXISTS "cantieri_update"       ON public.cantieri;
-DROP POLICY IF EXISTS "cantieri_delete_admin" ON public.cantieri;
-CREATE POLICY "cantieri_select"       ON public.cantieri FOR SELECT USING (is_admin() OR force_all_cantieri_view_check() OR id = ANY(get_my_cantiere_ids()));
-CREATE POLICY "cantieri_insert_admin" ON public.cantieri FOR INSERT WITH CHECK (is_admin());
-CREATE POLICY "cantieri_update"       ON public.cantieri FOR UPDATE USING (is_admin() OR id = ANY(get_my_cantiere_ids()));
-CREATE POLICY "cantieri_delete_admin" ON public.cantieri FOR DELETE USING (is_admin());
-
--- ATTIVITA
-ALTER TABLE public.attivita ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "attivita_select" ON public.attivita;
-DROP POLICY IF EXISTS "attivita_insert" ON public.attivita;
-DROP POLICY IF EXISTS "attivita_update" ON public.attivita;
-DROP POLICY IF EXISTS "attivita_delete" ON public.attivita;
-CREATE POLICY "attivita_select" ON public.attivita FOR SELECT USING (is_admin() OR force_all_cantieri_view_check() OR cantiere_id = ANY(get_my_cantiere_ids()));
-CREATE POLICY "attivita_insert" ON public.attivita FOR INSERT WITH CHECK (is_admin() OR cantiere_id = ANY(get_my_cantiere_ids()));
-CREATE POLICY "attivita_update" ON public.attivita FOR UPDATE USING (is_admin() OR cantiere_id = ANY(get_my_cantiere_ids()));
-CREATE POLICY "attivita_delete" ON public.attivita FOR DELETE USING (is_admin() OR cantiere_id = ANY(get_my_cantiere_ids()));
-
--- IMPRESE (anagrafica condivisa - tutti la vedono)
-ALTER TABLE public.imprese ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "imprese_select_auth"  ON public.imprese FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "imprese_write_admin"  ON public.imprese FOR ALL    USING (is_admin()) WITH CHECK (is_admin());
 
 -- ============================================================
 -- 9. SEED RUOLI DI SISTEMA
@@ -275,6 +298,22 @@ INSERT INTO public.ruoli (id, nome, descrizione, permessi, is_system) VALUES
   }'::jsonb,
   true
 )
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- 10. CREA PROFILI PER UTENTI GIA' ESISTENTI
+-- ============================================================
+INSERT INTO public.profiles (id, email, full_name, role)
+SELECT
+  u.id,
+  u.email,
+  COALESCE(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)),
+  CASE
+    WHEN ROW_NUMBER() OVER (ORDER BY u.created_at) = 1 THEN 'admin'
+    ELSE 'member'
+  END
+FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id)
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

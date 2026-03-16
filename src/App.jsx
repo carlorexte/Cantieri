@@ -10,6 +10,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginPage from '@/pages/Login';
+import AuthCallback from '@/pages/AuthCallback';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -51,8 +52,8 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Se non autenticato mostra login
-  if (!isAuthenticated) {
+  // Se non autenticato mostra login (ma lascia passare il callback OAuth)
+  if (!isAuthenticated && !window.location.pathname.startsWith('/auth/callback')) {
     return <LoginPage />;
   }
 
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

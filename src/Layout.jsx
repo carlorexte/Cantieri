@@ -44,7 +44,7 @@ import { DataProvider } from '@/components/shared/DataContext';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/lib/supabaseClient';
-import rcsLogo from '@/assets/logo rcs3.png';
+import rcsLogo from '@/assets/logo-rcs3.png';
 
 function LayoutContent({ children }) {
     const location = useLocation();

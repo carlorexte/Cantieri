@@ -344,7 +344,7 @@ export default function UserManagementPage() {
                               className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600"
                               title={m.full_name}
                             >
-                              {m.full_name.charAt(0)}
+                              {m.full_name?.charAt(0) || "?"}
                             </div>
                           ))}
                           {members.length > 5 && (

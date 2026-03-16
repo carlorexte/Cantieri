@@ -17,6 +17,46 @@ import {
   ensureDemoStore
 } from '@/lib/demoDataStore';
 
+// Wrapper generico per entità Supabase: converte i metodi supabaseDB in API base44-compatibile
+function createSupabaseEntityApi(db) {
+  return {
+    list: async (order, limit, filters) => {
+      try {
+        if (filters && db.filter) return await db.filter(filters);
+        return await db.getAll();
+      } catch (e) {
+        console.warn('Supabase list error:', e.message);
+        return [];
+      }
+    },
+    get: async (id) => {
+      try {
+        const all = await db.getAll();
+        return all.find(r => r.id === id) || null;
+      } catch { return null; }
+    },
+    create: async (payload) => db.create(payload),
+    update: async (id, payload) => db.update(id, payload),
+    delete: async (id) => db.delete(id),
+    filter: async (filters, order, limit) => {
+      try {
+        if (db.filter) {
+          const rows = await db.filter(filters);
+          return typeof limit === 'number' ? rows.slice(0, limit) : rows;
+        }
+        const rows = await db.getAll();
+        if (!filters) return rows;
+        const entries = Object.entries(filters).filter(([, v]) => v !== undefined && v !== null && v !== '');
+        const filtered = rows.filter(r => entries.every(([k, v]) => r?.[k] === v));
+        return typeof limit === 'number' ? filtered.slice(0, limit) : filtered;
+      } catch (e) {
+        console.warn('Supabase filter error:', e.message);
+        return [];
+      }
+    }
+  };
+}
+
 function createDemoEntityApi(entityName, { useSupabaseList = null, useSupabaseGet = null } = {}) {
   return {
     list: async (order, limit, filters) => {
@@ -128,28 +168,20 @@ export const base44 = {
         return filterEntity('Attivita', filters, order, limit);
       }
     },
-    Sal: createDemoEntityApi('SAL'),
-    SAL: createDemoEntityApi('SAL'),
-    Impresa: createDemoEntityApi('Impresa', {
-      useSupabaseList: async () => {
-        try {
-          return await supabaseDB.imprese.getAll();
-        } catch {
-          return [];
-        }
-      }
-    }),
-    PersonaEsterna: createDemoEntityApi('PersonaEsterna'),
-    Costo: createDemoEntityApi('Costo'),
-    Documento: createDemoEntityApi('Documento'),
-    AttivitaInterna: createDemoEntityApi('AttivitaInterna'),
-    OrdineMateriale: createDemoEntityApi('OrdineMateriale'),
-    Subappalto: createDemoEntityApi('Subappalto'),
+    Sal: createSupabaseEntityApi(supabaseDB.sals),
+    SAL: createSupabaseEntityApi(supabaseDB.sals),
+    Impresa: createSupabaseEntityApi(supabaseDB.imprese),
+    PersonaEsterna: createSupabaseEntityApi(supabaseDB.personeEsterne),
+    Costo: createSupabaseEntityApi(supabaseDB.costi),
+    Documento: createSupabaseEntityApi(supabaseDB.documenti),
+    AttivitaInterna: createSupabaseEntityApi(supabaseDB.attivitaInterne),
+    OrdineMateriale: createSupabaseEntityApi(supabaseDB.ordiniMateriale),
+    Subappalto: createSupabaseEntityApi(supabaseDB.subappalti),
     EmailConfig: createDemoEntityApi('EmailConfig'),
     Azienda: createDemoEntityApi('Azienda'),
-    SALSubappalto: createDemoEntityApi('SALSubappalto'),
-    SALSocio: createDemoEntityApi('SALSocio'),
-    SocioConsorzio: createDemoEntityApi('SocioConsorzio')
+    SALSubappalto: createSupabaseEntityApi(supabaseDB.salSubappalto),
+    SALSocio: createSupabaseEntityApi(supabaseDB.salSocio),
+    SocioConsorzio: createSupabaseEntityApi(supabaseDB.sociConsorzio)
   },
   functions: {
     invoke: async (name, params) => invokeDemoFunction(name, params)

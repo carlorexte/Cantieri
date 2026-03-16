@@ -275,24 +275,326 @@ export const supabaseDB = {
 
   // ==================== SAL (Stati Avanzamento Lavori) ====================
   sals: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('sal').select('*').order('data_sal', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
     getByCantiere: async (cantiereId) => {
-      try {
-        const { data, error } = await supabase
-          .from('sal')
-          .select('*')
-          .eq('cantiere_id', cantiereId)
-          .order('data_sal', { ascending: true });
+      const { data, error } = await supabase.from('sal').select('*').eq('cantiere_id', cantiereId).order('data_sal', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (sal) => {
+      const { data, error } = await supabase.from('sal').insert([{ ...sal, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('sal').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('sal').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('sal').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('data_sal', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  },
 
-        if (error) {
-          // Tabella SAL potrebbe non esistere ancora
-          console.warn('SAL non disponibili (tabella non trovata o vuota):', error.message);
-          return [];
-        }
-        return data || [];
-      } catch (err) {
-        console.warn('SAL non disponibili:', err.message);
-        return [];
-      }
+  // ==================== IMPRESE ====================
+  imprese: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('imprese').select('*').order('denominazione', { ascending: true });
+      if (error) { console.warn('imprese:', error.message); return []; }
+      return data || [];
+    },
+    create: async (imp) => {
+      const { data, error } = await supabase.from('imprese').insert([{ ...imp, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('imprese').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('imprese').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    }
+  },
+
+  // ==================== COSTI ====================
+  costi: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('costi').select('*').order('data_sostenimento', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (costo) => {
+      const { data, error } = await supabase.from('costi').insert([{ ...costo, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('costi').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('costi').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('costi').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('data_sostenimento', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== DOCUMENTI ====================
+  documenti: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('documenti').select('*').order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (doc) => {
+      const { data, error } = await supabase.from('documenti').insert([{ ...doc, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('documenti').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('documenti').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('documenti').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== ATTIVITÀ INTERNE ====================
+  attivitaInterne: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('attivita_interne').select('*').order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (att) => {
+      const { data, error } = await supabase.from('attivita_interne').insert([{ ...att, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('attivita_interne').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('attivita_interne').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('attivita_interne').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== ORDINI MATERIALE ====================
+  ordiniMateriale: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('ordini_materiale').select('*').order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (ord) => {
+      const { data, error } = await supabase.from('ordini_materiale').insert([{ ...ord, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('ordini_materiale').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('ordini_materiale').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('ordini_materiale').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== PERSONE ESTERNE ====================
+  personeEsterne: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('persone_esterne').select('*').order('cognome', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (p) => {
+      const { data, error } = await supabase.from('persone_esterne').insert([{ ...p, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('persone_esterne').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('persone_esterne').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    }
+  },
+
+  // ==================== SUBAPPALTI ====================
+  subappalti: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('subappalto').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (sub) => {
+      const { data, error } = await supabase.from('subappalto').insert([{ ...sub, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('subappalto').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('subappalto').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('subappalto').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== SOCI CONSORZIO ====================
+  sociConsorzio: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('soci_consorzio').select('*').order('ragione_sociale', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (socio) => {
+      const { data, error } = await supabase.from('soci_consorzio').insert([{ ...socio, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('soci_consorzio').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('soci_consorzio').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    }
+  },
+
+  // ==================== SAL SOCIO ====================
+  salSocio: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('sal_socio').select('*').order('data_sal', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (s) => {
+      const { data, error } = await supabase.from('sal_socio').insert([{ ...s, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('sal_socio').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('sal_socio').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('sal_socio').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== SAL SUBAPPALTO ====================
+  salSubappalto: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('sal_subappalto').select('*').order('data_sal', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (s) => {
+      const { data, error } = await supabase.from('sal_subappalto').insert([{ ...s, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('sal_subappalto').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('sal_subappalto').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('sal_subappalto').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
     }
   },
 

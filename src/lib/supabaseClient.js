@@ -417,6 +417,174 @@ export const supabaseDB = {
         errori: [{ riga: 0, errore: error.message || 'Errore sconosciuto' }]
       };
     }
+  },
+
+  // ==================== RBAC ====================
+  rbac: {
+    getMyProfile: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, ruolo:ruoli(id, nome, descrizione, permessi, is_system)')
+        .eq('id', user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    getMyTeams: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('ruolo_id, team:teams(id, nome, colore, team_cantieri(cantiere_id))')
+        .eq('profile_id', user.id);
+      if (error) throw error;
+      return data || [];
+    },
+
+    getAllProfiles: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, ruolo:ruoli(id, nome)')
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
+
+    updateProfile: async (id, updates) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    getAllRuoli: async () => {
+      const { data, error } = await supabase
+        .from('ruoli')
+        .select('*')
+        .order('is_system', { ascending: false })
+        .order('nome');
+      if (error) throw error;
+      return data || [];
+    },
+
+    createRuolo: async (ruolo) => {
+      const { data, error } = await supabase
+        .from('ruoli')
+        .insert([{ ...ruolo, is_system: false }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    updateRuolo: async (id, updates) => {
+      const { is_system, ...safe } = updates;
+      const { data, error } = await supabase
+        .from('ruoli')
+        .update({ ...safe, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    deleteRuolo: async (id) => {
+      const { data: r } = await supabase.from('ruoli').select('is_system').eq('id', id).single();
+      if (r?.is_system) throw new Error('Non puoi eliminare un ruolo di sistema');
+      const { error } = await supabase.from('ruoli').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+
+    assignRuoloToProfile: async (profileId, ruoloId) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ ruolo_id: ruoloId || null, updated_at: new Date().toISOString() })
+        .eq('id', profileId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    assignCantieriToProfile: async (profileId, cantieriIds) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ cantieri_assegnati: cantieriIds, updated_at: new Date().toISOString() })
+        .eq('id', profileId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    getAllTeams: async () => {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*, team_members(profile_id, ruolo_id, profile:profiles(id, full_name, email, role)), team_cantieri(cantiere_id)')
+        .order('nome');
+      if (error) throw error;
+      return data || [];
+    },
+
+    createTeam: async (team) => {
+      const { data, error } = await supabase.from('teams').insert([team]).select().single();
+      if (error) throw error;
+      return data;
+    },
+
+    updateTeam: async (id, updates) => {
+      const { data, error } = await supabase
+        .from('teams')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+
+    deleteTeam: async (id) => {
+      const { error } = await supabase.from('teams').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+
+    addMemberToTeam: async (teamId, profileId, ruoloId = null) => {
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert([{ team_id: teamId, profile_id: profileId, ruolo_id: ruoloId }])
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+
+    removeMemberFromTeam: async (teamId, profileId) => {
+      const { error } = await supabase.from('team_members').delete().match({ team_id: teamId, profile_id: profileId });
+      if (error) throw error;
+      return true;
+    },
+
+    assignCantiereToTeam: async (teamId, cantiereId) => {
+      const { data, error } = await supabase
+        .from('team_cantieri')
+        .insert([{ team_id: teamId, cantiere_id: cantiereId }])
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+
+    removeCantiereFromTeam: async (teamId, cantiereId) => {
+      const { error } = await supabase.from('team_cantieri').delete().match({ team_id: teamId, cantiere_id: cantiereId });
+      if (error) throw error;
+      return true;
+    },
   }
 };
 

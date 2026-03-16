@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabaseDB } from "@/lib/supabaseClient";
+import { usePermissions } from "@/components/shared/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +23,7 @@ export default function GestionePermessiPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showRuoloDialog, setShowRuoloDialog] = useState(false);
   const [editingRuolo, setEditingRuolo] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { isAdmin, user: currentUser } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -31,14 +32,12 @@ export default function GestionePermessiPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [ruoliData, utentiData, user] = await Promise.all([
-        base44.entities.Ruolo.list(),
-        base44.entities.User.list(),
-        base44.auth.me()
+      const [ruoliData, utentiData] = await Promise.all([
+        supabaseDB.rbac.getAllRuoli(),
+        supabaseDB.rbac.getAllProfiles(),
       ]);
       setRuoli(ruoliData);
       setUtenti(utentiData);
-      setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
       toast.error("Errore nel caricamento dei dati");
@@ -47,41 +46,24 @@ export default function GestionePermessiPage() {
   };
 
   const handleDeleteRuolo = async (ruoloId, isSystem) => {
-    if (isSystem) {
-      toast.error("Non puoi eliminare un ruolo di sistema");
-      return;
-    }
-    if (window.confirm("Sei sicuro di voler eliminare questo ruolo? Attenzione: gli utenti assegnati perderanno i permessi associati.")) {
+    if (isSystem) { toast.error("Non puoi eliminare un ruolo di sistema"); return; }
+    if (window.confirm("Sei sicuro di voler eliminare questo ruolo?")) {
       try {
-        const res = await base44.functions.invoke('managePermissions', {
-          action: 'delete_role',
-          data: { roleId: ruoloId }
-        });
-
-        if (res.data?.error) throw new Error(res.data.error);
-
+        await supabaseDB.rbac.deleteRuolo(ruoloId);
         toast.success("Ruolo eliminato con successo");
         loadData();
       } catch (error) {
-        console.error("Errore eliminazione ruolo:", error);
-        toast.error("Errore nell'eliminazione del ruolo: " + error.message);
+        toast.error("Errore: " + error.message);
       }
     }
   };
 
-  const handleAssegnaRuolo = async (userId, ruoloId) => {
+  const handleAssegnaRuolo = async (profileId, ruoloId) => {
     try {
-      const res = await base44.functions.invoke('managePermissions', {
-        action: 'assign_role',
-        data: { userId: userId, roleId: ruoloId }
-      });
-
-      if (res.data?.error) throw new Error(res.data.error);
-
+      await supabaseDB.rbac.assignRuoloToProfile(profileId, ruoloId === 'none' ? null : ruoloId);
       toast.success("Ruolo assegnato con successo");
       loadData();
     } catch (error) {
-      console.error("Errore assegnazione ruolo:", error);
       toast.error("Errore nell'assegnazione del ruolo");
     }
   };
@@ -94,7 +76,7 @@ export default function GestionePermessiPage() {
     );
   }
 
-  if (!currentUser || currentUser.role !== 'admin') {
+  if (!isAdmin) {
     return (
       <div className="p-8 text-center">
         <Shield className="w-16 h-16 mx-auto mb-4 text-slate-400" />

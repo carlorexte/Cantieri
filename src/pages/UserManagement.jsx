@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabaseDB } from "@/lib/supabaseClient";
+import { usePermissions } from "@/components/shared/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,7 +27,7 @@ export default function UserManagementPage() {
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
   
-  const [currentUser, setCurrentUser] = useState(null);
+  const { isAdmin } = usePermissions();
 
   useEffect(() => {
     loadData();
@@ -35,16 +36,18 @@ export default function UserManagementPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [ruoliData, utentiData, teamsData, user] = await Promise.all([
-        base44.entities.Ruolo.list(),
-        base44.entities.User.list(),
-        base44.entities.Team.list(),
-        base44.auth.me()
+      const [ruoliData, utentiData, teamsData] = await Promise.all([
+        supabaseDB.rbac.getAllRuoli(),
+        supabaseDB.rbac.getAllProfiles(),
+        supabaseDB.rbac.getAllTeams(),
       ]);
       setRuoli(ruoliData);
-      setUtenti(utentiData);
+      const utentiConTeams = utentiData.map(u => ({
+        ...u,
+        team_ids: teamsData.filter(t => t.team_members?.some(m => m.profile_id === u.id)).map(t => t.id),
+      }));
+      setUtenti(utentiConTeams);
       setTeams(teamsData);
-      setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento dati:", error);
       toast.error("Errore nel caricamento dei dati");
@@ -62,10 +65,7 @@ export default function UserManagementPage() {
     }
     if (window.confirm("Sei sicuro di voler eliminare questo ruolo?")) {
       try {
-        await base44.functions.invoke('managePermissions', {
-          action: 'delete_role',
-          data: { roleId: ruoloId }
-        });
+        await supabaseDB.rbac.deleteRuolo(ruoloId);
         toast.success("Ruolo eliminato");
         loadData();
       } catch (error) {
@@ -79,10 +79,10 @@ export default function UserManagementPage() {
   const handleSaveTeam = async (teamData) => {
     try {
       if (editingTeam) {
-        await base44.entities.Team.update(editingTeam.id, teamData);
+        await supabaseDB.rbac.updateTeam(editingTeam.id, teamData);
         toast.success("Team aggiornato con successo");
       } else {
-        await base44.entities.Team.create(teamData);
+        await supabaseDB.rbac.createTeam(teamData);
         toast.success("Team creato con successo");
       }
       setShowTeamDialog(false);
@@ -97,7 +97,7 @@ export default function UserManagementPage() {
   const handleDeleteTeam = async (teamId) => {
     if (window.confirm("Sei sicuro di voler eliminare questo team?")) {
       try {
-        await base44.entities.Team.delete(teamId);
+        await supabaseDB.rbac.deleteTeam(teamId);
         toast.success("Team eliminato");
         loadData();
       } catch (error) {
@@ -110,16 +110,23 @@ export default function UserManagementPage() {
   // --- UTENTI ---
   const handleUpdateUser = async (userId, data) => {
     try {
-      // If updating role or simple fields, use direct update or managePermissions
       if (data.ruolo_id !== undefined) {
-        const res = await base44.functions.invoke('managePermissions', {
-          action: 'assign_role',
-          data: { userId, roleId: data.ruolo_id }
-        });
-        if (res.data?.error) throw new Error(res.data.error);
+        await supabaseDB.rbac.assignRuoloToProfile(userId, data.ruolo_id || null);
         toast.success("Ruolo assegnato con successo");
+      } else if (data.team_ids !== undefined) {
+        // diff old vs new team membership
+        const utente = utenti.find(u => u.id === userId);
+        const oldTeams = utente?.team_ids || [];
+        const newTeams = data.team_ids;
+        const toAdd = newTeams.filter(id => !oldTeams.includes(id));
+        const toRemove = oldTeams.filter(id => !newTeams.includes(id));
+        await Promise.all([
+          ...toAdd.map(teamId => supabaseDB.rbac.addMemberToTeam(teamId, userId)),
+          ...toRemove.map(teamId => supabaseDB.rbac.removeMemberFromTeam(teamId, userId)),
+        ]);
+        toast.success("Team aggiornati");
       } else {
-        await base44.entities.User.update(userId, data);
+        await supabaseDB.rbac.updateProfile(userId, data);
         toast.success("Utente aggiornato con successo");
       }
       loadData();
@@ -137,7 +144,7 @@ export default function UserManagementPage() {
     );
   }
 
-  if (!currentUser || (currentUser.role !== 'admin' && !currentUser.perm_manage_users)) {
+  if (!isAdmin) {
     return (
       <div className="p-8 text-center">
         <Shield className="w-16 h-16 mx-auto mb-4 text-slate-400" />
@@ -218,7 +225,7 @@ export default function UserManagementPage() {
                                   <SelectValue placeholder="Seleziona ruolo..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value={null}>Nessun ruolo personalizzato</SelectItem>
+                                  <SelectItem value="">Nessun ruolo personalizzato</SelectItem>
                                   {ruoli.map(ruolo => (
                                     <SelectItem key={ruolo.id} value={ruolo.id}>
                                       {ruolo.nome}

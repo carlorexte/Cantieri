@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabaseDB } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -213,28 +213,20 @@ export default function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const action = ruolo ? 'update_role' : 'create_role';
-      // Clean up formData before sending, removing system fields that shouldn't be updated manually if present
-      // But actually, we need roleId for update.
-      // And we pass roleData.
-      // Let's create a clean object for roleData
       const roleData = {
-          nome: formData.nome,
-          descrizione: formData.descrizione,
-          permessi: formData.permessi,
-          is_system: formData.is_system
+        nome: formData.nome,
+        descrizione: formData.descrizione,
+        permessi: formData.permessi,
       };
 
-      const data = ruolo 
-        ? { roleId: ruolo.id, roleData } 
-        : { roleData };
+      if (ruolo) {
+        await supabaseDB.rbac.updateRuolo(ruolo.id, roleData);
+      } else {
+        await supabaseDB.rbac.createRuolo(roleData);
+      }
 
-      const res = await base44.functions.invoke('managePermissions', { action, data });
-      
-      if (res.data?.error) throw new Error(res.data.error);
-      
       toast.success(ruolo ? "Ruolo aggiornato" : "Ruolo creato");
-      onSave(); // Just reload data
+      onSave();
     } catch (error) {
       console.error("Errore salvataggio:", error);
       toast.error("Errore: " + error.message);

@@ -1,13 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabaseDB } from '@/lib/supabaseClient';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { supabase, supabaseDB } from '@/lib/supabaseClient';
 
 const DataContext = createContext(null);
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (!context) {
-    throw new Error('useData must be used within a DataProvider');
-  }
+  if (!context) throw new Error('useData must be used within a DataProvider');
   return context;
 };
 
@@ -16,87 +14,126 @@ export const DataProvider = ({ children }) => {
   const [imprese, setImprese] = useState([]);
   const [personeEsterne, setPersoneEsterne] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
-
-  // Stati per i permessi
   const [currentRole, setCurrentRole] = useState(null);
   const [cantierePermissions, setCantierePermissions] = useState([]);
-
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
-
   const [lastFetch, setLastFetch] = useState({});
 
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
+  const CACHE_DURATION = 5 * 60 * 1000;
+  const loadingRef = useRef(false);
 
-  const shouldRefetch = useCallback((key) => {
+  const shouldRefetch = (key) => {
     if (!lastFetch[key]) return true;
     return Date.now() - lastFetch[key] > CACHE_DURATION;
-  }, [lastFetch]);
+  };
 
-  // Caricamento Utente + Permessi
-  const loadUserAndPermissions = useCallback(async (force = false) => {
-    if (!force && currentUser && !shouldRefetch('user')) return;
-
+  const loadUserAndPermissions = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setIsLoadingUser(true);
+
     try {
-      // User mock con permessi admin completi
-      const user = {
-        id: 'user-1',
-        email: 'admin@cantierepro.it',
-        nome: 'Amministratore',
-        cognome: 'Demo',
-        role: 'admin',
-        ruolo_id: 'admin'
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        setCurrentUser(null);
+        setCurrentRole(null);
+        setCantierePermissions([]);
+        return;
+      }
+
+      // Carica profilo con ruolo joinato
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*, ruolo:ruoli(id, nome, descrizione, permessi, is_system)')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profileError) {
+        // Profilo non ancora creato (race condition trigger) — fallback
+        console.warn('Profilo non trovato, retry tra 1s...');
+        setTimeout(() => {
+          loadingRef.current = false;
+          loadUserAndPermissions();
+        }, 1000);
+        return;
+      }
+
+      // Carica team e cantieri dei team
+      const { data: teamMemberships } = await supabase
+        .from('team_members')
+        .select('ruolo_id, team:teams(id, nome, colore, team_cantieri(cantiere_id))')
+        .eq('profile_id', authUser.id);
+
+      const teamCantieri = (teamMemberships || []).flatMap(
+        tm => tm.team?.team_cantieri?.map(tc => tc.cantiere_id) || []
+      );
+      const teamIds = (teamMemberships || []).map(tm => tm.team?.id).filter(Boolean);
+
+      const enrichedUser = {
+        ...profile,
+        full_name: profile.full_name || authUser.email,
+        team_ids: teamIds,
+        cantieri_assegnati: [
+          ...new Set([...(profile.cantieri_assegnati || []), ...teamCantieri])
+        ],
       };
 
-      setCurrentUser(user);
-      setCurrentRole({ id: 'admin', nome: 'Amministratore', permessi: {} });
+      setCurrentUser(enrichedUser);
+      setCurrentRole(profile.ruolo || null);
+      setCantierePermissions([]);
       setLastFetch(prev => ({ ...prev, user: Date.now() }));
 
     } catch (e) {
-      console.error("Error fetching user", e);
+      console.error('Errore loadUserAndPermissions:', e);
       setCurrentUser(null);
+      setCurrentRole(null);
     } finally {
       setIsLoadingUser(false);
+      loadingRef.current = false;
     }
-  }, [currentUser, shouldRefetch]);
+  }, []);
 
-  // Caricamento Dati in background
+  // Caricamento dati in background
   const loadBackgroundData = useCallback(async () => {
     if (!currentUser) return;
-    
     setIsLoadingData(true);
     try {
-      // Carica cantieri
       if (shouldRefetch('cantieri')) {
         const cantieriData = await supabaseDB.cantieri.getAll();
         setCantieri(cantieriData);
         setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
       }
-
-      // Carica imprese
       if (shouldRefetch('imprese')) {
         const impreseData = await supabaseDB.imprese.getAll();
         setImprese(impreseData);
         setLastFetch(prev => ({ ...prev, imprese: Date.now() }));
       }
-
     } catch (e) {
-      console.error("Error fetching background data", e);
+      console.error('Errore background data:', e);
     } finally {
       setIsLoadingData(false);
     }
-  }, [currentUser, shouldRefetch]);
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Carica utente all'avvio e ascolta cambi di sessione
   useEffect(() => {
     loadUserAndPermissions();
-  }, [loadUserAndPermissions]);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'SIGNED_OUT') {
+        loadingRef.current = false;
+        loadUserAndPermissions();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (currentUser) {
-      loadBackgroundData();
-    }
-  }, [currentUser, loadBackgroundData]);
+    if (currentUser) loadBackgroundData();
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshData = useCallback(() => {
     setLastFetch({});
@@ -104,21 +141,16 @@ export const DataProvider = ({ children }) => {
   }, [loadBackgroundData]);
 
   const value = {
-    // Dati
     cantieri,
     imprese,
     personeEsterne,
     currentUser,
     currentRole,
     cantierePermissions,
-    
-    // Loading states
     isLoadingUser,
     isLoadingData,
-    
-    // Funzioni
     refreshData,
-    loadUserAndPermissions
+    loadUserAndPermissions,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

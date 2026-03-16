@@ -5,7 +5,7 @@
  * Dove esiste giÃ  un backend Supabase usabile, prova prima quello.
  */
 
-import { supabaseDB } from '@/lib/supabaseClient';
+import { supabase, supabaseDB } from '@/lib/supabaseClient';
 import {
   listEntity,
   filterEntity,
@@ -43,8 +43,29 @@ function createDemoEntityApi(entityName, { useSupabaseList = null, useSupabaseGe
 export const base44 = {
   auth: {
     me: async () => {
-      const store = await ensureDemoStore();
-      return store.User?.[0] || null;
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return null;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        if (profile) {
+          return {
+            id: profile.id,
+            email: profile.email || authUser.email,
+            full_name: profile.full_name || authUser.email,
+            role: profile.role,
+            ...profile
+          };
+        }
+        // fallback: restituisce authUser base se il profilo non esiste ancora
+        return { id: authUser.id, email: authUser.email, full_name: authUser.email, role: 'member' };
+      } catch {
+        const store = await ensureDemoStore();
+        return store.User?.[0] || null;
+      }
     },
     logout: async () => {},
     redirectToLogin: () => {}

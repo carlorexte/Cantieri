@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock } from 'lucide-react';
+import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
   format,
   addDays,
@@ -51,6 +51,7 @@ export default function PrimusGantt({
   const [timeRange, setTimeRange] = useState({ start: new Date(), end: new Date() });
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isCompactWbsView, setIsCompactWbsView] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState('week');
   const [hoveredRow, setHoveredRow] = useState(null);
   const [draggingActivity, setDraggingActivity] = useState(null);
@@ -462,9 +463,12 @@ export default function PrimusGantt({
               variant="outline"
               size="sm"
               className="h-8 bg-white"
-              onClick={isCompactWbsView ? handleExpandWbs : handleFitToProject}
+              onClick={() => setIsSidebarCollapsed(v => !v)}
+              title={isSidebarCollapsed ? 'Mostra lista attività' : 'Nascondi lista attività'}
             >
-              {isCompactWbsView ? 'Espandi WBS' : 'Compatta WBS'}
+              {isSidebarCollapsed
+                ? <PanelLeftOpen className="w-4 h-4" />
+                : <PanelLeftClose className="w-4 h-4" />}
             </Button>
             <Button variant="outline" size="sm" className="h-8 bg-white" onClick={handleExportPdf}>
               <FileDown className="w-4 h-4 mr-2" />
@@ -492,8 +496,8 @@ export default function PrimusGantt({
       <div className="flex flex-1 overflow-hidden relative">
         <div
           ref={sidebarRef}
-          className="flex-shrink-0 border-r border-slate-200 overflow-hidden bg-white z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)]"
-          style={{ width: SIDEBAR_WIDTH }}
+          className="flex-shrink-0 border-r border-slate-200 overflow-hidden bg-white z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] transition-[width] duration-300"
+          style={{ width: isSidebarCollapsed ? 0 : SIDEBAR_WIDTH }}
         >
           <div className="flex border-b border-slate-200 bg-slate-100 font-semibold text-xs text-slate-600 uppercase tracking-wider" style={{ height: HEADER_HEIGHT }}>
             <div className="w-16 border-r border-slate-200 flex items-center justify-center">WBS</div>

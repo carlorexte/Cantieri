@@ -44,6 +44,7 @@ import { DataProvider } from '@/components/shared/DataContext';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/lib/supabaseClient';
+import rcsLogo from '@/assets/logo rcs3.png';
 
 function LayoutContent({ children }) {
     const location = useLocation();
@@ -102,22 +103,20 @@ function LayoutContent({ children }) {
                     <div className="flex items-center justify-between w-full">
                          {/* Expanded Logo */}
                          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden transition-all duration-300 overflow-hidden">
-                            <img 
-                                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
-                                alt="RCS Logo" 
+                            <img
+                                src={rcsLogo}
+                                alt="RCS Logo"
                                 className="h-8 w-auto object-contain"
                             />
                          </div>
 
                          {/* Collapsed Icon */}
                          <div className="hidden group-data-[collapsible=icon]:flex w-full justify-center items-center">
-                            <div className="h-8 w-8 overflow-hidden relative rounded-md">
-                                <img 
-                                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/689a73debdc258a4faf5da9e/5c4d676c7_image.png" 
-                                    alt="RCS Icon" 
-                                    className="absolute h-full max-w-none left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-cover scale-[2.5]"
-                                />
-                            </div>
+                            <img
+                                src={rcsLogo}
+                                alt="RCS Icon"
+                                className="h-8 w-8 object-contain"
+                            />
                          </div>
 
                          <SidebarTrigger className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-md ml-auto group-data-[collapsible=icon]:hidden" />

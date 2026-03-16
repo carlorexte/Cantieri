@@ -1,10 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
   const [authError, setAuthError] = useState(null);
@@ -12,25 +13,34 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAppState();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const checkAppState = async () => {
     try {
-      setIsLoadingPublicSettings(false);
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setIsAuthenticated(!!session);
       setAuthError(null);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(true);
     } catch (error) {
       console.error('Errore check app:', error);
+    } finally {
       setIsLoadingAuth(false);
     }
   };
 
   const navigateToLogin = () => {
-    console.log('Login non richiesto');
+    window.location.href = '/';
   };
 
   const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setIsAuthenticated(false);
   };

@@ -43,13 +43,19 @@ import { usePermissions } from '@/components/shared/PermissionGuard';
 import { DataProvider } from '@/components/shared/DataContext';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { supabase } from '@/lib/supabaseClient';
 
 function LayoutContent({ children }) {
     const location = useLocation();
     const { user, hasPermission, isAdmin } = usePermissions();
 
     const handleLogout = async () => {
-        window.location.reload();
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.error('Errore logout:', e);
+        }
+        window.location.href = '/';
     };
 
     const generaleItems = [

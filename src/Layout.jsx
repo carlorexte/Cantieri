@@ -56,6 +56,10 @@ function LayoutContent({ children }) {
         } catch (e) {
             console.error('Errore logout:', e);
         }
+        // Pulisce tutta la sessione Supabase da localStorage
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-')) localStorage.removeItem(key);
+        });
         window.location.href = '/';
     };
 

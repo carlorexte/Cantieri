@@ -44,20 +44,28 @@ export const DataProvider = ({ children }) => {
       }
 
       // Carica profilo con ruolo joinato
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*, ruolo:ruoli(id, nome, descrizione, permessi, is_system)')
         .eq('id', authUser.id)
         .single();
 
       if (profileError) {
-        // Profilo non ancora creato (race condition trigger) — fallback
-        console.warn('Profilo non trovato, retry tra 1s...');
-        setTimeout(() => {
-          loadingRef.current = false;
-          loadUserAndPermissions();
-        }, 1000);
-        return;
+        // Prova senza il join (in caso il join con ruoli fallisca)
+        const { data: profileBasic, error: profileBasicError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileBasicError) {
+          // Profilo non ancora creato — fallback con dati minimi dall'auth
+          console.warn('Profilo non trovato, uso fallback auth:', profileBasicError.message);
+          profile = { id: authUser.id, email: authUser.email, role: 'member', full_name: authUser.email };
+        } else {
+          profile = profileBasic;
+        }
+        profileError = null;
       }
 
       // Carica team e cantieri dei team
@@ -115,7 +123,7 @@ export const DataProvider = ({ children }) => {
     } finally {
       setIsLoadingData(false);
     }
-  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   // Carica utente all'avvio e ascolta cambi di sessione
   useEffect(() => {
@@ -129,11 +137,11 @@ export const DataProvider = ({ children }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (currentUser) loadBackgroundData();
-  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   const refreshData = useCallback(() => {
     setLastFetch({});

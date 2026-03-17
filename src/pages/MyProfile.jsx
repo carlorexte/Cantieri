@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { supabaseDB } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +52,7 @@ export default function MyProfilePage() {
     setIsSaving(true);
     try {
       if (currentUser?.id) {
-        await base44.entities.User.update(currentUser.id, {
+        await supabaseDB.rbac.updateProfile(currentUser.id, {
           full_name: formData.full_name.trim()
         });
         toast.success("Profilo aggiornato con successo.");

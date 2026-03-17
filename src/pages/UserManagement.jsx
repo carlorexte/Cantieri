@@ -207,7 +207,7 @@ export default function UserManagementPage() {
                                 <Users className="w-5 h-5 text-indigo-600" />
                               </div>
                               <div>
-                                <h3 className="font-semibold text-slate-900">{utente.full_name}</h3>
+                                <h3 className="font-semibold text-slate-900">{utente.full_name || utente.email || "Utente senza nome"}</h3>
                                 <p className="text-sm text-slate-500">{utente.email}</p>
                               </div>
                             </div>
@@ -350,9 +350,9 @@ export default function UserManagementPage() {
                             <div 
                               key={m.id} 
                               className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600"
-                              title={m.full_name}
+                              title={m.full_name || m.email}
                             >
-                              {m.full_name?.charAt(0) || "?"}
+                              {(m.full_name || m.email || "?").charAt(0).toUpperCase()}
                             </div>
                           ))}
                           {members.length > 5 && (

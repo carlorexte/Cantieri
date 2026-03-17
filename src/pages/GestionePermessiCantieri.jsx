@@ -104,10 +104,10 @@ export default function GestionePermessiCantieriPage() {
                                  <TableCell className="font-medium">
                                      <div className="flex items-center gap-2">
                                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs">
-                                             {u.full_name?.charAt(0)}
+                                             {(u.full_name || u.email || "?").charAt(0).toUpperCase()}
                                          </div>
-                                         <div className="truncate max-w-[180px]" title={u.full_name}>
-                                             {u.full_name}
+                                         <div className="truncate max-w-[180px]" title={u.full_name || u.email}>
+                                             {u.full_name || u.email || "Utente senza nome"}
                                          </div>
                                      </div>
                                  </TableCell>

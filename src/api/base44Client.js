@@ -184,7 +184,36 @@ export const base44 = {
     SocioConsorzio: createSupabaseEntityApi(supabaseDB.sociConsorzio)
   },
   functions: {
-    invoke: async (name, params) => invokeDemoFunction(name, params)
+    invoke: async (name, params) => {
+      // Funzioni che usano Supabase direttamente
+      if (name === 'getMyCantieri') {
+        try {
+          const items = await supabaseDB.cantieri.getAll();
+          return { data: { items } };
+        } catch { return { data: { items: [] } }; }
+      }
+      if (name === 'getMySALs') {
+        try {
+          const items = await supabaseDB.sals.getAll();
+          return { data: { items } };
+        } catch { return { data: { items: [] } }; }
+      }
+      if (name === 'getCantiereDashboardData') {
+        try {
+          const cantiereId = params?.cantiere_id;
+          const [cantiere, subappalti, sal, attivita, imprese] = await Promise.all([
+            supabaseDB.cantieri.getById(cantiereId).catch(() => null),
+            supabaseDB.subappalti.filter({ cantiere_id: cantiereId }).catch(() => []),
+            supabaseDB.sals.filter({ cantiere_id: cantiereId }).catch(() => []),
+            supabaseDB.attivita.getByCantiere(cantiereId).catch(() => []),
+            supabaseDB.imprese.getAll().catch(() => []),
+          ]);
+          const documenti = await supabaseDB.documenti.filter({}).catch(() => []);
+          return { data: { cantiere, subappalti, sal, attivita, imprese, documenti: documenti.filter(d => (d.entita_collegate || []).some(e => e.id === cantiereId)), permissions: {} } };
+        } catch { return { data: { cantiere: null, subappalti: [], sal: [], attivita: [], imprese: [], documenti: [], permissions: {} } }; }
+      }
+      return invokeDemoFunction(name, params);
+    }
   },
   integrations: {
     Core: {

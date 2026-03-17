@@ -218,14 +218,14 @@ export default function UserManagementPage() {
                             <div className="min-w-[200px]">
                               <p className="text-xs font-medium text-slate-500 mb-1.5">Ruolo</p>
                               <Select
-                                value={utente.ruolo_id || ""}
-                                onValueChange={(val) => handleUpdateUser(utente.id, { ruolo_id: val || null })}
+                                value={utente.ruolo_id || "none"}
+                                onValueChange={(val) => handleUpdateUser(utente.id, { ruolo_id: val === "none" ? null : val })}
                               >
                                 <SelectTrigger className="h-9">
                                   <SelectValue placeholder="Seleziona ruolo..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">Nessun ruolo personalizzato</SelectItem>
+                                  <SelectItem value="none">Nessun ruolo personalizzato</SelectItem>
                                   {ruoli.map(ruolo => (
                                     <SelectItem key={ruolo.id} value={ruolo.id}>
                                       {ruolo.nome}

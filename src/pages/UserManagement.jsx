@@ -41,6 +41,22 @@ export default function UserManagementPage() {
         supabaseDB.rbac.getAllProfiles(),
         supabaseDB.rbac.getAllTeams(),
       ]);
+      if (!Array.isArray(ruoliData)) {
+        console.warn("getAllRuoli: risultato non array", ruoliData);
+      } else {
+        const invalidi = ruoliData.filter(r => !r || !r.id);
+        if (invalidi.length) {
+          console.warn("getAllRuoli: record senza id", invalidi);
+        }
+      }
+      if (!Array.isArray(teamsData)) {
+        console.warn("getAllTeams: risultato non array", teamsData);
+      } else {
+        const invalidi = teamsData.filter(t => !t || !t.id);
+        if (invalidi.length) {
+          console.warn("getAllTeams: record senza id", invalidi);
+        }
+      }
       setRuoli(ruoliData);
       const utentiConTeams = utentiData.map(u => ({
         ...u,
@@ -194,8 +210,19 @@ export default function UserManagementPage() {
             ) : (
               <div className="space-y-4">
                 {utenti.map(utente => {
-                  const ruoloAssegnato = ruoli.find(r => r.id === utente.ruolo_id);
-                  const userTeams = teams.filter(t => (utente.team_ids || []).includes(t.id));
+                  const normalizeId = (id) => String(id ?? "").trim();
+                  const ruoliInvalidi = ruoli.filter(r => !r || !normalizeId(r.id));
+                  const teamsInvalidi = teams.filter(t => !t || !normalizeId(t.id));
+                  if (ruoliInvalidi.length) {
+                    console.warn("Ruoli con id mancante:", ruoliInvalidi);
+                  }
+                  if (teamsInvalidi.length) {
+                    console.warn("Team con id mancante:", teamsInvalidi);
+                  }
+                  const ruoliValidi = ruoli.filter(r => r && normalizeId(r.id));
+                  const teamsValidi = teams.filter(t => t && normalizeId(t.id));
+                  const ruoloAssegnato = ruoliValidi.find(r => r.id === utente.ruolo_id);
+                  const userTeams = teamsValidi.filter(t => (utente.team_ids || []).includes(t.id));
                   
                   return (
                     <Card key={utente.id} className="border-0 shadow-sm overflow-visible">
@@ -218,7 +245,7 @@ export default function UserManagementPage() {
                             <div className="min-w-[200px]">
                               <p className="text-xs font-medium text-slate-500 mb-1.5">Ruolo</p>
                               <Select
-                                value={utente.ruolo_id || "none"}
+                                value={utente.ruolo_id ? String(utente.ruolo_id) : "none"}
                                 onValueChange={(val) => handleUpdateUser(utente.id, { ruolo_id: val === "none" ? null : val })}
                               >
                                 <SelectTrigger className="h-9">
@@ -226,11 +253,14 @@ export default function UserManagementPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">Nessun ruolo personalizzato</SelectItem>
-                                  {ruoli.map(ruolo => (
-                                    <SelectItem key={ruolo.id} value={ruolo.id}>
+                                  {ruoliValidi.map(ruolo => {
+                                    const ruoloId = normalizeId(ruolo.id);
+                                    if (!ruoloId) return null;
+                                    return (
+                                    <SelectItem key={ruoloId} value={ruoloId}>
                                       {ruolo.nome}
                                     </SelectItem>
-                                  ))}
+                                  )})}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -280,9 +310,13 @@ export default function UserManagementPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="placeholder" disabled>+ Aggiungi a team</SelectItem>
-                                  {teams.filter(t => !(utente.team_ids || []).includes(t.id)).map(t => (
-                                    <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
-                                  ))}
+                                  {teamsValidi.filter(t => !(utente.team_ids || []).includes(t.id)).map(t => {
+                                    const teamId = normalizeId(t.id);
+                                    if (!teamId) return null;
+                                    return (
+                                      <SelectItem key={teamId} value={teamId}>{t.nome}</SelectItem>
+                                    );
+                                  })}
                                 </SelectContent>
                               </Select>
                             </div>

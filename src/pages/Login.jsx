@@ -37,15 +37,9 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  const handleGoogleLogin = async () => {
-    setIsGoogleLoading(true);
-    setError('');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` }
-    });
-    if (error) setError(error.message);
-    setIsGoogleLoading(false);
+  const handleGoogleLogin = () => {
+    const redirectTo = encodeURIComponent(`${window.location.origin}/auth/callback`);
+    window.location.href = `https://hcxcflnokutxvxiritgf.supabase.co/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`;
   };
 
   return (

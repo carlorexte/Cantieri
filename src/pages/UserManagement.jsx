@@ -265,9 +265,9 @@ export default function UserManagementPage() {
                                 ))}
                               </div>
                               <Select
-                                value=""
+                                value="placeholder"
                                 onValueChange={(val) => {
-                                  if (val) {
+                                  if (val && val !== "placeholder") {
                                     const currentTeams = utente.team_ids || [];
                                     if (!currentTeams.includes(val)) {
                                       handleUpdateUser(utente.id, { team_ids: [...currentTeams, val] });
@@ -279,6 +279,7 @@ export default function UserManagementPage() {
                                   <SelectValue placeholder="+ Aggiungi a team" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="placeholder" disabled>+ Aggiungi a team</SelectItem>
                                   {teams.filter(t => !(utente.team_ids || []).includes(t.id)).map(t => (
                                     <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
                                   ))}

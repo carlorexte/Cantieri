@@ -49,8 +49,8 @@ async function retryWithoutOptionalAttivitaColumns(operation, payload) {
 }
 
 // Variabili d'ambiente
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT.supabase.co').trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY').trim();
 
 // Crea client Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -240,9 +240,14 @@ export const supabaseDB = {
     },
 
     create: async (impresa) => {
+      const payload = {
+        ...impresa,
+        created_date: impresa?.created_date || new Date().toISOString(),
+        updated_date: new Date().toISOString(),
+      };
       const { data, error } = await supabase
         .from('imprese')
-        .insert([impresa])
+        .insert([payload])
         .select()
         .single();
       
@@ -251,9 +256,13 @@ export const supabaseDB = {
     },
 
     update: async (id, updates) => {
+      const payload = {
+        ...updates,
+        updated_date: new Date().toISOString(),
+      };
       const { data, error } = await supabase
         .from('imprese')
-        .update(updates)
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
@@ -306,30 +315,6 @@ export const supabaseDB = {
       const { data, error } = await q.order('data_sal', { ascending: false });
       if (error) throw error;
       return data || [];
-    }
-  },
-
-  // ==================== IMPRESE ====================
-  imprese: {
-    getAll: async () => {
-      const { data, error } = await supabase.from('imprese').select('*').order('denominazione', { ascending: true });
-      if (error) { console.warn('imprese:', error.message); return []; }
-      return data || [];
-    },
-    create: async (imp) => {
-      const { data, error } = await supabase.from('imprese').insert([{ ...imp, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
-      if (error) throw error;
-      return data;
-    },
-    update: async (id, updates) => {
-      const { data, error } = await supabase.from('imprese').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
-      if (error) throw error;
-      return data;
-    },
-    delete: async (id) => {
-      const { error } = await supabase.from('imprese').delete().eq('id', id);
-      if (error) throw error;
-      return true;
     }
   },
 

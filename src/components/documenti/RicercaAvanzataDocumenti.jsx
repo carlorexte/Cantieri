@@ -218,12 +218,12 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
 
             <div>
               <Label>Categoria</Label>
-              <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+              <Select value={categoriaFilter || "all"} onValueChange={(v) => setCategoriaFilter(v === "all" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tutte le categorie" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>Tutte le categorie</SelectItem>
+                  <SelectItem value="all">Tutte le categorie</SelectItem>
                   {Object.entries(categorieDocumenti).map(([key, val]) => (
                     <SelectItem key={key} value={key}>{val.label}</SelectItem>
                   ))}
@@ -235,12 +235,12 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label>Cantiere</Label>
-              <Select value={cantiereFilter} onValueChange={setCantiereFilter}>
+              <Select value={cantiereFilter || "all"} onValueChange={(v) => setCantiereFilter(v === "all" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tutti i cantieri" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>Tutti i cantieri</SelectItem>
+                  <SelectItem value="all">Tutti i cantieri</SelectItem>
                   {cantieri.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.denominazione}</SelectItem>
                   ))}

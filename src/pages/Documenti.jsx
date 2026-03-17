@@ -318,12 +318,12 @@ export default function DocumentiPage() {
                             placeholder="Cerca documenti (es. testo:fattura emittente:rossi*)..."
                           />
                         </div>
-                        <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                        <Select value={categoriaFilter || "all"} onValueChange={(v) => setCategoriaFilter(v === "all" ? "" : v)}>
                           <SelectTrigger className="w-48">
                             <SelectValue placeholder="Tutte le categorie" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={null}>Tutte le categorie</SelectItem>
+                            <SelectItem value="all">Tutte le categorie</SelectItem>
                             {Object.entries(categorieDocumenti).map(([key, val]) => (
                               <SelectItem key={key} value={key}>{val.label}</SelectItem>
                             ))}

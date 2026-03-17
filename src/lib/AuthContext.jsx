@@ -12,22 +12,14 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null);
 
   useEffect(() => {
-    // Usa onAuthStateChange come fonte di verità per gestire
-    // sia sessioni già salvate che token OAuth nell'URL (#access_token=...)
+    checkAppState();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      setIsLoadingAuth(false);
     });
 
-    // Timeout di sicurezza: se onAuthStateChange non risponde entro 3s
-    // (es. nessuna sessione e nessun token in URL), termina il loading
-    const timeout = setTimeout(() => setIsLoadingAuth(false), 3000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const checkAppState = async () => {

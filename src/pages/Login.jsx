@@ -40,24 +40,12 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     setError('');
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        skipBrowserRedirect: true,
-      }
+      options: { redirectTo: `${window.location.origin}/auth/callback` }
     });
-    if (error) {
-      setError('Errore Google login: ' + error.message);
-      setIsGoogleLoading(false);
-      return;
-    }
-    if (data?.url) {
-      window.location.assign(data.url);
-    } else {
-      setError('Impossibile ottenere URL di login Google. Riprova.');
-      setIsGoogleLoading(false);
-    }
+    if (error) setError(error.message);
+    setIsGoogleLoading(false);
   };
 
   return (

@@ -3,9 +3,38 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function AuthCallback() {
   useEffect(() => {
-    supabase.auth.exchangeCodeForSession(window.location.href).finally(() => {
-      window.location.replace('/');
-    });
+    const handleCallback = async () => {
+      try {
+        // Implicit flow: #access_token=... in hash
+        const hash = window.location.hash;
+        if (hash) {
+          const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+            window.location.replace('/');
+            return;
+          }
+        }
+
+        // PKCE flow: ?code=... in query string
+        const code = new URLSearchParams(window.location.search).get('code');
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(window.location.href);
+          window.location.replace('/');
+          return;
+        }
+
+        // No token/code found — just go home
+        window.location.replace('/');
+      } catch (err) {
+        console.error('AuthCallback error:', err);
+        window.location.replace('/');
+      }
+    };
+
+    handleCallback();
   }, []);
 
   return (

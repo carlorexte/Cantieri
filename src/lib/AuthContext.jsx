@@ -24,6 +24,20 @@ export const AuthProvider = ({ children }) => {
 
   const checkAppState = async () => {
     try {
+      // Handle implicit OAuth hash tokens (access_token/refresh_token)
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hash = window.location.hash.startsWith('#')
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const params = new URLSearchParams(hash);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);

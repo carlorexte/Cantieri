@@ -49,15 +49,18 @@ async function retryWithoutOptionalAttivitaColumns(operation, payload) {
 }
 
 // Variabili d'ambiente
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || 'https://YOUR_PROJECT.supabase.co').trim();
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY').trim();
+const cleanEnv = (value) => (value || '').replace(/\\r|\\n/g, '').trim();
+const supabaseUrl = cleanEnv(import.meta.env.VITE_SUPABASE_URL) || 'https://YOUR_PROJECT.supabase.co';
+const supabaseAnonKey = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY) || 'YOUR_ANON_KEY';
 
 // Crea client Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    // We handle implicit hash tokens manually in AuthContext.
+    // Disabling auto-detect avoids auth-js parsing errors in local redirects.
+    detectSessionInUrl: false,
   },
   global: {
     headers: {

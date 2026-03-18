@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { supabaseDB } from "@/lib/supabaseClient";
+import { supabaseDB, supabase } from "@/lib/supabaseClient";
 import { usePermissions } from "@/components/shared/PermissionGuard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Shield, Users, Edit, Trash2, Save, Group } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Shield, Users, Edit, Trash2, Save, Group, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +26,11 @@ export default function UserManagementPage() {
   
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
-  
+
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
+
   const { isAdmin } = usePermissions();
 
   useEffect(() => {
@@ -152,6 +156,36 @@ export default function UserManagementPage() {
     }
   };
 
+  const handleInviteUser = async (e) => {
+    e.preventDefault();
+    setIsInviting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('Sessione non valida, rieffettua il login');
+
+      const response = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Errore durante l\'invito');
+
+      toast.success(`Invito inviato a ${inviteEmail}`);
+      setInviteEmail("");
+      setShowInviteDialog(false);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -180,6 +214,10 @@ export default function UserManagementPage() {
               <h1 className="text-3xl font-bold text-slate-900">Gestione Utenti e Team</h1>
               <p className="text-slate-600 mt-1">Gestisci utenti, ruoli, permessi e gruppi di lavoro</p>
             </div>
+            <Button onClick={() => setShowInviteDialog(true)}>
+              <Mail className="w-4 h-4 mr-2" />
+              Invita Utente
+            </Button>
           </div>
 
           <Tabs defaultValue="utenti" className="space-y-6">
@@ -340,7 +378,7 @@ export default function UserManagementPage() {
               <Button onClick={() => {
                 setEditingTeam(null);
                 setShowTeamDialog(true);
-              }} className="bg-indigo-600 hover:bg-indigo-700">
+              }} className="">
                 <Plus className="w-4 h-4 mr-2" />
                 Nuovo Team
               </Button>
@@ -413,7 +451,7 @@ export default function UserManagementPage() {
               <Button onClick={() => {
                 setEditingRuolo(null);
                 setShowRuoloDialog(true);
-              }} className="bg-indigo-600 hover:bg-indigo-700">
+              }} className="">
                 <Plus className="w-4 h-4 mr-2" />
                 Nuovo Ruolo
               </Button>
@@ -504,6 +542,45 @@ export default function UserManagementPage() {
           team={editingTeam}
           onSave={handleSaveTeam}
         />
+
+        {/* DIALOG INVITO */}
+        <Dialog open={showInviteDialog} onOpenChange={(open) => { setShowInviteDialog(open); if (!open) setInviteEmail(""); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Invita un nuovo utente</DialogTitle>
+              <DialogDescription>
+                L'utente riceverà un'email con il link per accedere all'applicazione.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleInviteUser} className="space-y-4 pt-2">
+              <div>
+                <Label htmlFor="invite-email">Indirizzo email *</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="nome@esempio.it"
+                  required
+                  autoFocus
+                  className="mt-1.5"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setShowInviteDialog(false)} disabled={isInviting}>
+                  Annulla
+                </Button>
+                <Button type="submit" disabled={isInviting || !inviteEmail}>
+                  {isInviting ? (
+                    <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Invio...</>
+                  ) : (
+                    <><Mail className="w-4 h-4 mr-2" />Invia Invito</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
     </div>
@@ -580,7 +657,7 @@ const TeamDialog = React.memo(({ open, onOpenChange, team, onSave }) => {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+            <Button type="submit" className="">
               <Save className="w-4 h-4 mr-2" />
               {team ? "Aggiorna" : "Crea"} Team
             </Button>

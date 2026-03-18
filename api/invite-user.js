@@ -1,6 +1,6 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -56,7 +56,6 @@ module.exports = async (req, res) => {
 
     const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, inviteOptions);
     if (error) {
-      // Messaggio più leggibile per errori comuni
       if (error.message?.includes('already been registered')) {
         return res.status(409).json({ error: 'Questo indirizzo email è già registrato' });
       }
@@ -69,4 +68,4 @@ module.exports = async (req, res) => {
     console.error('[invite-user] Error:', error);
     return res.status(500).json({ error: error.message || 'Errore interno del server' });
   }
-};
+}

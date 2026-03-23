@@ -23,9 +23,7 @@ export default function ImpresePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [showForm, setShowForm] = useState(() => {
-    try { return sessionStorage.getItem("impresa_form_open") === "1"; } catch (_) { return false; }
-  });
+  const [showForm, setShowForm] = useState(false);
   const [editingImpresa, setEditingImpresa] = useState(null);
   
   const { hasPermission } = usePermissions();
@@ -109,7 +107,6 @@ export default function ImpresePage() {
       }
       setShowForm(false);
       setEditingImpresa(null);
-      try { sessionStorage.removeItem("impresa_form_open"); } catch (_) {}
       loadData();
     } catch (error) {
       console.error("Errore salvataggio impresa:", error);
@@ -154,7 +151,6 @@ export default function ImpresePage() {
                 onClick={() => {
                   setEditingImpresa(null);
                   setShowForm(true);
-                  try { sessionStorage.setItem("impresa_form_open", "1"); } catch (_) {}
                 }}
                 className="shadow-sm"
               >
@@ -311,7 +307,6 @@ export default function ImpresePage() {
         if (!open) {
           setShowForm(false);
           setEditingImpresa(null);
-          try { sessionStorage.removeItem("impresa_form_open"); } catch (_) {}
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -324,7 +319,6 @@ export default function ImpresePage() {
             onCancel={() => {
               setShowForm(false);
               setEditingImpresa(null);
-              try { sessionStorage.removeItem("impresa_form_open"); } catch (_) {}
             }}
           />
         </DialogContent>

@@ -226,7 +226,7 @@ export default function ImpresaForm({ impresa, onSubmit, onCancel }) {
       </Card>
 
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={() => { clearDraft(); onCancel(); }}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           <X className="w-4 h-4 mr-2" />
           Annulla
         </Button>

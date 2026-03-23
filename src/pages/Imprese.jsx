@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Briefcase, Building2, Mail, Phone, Edit, Trash2 } from "lucide-react";
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -24,6 +25,7 @@ export default function ImpresePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingImpresa, setEditingImpresa] = useState(null);
   
   const { hasPermission } = usePermissions();
@@ -99,17 +101,23 @@ export default function ImpresePage() {
   }, [filterImprese]);
 
   const handleSubmit = async (impresaData) => {
+    setIsSaving(true);
     try {
       if (editingImpresa) {
         await base44.entities.Impresa.update(editingImpresa.id, impresaData);
+        toast.success("Impresa aggiornata con successo");
       } else {
         await base44.entities.Impresa.create(impresaData);
+        toast.success("Impresa creata con successo");
       }
       setShowForm(false);
       setEditingImpresa(null);
       loadData();
     } catch (error) {
       console.error("Errore salvataggio impresa:", error);
+      toast.error(`Errore nel salvataggio: ${error?.message || "errore sconosciuto"}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -320,6 +328,7 @@ export default function ImpresePage() {
               setShowForm(false);
               setEditingImpresa(null);
             }}
+            isSaving={isSaving}
           />
         </DialogContent>
       </Dialog>

@@ -27,7 +27,7 @@ const defaultForm = {
   responsabile_sicurezza_id: ""
 };
 
-export default function ImpresaForm({ impresa, onSubmit, onCancel }) {
+export default function ImpresaForm({ impresa, onSubmit, onCancel, isSaving = false }) {
   const getInitialData = () => {
     if (impresa) return impresa;
     try {
@@ -230,9 +230,9 @@ export default function ImpresaForm({ impresa, onSubmit, onCancel }) {
           <X className="w-4 h-4 mr-2" />
           Annulla
         </Button>
-        <Button type="submit" className="">
+        <Button type="submit" disabled={isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          {impresa ? "Aggiorna" : "Salva"} Impresa
+          {isSaving ? "Salvataggio..." : (impresa ? "Aggiorna" : "Salva") + " Impresa"}
         </Button>
       </div>
     </form>

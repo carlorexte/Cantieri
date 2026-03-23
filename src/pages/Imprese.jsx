@@ -23,7 +23,9 @@ export default function ImpresePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(() => {
+    try { return sessionStorage.getItem("impresa_form_open") === "1"; } catch (_) { return false; }
+  });
   const [editingImpresa, setEditingImpresa] = useState(null);
   
   const { hasPermission } = usePermissions();
@@ -107,6 +109,7 @@ export default function ImpresePage() {
       }
       setShowForm(false);
       setEditingImpresa(null);
+      try { sessionStorage.removeItem("impresa_form_open"); } catch (_) {}
       loadData();
     } catch (error) {
       console.error("Errore salvataggio impresa:", error);
@@ -116,6 +119,7 @@ export default function ImpresePage() {
   const handleEdit = (impresa) => {
     setEditingImpresa(impresa);
     setShowForm(true);
+    // non salviamo il draft per le modifiche: i dati vengono dall'impresa esistente
   };
 
   const handleDelete = async (id) => {
@@ -146,12 +150,13 @@ export default function ImpresePage() {
               <p className="text-slate-600 mt-1">Gestione soci consorziati e imprese partner</p>
             </div>
             {(currentUser?.role === 'admin' || hasPermission('imprese', 'edit')) && (
-              <Button 
+              <Button
                 onClick={() => {
                   setEditingImpresa(null);
                   setShowForm(true);
-                }} 
-                className="bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+                  try { sessionStorage.setItem("impresa_form_open", "1"); } catch (_) {}
+                }}
+                className="shadow-sm"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Nuova Impresa
@@ -302,7 +307,13 @@ export default function ImpresePage() {
       </div>
 
       {/* Dialog per Form Impresa */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => {
+        if (!open) {
+          setShowForm(false);
+          setEditingImpresa(null);
+          try { sessionStorage.removeItem("impresa_form_open"); } catch (_) {}
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingImpresa ? "Modifica Impresa" : "Nuova Impresa"}</DialogTitle>
@@ -313,6 +324,7 @@ export default function ImpresePage() {
             onCancel={() => {
               setShowForm(false);
               setEditingImpresa(null);
+              try { sessionStorage.removeItem("impresa_form_open"); } catch (_) {}
             }}
           />
         </DialogContent>

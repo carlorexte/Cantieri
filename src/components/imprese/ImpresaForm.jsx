@@ -6,32 +6,56 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Save, X } from "lucide-react";
 import PersonaEsternaSelector from "../cantieri/PersonaEsternaSelector";
 
+const DRAFT_KEY = "impresa_form_draft";
+
+const defaultForm = {
+  ragione_sociale: "",
+  rappresentante_legale: "",
+  partita_iva: "",
+  codice_fiscale: "",
+  indirizzo_legale: "",
+  cap_legale: "",
+  citta_legale: "",
+  provincia_legale: "",
+  telefono: "",
+  email: "",
+  pec: "",
+  codice_sdi: "",
+  banca_appoggio: "",
+  iban: "",
+  referente_impresa_id: "",
+  responsabile_sicurezza_id: ""
+};
+
 export default function ImpresaForm({ impresa, onSubmit, onCancel }) {
-  const [formData, setFormData] = useState(impresa || {
-    ragione_sociale: "",
-    rappresentante_legale: "",
-    partita_iva: "",
-    codice_fiscale: "",
-    indirizzo_legale: "",
-    cap_legale: "",
-    citta_legale: "",
-    provincia_legale: "",
-    telefono: "",
-    email: "",
-    pec: "",
-    codice_sdi: "",
-    banca_appoggio: "",
-    iban: "",
-    referente_impresa_id: "",
-    responsabile_sicurezza_id: ""
-  });
+  const getInitialData = () => {
+    if (impresa) return impresa;
+    try {
+      const draft = sessionStorage.getItem(DRAFT_KEY);
+      if (draft) return JSON.parse(draft);
+    } catch (_) {}
+    return defaultForm;
+  };
+
+  const [formData, setFormData] = useState(getInitialData);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (!impresa) {
+        try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next)); } catch (_) {}
+      }
+      return next;
+    });
+  };
+
+  const clearDraft = () => {
+    try { sessionStorage.removeItem(DRAFT_KEY); } catch (_) {}
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    clearDraft();
     onSubmit(formData);
   };
 
@@ -202,11 +226,11 @@ export default function ImpresaForm({ impresa, onSubmit, onCancel }) {
       </Card>
 
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={() => { clearDraft(); onCancel(); }}>
           <X className="w-4 h-4 mr-2" />
           Annulla
         </Button>
-        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+        <Button type="submit" className="">
           <Save className="w-4 h-4 mr-2" />
           {impresa ? "Aggiorna" : "Salva"} Impresa
         </Button>

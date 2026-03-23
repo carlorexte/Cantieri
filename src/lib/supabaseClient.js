@@ -53,6 +53,10 @@ const cleanEnv = (value) => (value || '').replace(/\\r|\\n/g, '').trim();
 const supabaseUrl = cleanEnv(import.meta.env.VITE_SUPABASE_URL) || 'https://YOUR_PROJECT.supabase.co';
 const supabaseAnonKey = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY) || 'YOUR_ANON_KEY';
 
+if (import.meta.env.DEV) {
+  console.log('[Supabase] URL:', supabaseUrl);
+}
+
 // Crea client Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -224,7 +228,7 @@ export const supabaseDB = {
       const { data, error } = await supabase
         .from('imprese')
         .select('*')
-        .order('denominazione', { ascending: true });
+        .order('ragione_sociale', { ascending: true });
       
       if (error) {
         const isMissingRelation =
@@ -245,6 +249,8 @@ export const supabaseDB = {
     create: async (impresa) => {
       const payload = {
         ...impresa,
+        // sincronizza denominazione (colonna originale NOT NULL) con ragione_sociale
+        denominazione: impresa.ragione_sociale || impresa.denominazione || '',
         created_date: impresa?.created_date || new Date().toISOString(),
         updated_date: new Date().toISOString(),
       };
@@ -261,6 +267,7 @@ export const supabaseDB = {
     update: async (id, updates) => {
       const payload = {
         ...updates,
+        denominazione: updates.ragione_sociale || updates.denominazione || '',
         updated_date: new Date().toISOString(),
       };
       const { data, error } = await supabase

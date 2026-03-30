@@ -56,12 +56,38 @@ Rispondi in JSON con questa struttura:
 
 Rispondi SOLO con JSON valido, senza markdown o altri testi.`
 
-serve(async (req) => {
-  // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+function buildCorsHeaders(req: Request) {
+  const allowedOrigins = [
+    Deno.env.get('ALLOWED_ORIGINS') || '',
+    Deno.env.get('APP_URL') || '',
+    Deno.env.get('VITE_APP_URL') || '',
+    Deno.env.get('VITE_SITE_URL') || '',
+  ]
+    .join(',')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  const origin = req.headers.get('origin')
+
+  if ((Deno.env.get('ENVIRONMENT') || '').toLowerCase() !== 'production') {
+    allowedOrigins.push('http://localhost:5173', 'http://localhost:4173')
   }
+
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  }
+
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
+
+  return headers
+}
+
+serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req)
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -99,7 +125,7 @@ serve(async (req) => {
         role: "user",
         content: [
           {
-            type: "image",
+            type: mimeType === 'application/pdf' ? 'document' : 'image',
             source: {
               type: "base64",
               media_type: mimeType,
@@ -164,13 +190,12 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[analyze-gantt] Error:', error)
 
     return new Response(
       JSON.stringify({
-        error: error.message || 'Internal server error',
-        stack: error.stack
+        error: error.message || 'Internal server error'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

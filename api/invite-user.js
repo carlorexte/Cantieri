@@ -51,6 +51,9 @@ async function sendEmail(to, subject, html) {
     host: SMTP_CONFIG.host,
     port: SMTP_CONFIG.port,
     secure: SMTP_CONFIG.secure,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS

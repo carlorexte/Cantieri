@@ -187,8 +187,9 @@ export default function UserManagementPage() {
         }),
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Errore durante l\'invito');
+      let result = {};
+      try { result = await response.json(); } catch {}
+      if (!response.ok) throw new Error(result.error || `Errore HTTP ${response.status}`);
 
       const roleName = inviteRoleId ? (ruoli.find(r => r.id === inviteRoleId)?.nome || '') : 'member (default)';
       toast.success(`Invito inviato a ${inviteEmail}${inviteRoleId ? ` con ruolo: ${roleName}` : ''}`);

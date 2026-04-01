@@ -789,7 +789,7 @@ export const supabaseDB = {
       attivitaDaInserire = dbActivities.map(att => ({
         cantiere_id: cantiereId,
         wbs: att.wbs || '',
-        // parent_id: att.parent_id || null, // TODO: Aggiungere colonna parent_id al database
+        parent_id: att.parent_id || null,
         descrizione: att.descrizione,
         tipo_attivita: att.tipo_attivita || 'task',
         durata_giorni: att.durata_giorni || 1,
@@ -945,9 +945,16 @@ export const supabaseDB = {
     },
 
     assignRuoloToProfile: async (profileId, ruoloId) => {
+      let legacyRole = 'member';
+      if (ruoloId) {
+        const { data: ruolo } = await supabase.from('ruoli').select('nome, permessi').eq('id', ruoloId).single();
+        if (ruolo?.nome?.toLowerCase() === 'admin' || ruolo?.permessi?.is_admin === true) {
+          legacyRole = 'admin';
+        }
+      }
       const { data, error } = await supabase
         .from('profiles')
-        .update({ ruolo_id: ruoloId || null, updated_at: new Date().toISOString() })
+        .update({ ruolo_id: ruoloId || null, role: legacyRole, updated_at: new Date().toISOString() })
         .eq('id', profileId)
         .select()
         .single();

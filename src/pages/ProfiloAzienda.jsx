@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,12 +28,12 @@ export default function ProfiloAziendaPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const aziendeData = await base44.entities.Azienda.list();
+      const aziendeData = await backendClient.entities.Azienda.list();
       let currentAzienda = aziendeData.length > 0 ? aziendeData[0] : { ragione_sociale: '', partita_iva: '' };
       setAzienda(currentAzienda);
 
       if (currentAzienda.id) {
-        const documentiData = await base44.entities.Documento.filter({
+        const documentiData = await backendClient.entities.Documento.filter({
           entita_collegata_tipo: "azienda",
           entita_collegata_id: currentAzienda.id
         }, "-created_date");
@@ -57,10 +57,10 @@ export default function ProfiloAziendaPage() {
     }
     try {
       if (azienda.id) {
-        await base44.entities.Azienda.update(azienda.id, azienda);
+        await backendClient.entities.Azienda.update(azienda.id, azienda);
         toast.success("Profilo aziendale aggiornato.");
       } else {
-        const newAzienda = await base44.entities.Azienda.create(azienda);
+        const newAzienda = await backendClient.entities.Azienda.create(azienda);
         setAzienda(newAzienda);
         toast.success("Profilo aziendale creato.");
       }
@@ -74,10 +74,10 @@ export default function ProfiloAziendaPage() {
   const handleDocumentoSubmit = async (documentoData) => {
     try {
       if (editingDocumento) {
-        await base44.entities.Documento.update(editingDocumento.id, documentoData);
+        await backendClient.entities.Documento.update(editingDocumento.id, documentoData);
         toast.success("Documento aggiornato con successo.");
       } else {
-        await base44.entities.Documento.create({
+        await backendClient.entities.Documento.create({
           ...documentoData,
           entita_collegata_id: azienda.id,
           entita_collegata_tipo: "azienda"

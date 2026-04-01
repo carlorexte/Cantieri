@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,11 +74,11 @@ export default function AttivitaForm({ attivita, cantiere_id, onSubmit, onCancel
 
       try {
         const [attivitaList, impreseList, subappaltiList, personeList, teamsList] = await Promise.all([
-          base44.entities.Attivita.filter({ cantiere_id }, "data_inizio"),
-          base44.entities.Impresa.list("ragione_sociale"),
-          base44.entities.Subappalto.filter({ cantiere_id }),
-          base44.entities.PersonaEsterna.list("cognome"),
-          base44.entities.Team.list("nome")
+          backendClient.entities.Attivita.filter({ cantiere_id }, "data_inizio"),
+          backendClient.entities.Impresa.list("ragione_sociale"),
+          backendClient.entities.Subappalto.filter({ cantiere_id }),
+          backendClient.entities.PersonaEsterna.list("cognome"),
+          backendClient.entities.Team.list("nome")
         ]);
 
         const disponibili = attivitaList.filter((item) => !attivita || item.id !== attivita.id);

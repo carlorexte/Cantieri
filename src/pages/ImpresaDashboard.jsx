@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { CreateFileSignedUrl } from '@/api/integrations';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -60,10 +60,10 @@ export default function ImpresaDashboardPage() {
     setIsLoading(true);
     try {
       const [impresaData, cantieriData, subappaltiData, documentiData] = await Promise.all([
-        base44.entities.Impresa.get(impresaId),
-        base44.entities.Cantiere.list(),
-        base44.entities.Subappalto.list(),
-        base44.entities.Documento.filter({ entita_collegata_tipo: 'azienda' })
+        backendClient.entities.Impresa.get(impresaId),
+        backendClient.entities.Cantiere.list(),
+        backendClient.entities.Subappalto.list(),
+        backendClient.entities.Documento.filter({ entita_collegata_tipo: 'azienda' })
       ]);
 
       setImpresa(impresaData);
@@ -71,7 +71,7 @@ export default function ImpresaDashboardPage() {
       // Carica PersoneEsterne se ci sono ID
       if (impresaData.referente_impresa_id) {
         try {
-          const refData = await base44.entities.PersonaEsterna.get(impresaData.referente_impresa_id);
+          const refData = await backendClient.entities.PersonaEsterna.get(impresaData.referente_impresa_id);
           setReferenteImpresa(refData);
         } catch (error) {
           console.error("Errore caricamento referente impresa:", error);
@@ -80,7 +80,7 @@ export default function ImpresaDashboardPage() {
 
       if (impresaData.responsabile_sicurezza_id) {
         try {
-          const respData = await base44.entities.PersonaEsterna.get(impresaData.responsabile_sicurezza_id);
+          const respData = await backendClient.entities.PersonaEsterna.get(impresaData.responsabile_sicurezza_id);
           setResponsabileSicurezza(respData);
         } catch (error) {
           console.error("Errore caricamento responsabile sicurezza:", error);
@@ -144,10 +144,10 @@ export default function ImpresaDashboardPage() {
       }
 
       if (editingDocumento) {
-        await base44.entities.Documento.update(editingDocumento.id, formData);
+        await backendClient.entities.Documento.update(editingDocumento.id, formData);
         toast.success("Documento aggiornato con successo");
       } else {
-        await base44.entities.Documento.create({
+        await backendClient.entities.Documento.create({
           ...formData,
           entita_collegata_id: impresa.id,
           entita_collegata_tipo: 'azienda',
@@ -172,7 +172,7 @@ export default function ImpresaDashboardPage() {
   const handleDeleteDocumento = async (documento) => {
     if (window.confirm(`Sei sicuro di voler eliminare "${documento.nome_documento}"?`)) {
       try {
-        await base44.entities.Documento.delete(documento.id);
+        await backendClient.entities.Documento.delete(documento.id);
         toast.success("Documento eliminato con successo");
         loadData(impresa.id);
       } catch (error) {

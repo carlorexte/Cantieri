@@ -2,23 +2,22 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabaseDB } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, BarChart3, Upload, RotateCcw, ArrowLeft } from "lucide-react";
+import { Building2, Plus, Upload, RotateCcw, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import PlanningGantt from "../components/cronoprogramma/PlanningGantt";
 import ImportCronoprogrammaForm from "../components/cronoprogramma/ImportCronoprogrammaForm";
 import AttivitaForm from "../components/cronoprogramma/AttivitaForm";
 import { createPlanningActivity, dbActivitiesToPlanning, planningActivitiesToDb } from "@/utils/planningModel";
 
 const statoStats = {
-  pianificata: { icon: Building2, color: "bg-slate-100 text-slate-700", label: "Pianificate" },
-  in_corso: { icon: Building2, color: "bg-blue-100 text-blue-700", label: "In Corso" },
-  completata: { icon: Building2, color: "bg-green-100 text-green-700", label: "Completate" }
+  pianificata: { icon: Building2, color: "bg-slate-100 text-slate-600", label: "Pianificate", accent: "text-slate-700" },
+  in_corso: { icon: Building2, color: "bg-blue-100 text-blue-600", label: "In Corso", accent: "text-blue-700" },
+  completata: { icon: Building2, color: "bg-emerald-100 text-emerald-600", label: "Completate", accent: "text-emerald-700" }
 };
 
 export default function CronoprogrammaPage() {
@@ -242,10 +241,12 @@ export default function CronoprogrammaPage() {
 
   const handleAttivitaUpdate = useCallback(async (updatedActivityIds, calculationResult) => {
     if (!selectedCantiereId || !updatedActivityIds || updatedActivityIds.length === 0) {
+      console.warn('[handleAttivitaUpdate] Parametri mancanti:', { selectedCantiereId, updatedActivityIds, calculationResult });
       return;
     }
 
     try {
+      console.log('[handleAttivitaUpdate] Inizio aggiornamento:', updatedActivityIds);
       let updates = [];
 
       if (calculationResult?.directUpdates?.length) {
@@ -268,17 +269,26 @@ export default function CronoprogrammaPage() {
           .filter(Boolean);
       }
 
-      if (updates.length === 0) return;
+      if (updates.length === 0) {
+        console.warn('[handleAttivitaUpdate] Nessun aggiornamento da applicare');
+        return;
+      }
+
+      console.log('[handleAttivitaUpdate] Aggiorno attività:', updates);
 
       await Promise.all(
         updates.map((update) => {
           const { id, ...fields } = update;
+          console.log(`[handleAttivitaUpdate] Update attività ${id}:`, fields);
           return supabaseDB.attivita.update(id, {
             ...fields,
             updated_date: new Date().toISOString()
           });
         })
       );
+
+      console.log('[handleAttivitaUpdate] Aggiornamento completato con successo');
+      toast.success(`Aggiornate ${updates.length} attività`);
 
       const updatesMap = new Map(updates.map((update) => [update.id, update]));
       setCantieriAttivita((prev) => {
@@ -297,9 +307,9 @@ export default function CronoprogrammaPage() {
         };
       });
     } catch (error) {
-      console.error("Errore aggiornamento date attività:", error);
-      toast.error("Errore nel salvataggio delle date attività.");
-      setReloadTrigger(prev => prev + 1);
+      console.error("[handleAttivitaUpdate] Errore:", error);
+      console.error("[handleAttivitaUpdate] Error details:", error?.message, error?.details, error?.hint);
+      toast.error(`Errore aggiornamento: ${error?.message || error?.details || 'Controlla i log'}`);
       throw error;
     }
   }, [selectedCantiereId]);
@@ -352,11 +362,11 @@ export default function CronoprogrammaPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+      <div className="p-4 sm:p-6 bg-slate-50 min-h-screen">
         <div className="max-w-full mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-slate-200 rounded w-64"></div>
-            <div className="h-96 bg-slate-200 rounded-xl"></div>
+            <div className="h-8 bg-slate-200 rounded-lg w-64"></div>
+            <div className="h-96 bg-slate-200 rounded-2xl"></div>
           </div>
         </div>
       </div>
@@ -395,16 +405,16 @@ export default function CronoprogrammaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="p-8">
+    <div className="min-h-screen bg-slate-50">
+      <div className="p-4 sm:p-6">
         <div className="max-w-full mx-auto">
           {/* Header */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
             <div>
               {selectedCantiereId && (
                 <Link to={createPageUrl(`CantiereDashboard?id=${selectedCantiereId}`)}>
-                  <Button variant="outline" className="mb-3 border-slate-200 hover:bg-slate-50">
-                    <ArrowLeft className="w-4 h-4 mr-2" />
+                  <Button variant="ghost" size="sm" className="mb-2 -ml-2 text-slate-500 hover:text-slate-700">
+                    <ArrowLeft className="w-4 h-4 mr-1.5" />
                     Torna al Cantiere
                   </Button>
                 </Link>
@@ -412,27 +422,25 @@ export default function CronoprogrammaPage() {
               <h1 className="text-3xl font-bold text-slate-900">Cronoprogramma</h1>
               {currentCantiere ? (
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-200">
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg border border-orange-200 text-sm font-medium">
                     <Building2 className="w-4 h-4" />
-                    <span className="font-medium">{currentCantiere.denominazione}</span>
+                    {currentCantiere.denominazione}
                   </span>
                 </div>
               ) : (
-                <p className="text-slate-600 mt-1">Seleziona un cantiere per visualizzare il cronoprogramma</p>
+                <p className="text-slate-500 mt-1 text-sm">Seleziona un cantiere per visualizzare il cronoprogramma</p>
               )}
             </div>
 
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {cantieri.length > 0 && (
                 <Select value={selectedCantiereId || ''} onValueChange={setSelectedCantiereId}>
-                  <SelectTrigger className="w-64 h-10 border-slate-200 bg-white">
+                  <SelectTrigger className="w-64 h-10 border-slate-200 bg-white shadow-sm">
                     <div className="flex items-center gap-2 w-full">
-                      <Building2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                      <div className="flex-1 text-left min-w-0">
-                        <span className="text-sm font-medium text-slate-900 truncate block">
-                          {currentCantiere?.denominazione || 'Seleziona cantiere'}
-                        </span>
-                      </div>
+                      <Building2 className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                      <span className="text-sm font-medium text-slate-900 truncate">
+                        {currentCantiere?.denominazione || 'Seleziona cantiere'}
+                      </span>
                     </div>
                   </SelectTrigger>
                   <SelectContent className="w-80">
@@ -440,13 +448,11 @@ export default function CronoprogrammaPage() {
                       const stats = getCantiereStats(cantiere);
                       return (
                         <SelectItem key={cantiere.id} value={cantiere.id}>
-                          <div className="flex items-start gap-3 py-1.5">
-                            <Building2 className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex items-start gap-3 py-1">
+                            <Building2 className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-slate-900 text-sm truncate">
-                                {cantiere.denominazione}
-                              </div>
-                              <div className="text-xs text-slate-500">{stats.totale} attività</div>
+                              <div className="font-medium text-slate-900 text-sm truncate">{cantiere.denominazione}</div>
+                              <div className="text-xs text-slate-400">{stats.totale} attività</div>
                             </div>
                           </div>
                         </SelectItem>
@@ -456,45 +462,12 @@ export default function CronoprogrammaPage() {
                 </Select>
               )}
 
-              <Button
-                onClick={handleOpenNewAttivita}
-                size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700 h-10"
-                disabled={!selectedCantiereId}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nuova Attivita
-              </Button>
-
-              <Button
-                onClick={() => setShowImportForm(true)}
-                variant="outline"
-                size="sm"
-                className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 h-10"
-                disabled={!selectedCantiereId}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Importa Cronoprogramma
-              </Button>
-
-              {viewMode === "single" && selectedCantiereId && cantieriAttivita[selectedCantiereId]?.length > 0 && (
-                <Button
-                  onClick={handleDeleteCronoprogramma}
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-200 text-amber-700 hover:bg-amber-50 h-10"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Resetta
-                </Button>
-              )}
-
-              <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-slate-200">
+              <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("grid")}
-                  className={`h-8 ${viewMode === "grid" ? "bg-slate-900 text-white" : "text-slate-600"}`}
+                  className={`h-8 px-3 text-sm ${viewMode === "grid" ? "" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   Panoramica
                 </Button>
@@ -502,80 +475,122 @@ export default function CronoprogrammaPage() {
                   variant={viewMode === "single" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("single")}
-                  className={`h-8 ${viewMode === "single" ? "bg-indigo-600 text-white" : "text-slate-600"}`}
+                  className={`h-8 px-3 text-sm ${viewMode === "single" ? "" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   Gantt
                 </Button>
               </div>
+
+              <Button
+                onClick={handleOpenNewAttivita}
+                size="sm"
+                className="h-9"
+                disabled={!selectedCantiereId}
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Nuova Attività
+              </Button>
+
+              <Button
+                onClick={() => setShowImportForm(true)}
+                variant="outline"
+                size="sm"
+                className="h-9 border-slate-200 text-slate-600 hover:bg-slate-50"
+                disabled={!selectedCantiereId}
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                Importa
+              </Button>
+
+              {viewMode === "single" && selectedCantiereId && cantieriAttivita[selectedCantiereId]?.length > 0 && (
+                <Button
+                  onClick={handleDeleteCronoprogramma}
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  Resetta
+                </Button>
+              )}
             </div>
           </div>
 
           {/* Stats */}
-          <Accordion type="single" defaultValue="stats" collapsible className="mb-4">
-            <AccordionItem value="stats" className="border-0">
-              <AccordionTrigger className="py-2 hover:no-underline">
-                <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                  <BarChart3 className="w-4 h-4" />
-                  Statistiche
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <Card className="border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-1">Cantieri</p>
+                    <p className="text-2xl font-bold text-slate-900">{cantieri.length}</p>
+                  </div>
+                  <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-orange-500" />
+                  </div>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card className="border-0 shadow-sm bg-white">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold text-slate-900">{cantieri.length}</div>
-                      <div className="text-sm text-slate-600 mt-1">Cantieri</div>
-                    </CardContent>
-                  </Card>
-                  {Object.entries(statoStats).map(([stato, config]) => (
-                    <Card key={stato} className="border-0 shadow-sm bg-white">
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-slate-900">{overallStats[stato] || 0}</div>
-                        <div className="text-sm text-slate-600">{config.label}</div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              </CardContent>
+            </Card>
+            {Object.entries(statoStats).map(([stato, cfg]) => (
+              <Card key={stato} className="border-0 shadow-sm bg-white">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 mb-1">{cfg.label}</p>
+                      <p className={`text-2xl font-bold ${cfg.accent}`}>{overallStats[stato] || 0}</p>
+                    </div>
+                    <div className={`w-9 h-9 rounded-lg ${cfg.color} flex items-center justify-center`}>
+                      <cfg.icon className="w-5 h-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
           {cantieri.length === 0 ? (
-            <Card className="border-0 shadow-lg bg-white">
-              <CardContent className="p-12 text-center">
-                <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-400" />
+            <Card className="border-0 shadow-md bg-white">
+              <CardContent className="p-16 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
+                  <Building2 className="w-8 h-8 text-slate-400" />
+                </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Nessun cantiere attivo</h3>
-                <p className="text-slate-600">Crea il primo cantiere per iniziare</p>
+                <p className="text-slate-500 text-sm">Crea il primo cantiere per iniziare</p>
               </CardContent>
             </Card>
           ) : viewMode === "grid" ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {cantieri.map((cantiere) => {
                 const stats = getCantiereStats(cantiere);
                 return (
-                  <Card key={cantiere.id} className="border-0 shadow-lg bg-white">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-bold text-slate-900 mb-2">
-                            {cantiere.denominazione}
-                          </CardTitle>
+                  <Card key={cantiere.id} className="border-0 shadow-md bg-white hover:shadow-lg transition-shadow">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-slate-900 text-base truncate pr-3">{cantiere.denominazione}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">{stats.totale} attività totali</p>
                         </div>
-                        <Badge variant="secondary">{stats.percentualeCompletamento}%</Badge>
+                        <Badge className="bg-orange-50 text-orange-700 border border-orange-200 font-semibold shrink-0">
+                          {stats.percentualeCompletamento}%
+                        </Badge>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-slate-600 mb-4">{stats.totale} attività</div>
+                      <div className="flex gap-3 mb-4">
+                        {Object.entries(statoStats).map(([stato, cfg]) => (
+                          <div key={stato} className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${cfg.color.split(' ')[0]}`} />
+                            <span className="text-xs text-slate-500">{cfg.label}: <span className="font-semibold text-slate-700">{stats[stato] || 0}</span></span>
+                          </div>
+                        ))}
+                      </div>
                       <Button
-                        variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="w-full"
                         onClick={() => {
                           setSelectedCantiereId(cantiere.id);
                           setViewMode("single");
                         }}
                       >
-                        Visualizza Gantt
+                        Apri Gantt
                       </Button>
                     </CardContent>
                   </Card>
@@ -583,7 +598,7 @@ export default function CronoprogrammaPage() {
               })}
             </div>
           ) : (
-            <div className="flex flex-col space-y-4" style={{ height: 'calc(100vh - 12rem)' }}>
+            <div style={{ height: 'calc(100vh - 14rem)' }}>
               {selectedCantiereId && currentCantiere ? (
                 <PlanningGantt
                   planningActivities={selectedPlanningActivities}
@@ -596,11 +611,13 @@ export default function CronoprogrammaPage() {
                   onToggleSectionFullView={handleToggleSectionFullView}
                 />
               ) : (
-                <Card className="border-0 shadow-lg bg-white">
-                  <CardContent className="p-12 text-center">
-                    <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-400" />
+                <Card className="border-0 shadow-md bg-white h-full">
+                  <CardContent className="p-16 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
+                      <Building2 className="w-8 h-8 text-slate-400" />
+                    </div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">Seleziona un cantiere</h3>
-                    <p className="text-slate-600">Usa il menu a tendina per scegliere un cantiere</p>
+                    <p className="text-slate-500 text-sm">Usa il menu a tendina per scegliere un cantiere</p>
                   </CardContent>
                 </Card>
               )}

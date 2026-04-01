@@ -27,9 +27,25 @@ export default function PersonaEsternaForm({ persona, onSubmit, onCancel }) {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const cleanPayload = (payload) => {
+    const cleaned = { ...payload };
+
+    ["codice_fiscale", "partita_iva"].forEach((key) => {
+      if (!cleaned[key]?.trim()) {
+        delete cleaned[key];
+      }
+    });
+
+    if (!cleaned.data_nascita) {
+      delete cleaned.data_nascita;
+    }
+
+    return cleaned;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(form);
+    onSubmit(cleanPayload(form));
   };
 
   return (
@@ -37,20 +53,18 @@ export default function PersonaEsternaForm({ persona, onSubmit, onCancel }) {
       {/* Nome e Cognome */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label>Nome *</Label>
+          <Label>Nome</Label>
           <Input
             value={form.nome}
             onChange={(e) => updateField("nome", e.target.value)}
-            required
             placeholder="Mario"
           />
         </div>
         <div>
-          <Label>Cognome *</Label>
+          <Label>Cognome</Label>
           <Input
             value={form.cognome}
             onChange={(e) => updateField("cognome", e.target.value)}
-            required
             placeholder="Rossi"
           />
         </div>
@@ -86,6 +100,9 @@ export default function PersonaEsternaForm({ persona, onSubmit, onCancel }) {
           <p className="text-xs text-slate-500 mt-1">Se professionista o impresa</p>
         </div>
       </div>
+      <p className="text-xs text-slate-500">
+        Codice fiscale e partita IVA sono opzionali: puoi salvare anche lasciandoli vuoti.
+      </p>
 
       {/* Data di Nascita */}
       <div>

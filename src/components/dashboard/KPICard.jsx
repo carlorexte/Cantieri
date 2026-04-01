@@ -65,16 +65,16 @@ const KPICard = React.memo(({
   const colors = colorSchemes[colorScheme] || colorSchemes.indigo;
   
   return (
-    <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-200 bg-white" style={{ borderRadius: '16px' }}>
+    <Card className="relative overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-200 bg-white rounded-2xl">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
-          <p className="text-sm font-medium" style={{ color: '#626671' }}>{title}</p>
+          <p className="text-sm font-medium text-slate-500">{title}</p>
           <div className={`w-11 h-11 rounded-xl ${colors.light} flex items-center justify-center`}>
             <Icon className={`w-6 h-6 ${colors.text}`} strokeWidth={2.5} />
           </div>
         </div>
         <div className="flex items-baseline gap-2 mb-2">
-          <p className="text-3xl font-bold" style={{ color: '#17171C' }}>
+          <p className="text-3xl font-bold text-slate-900">
             {value}
           </p>
           {trend && (
@@ -91,8 +91,8 @@ const KPICard = React.memo(({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className={`h-1.5 w-16 rounded-full ${colors.bg}`}></div>
-          <p className="text-xs" style={{ color: '#626671' }}>{subtitle}</p>
+          <div className={`h-1 w-12 rounded-full ${colors.bg}`}></div>
+          <p className="text-xs text-slate-400">{subtitle}</p>
         </div>
       </CardContent>
     </Card>

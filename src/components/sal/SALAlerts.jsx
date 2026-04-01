@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,14 +55,14 @@ export default function SALAlerts({ cantiereId, onAlertClick }) {
     setLoading(true);
     try {
       // Carica SAL
-      const sals = await base44.entities.SAL.list({
+      const sals = await backendClient.entities.SAL.list({
         filters: cantiereId ? { cantiere_id: cantiereId } : {}
       });
 
       // Carica attività per calcolo avanzamento
       let attivita = [];
       if (cantiereId) {
-        attivita = await base44.entities.Attivita.list({
+        attivita = await backendClient.entities.Attivita.list({
           filters: { cantiere_id: cantiereId }
         });
       }
@@ -373,7 +373,7 @@ export function useSALAlerts(cantiereId) {
     const loadAlerts = async () => {
       setLoading(true);
       try {
-        const sals = await base44.entities.SAL.list({
+        const sals = await backendClient.entities.SAL.list({
           filters: cantiereId ? { cantiere_id: cantiereId } : {}
         });
 

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { StickyNote, Save, Edit2, X } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { toast } from 'sonner';
 
 export default function QuickNotes({ cantiere, onUpdate }) {
@@ -18,7 +18,7 @@ export default function QuickNotes({ cantiere, onUpdate }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await base44.entities.Cantiere.update(cantiere.id, { note });
+      await backendClient.entities.Cantiere.update(cantiere.id, { note });
       toast.success("Note aggiornate");
       setIsEditing(false);
       if (onUpdate) onUpdate();

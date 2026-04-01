@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X, Upload, FileText, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { toast } from "sonner";
 
 export default function SalForm({ sal, cantiereId, onSubmit, onCancel }) {
@@ -73,7 +73,7 @@ export default function SalForm({ sal, cantiereId, onSubmit, onCancel }) {
       // Upload file se presente
       if (fileToUpload) {
         toast.info("Caricamento documento in corso...");
-        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: fileToUpload });
+        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
         finalData.file_uri = file_uri;
         toast.success("Documento caricato con successo!");
       }
@@ -426,7 +426,7 @@ export default function SalForm({ sal, cantiereId, onSubmit, onCancel }) {
           <X className="w-4 h-4 mr-2" />
           Annulla
         </Button>
-        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={isUploading}>
+        <Button type="submit" className="" disabled={isUploading}>
           {isUploading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

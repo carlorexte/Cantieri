@@ -10,9 +10,9 @@ const alertIcons = {
 };
 
 const alertCardClasses = {
-  critico: "bg-gradient-to-br from-red-50 to-rose-50 border-red-200",
-  medio: "bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200",
-  basso: "bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200"
+  critico: "bg-red-50 border-red-200",
+  medio: "bg-amber-50 border-amber-200",
+  basso: "bg-blue-50 border-blue-200"
 };
 
 const alertDotClasses = {
@@ -23,7 +23,7 @@ const alertDotClasses = {
 
 export default function AlertCard({ alerts }) {
   return (
-    <Card className="border-0 shadow-lg bg-white" style={{ borderRadius: '16px' }}>
+    <Card className="border-0 shadow-md bg-white rounded-2xl">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-bold text-slate-900">Allarmi e Notifiche</CardTitle>
       </CardHeader>

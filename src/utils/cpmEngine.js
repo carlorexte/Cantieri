@@ -5,7 +5,7 @@
  * basandosi sulle dipendenze tra attività.
  * 
  * @version 1.0.0
- * @author Base44 Development Team
+ * @author backendClient Development Team
  */
 
 // ============================================================================

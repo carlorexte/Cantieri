@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Download, Upload, Database, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { usePermissions } from '@/components/shared/PermissionGuard';
 import { format } from 'date-fns';
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ export default function AdminDataPage() {
         if (!confirm("Sei sicuro? Questo genererà molti dati di test nel database.")) return;
         setGenerating(true);
         try {
-            const res = await base44.functions.invoke("generateFullTestData", {});
+            const res = await backendClient.functions.invoke("generateFullTestData", {});
             if (res.data.success) {
                 toast.success(res.data.message);
             } else {
@@ -36,13 +36,13 @@ export default function AdminDataPage() {
     const handleBackup = async () => {
         setIsLoadingBackup(true);
         try {
-            const response = await base44.functions.invoke('backupData');
+            const response = await backendClient.functions.invoke('backupData');
             const data = response.data;
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `base44_backup_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
+            a.download = `app_backup_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -74,7 +74,7 @@ export default function AdminDataPage() {
                     throw new Error("Formato file non valido.");
                 }
                 const payload = { data: jsonContent.data || jsonContent };
-                const response = await base44.functions.invoke('restoreData', payload);
+                const response = await backendClient.functions.invoke('restoreData', payload);
                 setRestoreStatus({ success: true, details: response.data.results });
             } catch (error) {
                 setRestoreStatus({ success: false, message: error.message });
@@ -132,7 +132,7 @@ export default function AdminDataPage() {
                                 <AlertTitle>Info</AlertTitle>
                                 <AlertDescription>Include: Cantieri, Imprese, Costi, SAL, Documenti, etc.</AlertDescription>
                             </Alert>
-                            <Button onClick={handleBackup} disabled={isLoadingBackup} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                            <Button onClick={handleBackup} disabled={isLoadingBackup} className="w-full">
                                 {isLoadingBackup ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Esportazione...</> : <><Download className="mr-2 h-4 w-4" />Scarica Backup Completo</>}
                             </Button>
                         </div>

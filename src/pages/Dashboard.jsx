@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useData } from "@/components/shared/DataContext";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import {
   Building2,
   Wallet,
@@ -72,15 +72,15 @@ export default function Dashboard() {
     try {
       // Use Promise.all but wrap individual calls to prevent one failure from breaking all
       const [cantieri, sal, costi, documenti, attivitaInterne, ordini, attivita, imprese, subappalti] = await Promise.all([
-        fetchSafe(base44.entities.Cantiere.list()),
-        fetchSafe(base44.entities.SAL.list()),
-        fetchSafe(base44.entities.Costo.list()),
-        fetchSafe(base44.entities.Documento.list()),
-        fetchSafe(base44.entities.AttivitaInterna.list()),
-        fetchSafe(base44.entities.OrdineMateriale.list()),
-        fetchSafe(base44.entities.Attivita.filter({ stato: 'in_ritardo' })),
-        fetchSafe(base44.entities.Impresa.list()),
-        fetchSafe(base44.entities.Subappalto.list())
+        fetchSafe(backendClient.entities.Cantiere.list()),
+        fetchSafe(backendClient.entities.SAL.list()),
+        fetchSafe(backendClient.entities.Costo.list()),
+        fetchSafe(backendClient.entities.Documento.list()),
+        fetchSafe(backendClient.entities.AttivitaInterna.list()),
+        fetchSafe(backendClient.entities.OrdineMateriale.list()),
+        fetchSafe(backendClient.entities.Attivita.filter({ stato: 'in_ritardo' })),
+        fetchSafe(backendClient.entities.Impresa.list()),
+        fetchSafe(backendClient.entities.Subappalto.list())
       ]);
 
       // Enrich cantieri with advanced calculation if needed
@@ -317,8 +317,8 @@ export default function Dashboard() {
   }, [data.cantieri]);
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen">
-      <div className="max-w-[1600px] mx-auto space-y-8">
+    <div className="p-4 sm:p-6 bg-slate-50 min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>

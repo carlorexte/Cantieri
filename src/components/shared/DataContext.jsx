@@ -148,6 +148,22 @@ export const DataProvider = ({ children }) => {
     loadBackgroundData();
   }, [loadBackgroundData]);
 
+  const refreshCantieri = useCallback(async () => {
+    if (!currentUser) return;
+    setLastFetch(prev => ({ ...prev, cantieri: 0 }));
+    const cantieriData = await supabaseDB.cantieri.getAll();
+    setCantieri(cantieriData);
+    setLastFetch(prev => ({ ...prev, cantieri: Date.now() }));
+  }, [currentUser]);
+
+  const refreshImprese = useCallback(async () => {
+    if (!currentUser) return;
+    setLastFetch(prev => ({ ...prev, imprese: 0 }));
+    const impreseData = await supabaseDB.imprese.getAll();
+    setImprese(impreseData);
+    setLastFetch(prev => ({ ...prev, imprese: Date.now() }));
+  }, [currentUser]);
+
   const value = {
     cantieri,
     imprese,
@@ -159,6 +175,8 @@ export const DataProvider = ({ children }) => {
     isLoading: isLoadingUser,
     isLoadingData,
     refreshData,
+    refreshCantieri,
+    refreshImprese,
     loadUserAndPermissions,
   };
 

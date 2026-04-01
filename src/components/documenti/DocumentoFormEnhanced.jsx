@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,8 +101,8 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
   const loadEntities = async () => {
     try {
       const [cantieriData, impreseData] = await Promise.all([
-        base44.entities.Cantiere.list("-created_date", 100),
-        base44.entities.Impresa.list("-created_date", 100)
+        backendClient.entities.Cantiere.list("-created_date", 100),
+        backendClient.entities.Impresa.list("-created_date", 100)
       ]);
       setCantieri(cantieriData);
       setImprese(impreseData);
@@ -162,7 +162,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
   const handleExtractText = async (fileUri) => {
     setIsExtractingText(true);
     try {
-      const result = await base44.functions.invoke('extractTextFromDocument', {
+      const result = await backendClient.functions.invoke('extractTextFromDocument', {
         file_uri: fileUri,
         documento_id: documento?.id
       });
@@ -190,7 +190,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
     try {
       toast.info("Analisi del documento in corso...", { duration: 3000 });
 
-      const result = await base44.functions.invoke('categorizzaDocumento', {
+      const result = await backendClient.functions.invoke('categorizzaDocumento', {
         file_uri: fileUri,
         nome_documento: formData.nome_documento,
         descrizione: formData.descrizione,
@@ -225,7 +225,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       // Handling New Version Upload
       if (newVersionFile) {
         toast.info("Caricamento nuova versione...", { duration: 3000 });
-        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: newVersionFile });
+        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: newVersionFile });
 
         // Push old version to history
         const oldVersion = {
@@ -243,7 +243,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
 
         // Auto-extract text for new version
         try {
-          const result = await base44.functions.invoke('extractTextFromDocument', { file_uri: file_uri });
+          const result = await backendClient.functions.invoke('extractTextFromDocument', { file_uri: file_uri });
           if (result.data.success) {
             finalDocumentData.testo_estratto = result.data.testo_estratto;
             finalDocumentData.ocr_completato = true;
@@ -253,13 +253,13 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       } else if (fileToUpload) {
         // Standard initial upload or replacement without versioning (if needed, but prefer versioning for updates)
         toast.info("Caricamento del file...", { duration: 3000 });
-        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: fileToUpload });
+        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
         finalDocumentData.file_uri = file_uri;
 
         // Estrai testo automaticamente dopo upload
         toast.info("Estrazione testo dal documento...", { duration: 5000 });
         try {
-          const result = await base44.functions.invoke('extractTextFromDocument', {
+          const result = await backendClient.functions.invoke('extractTextFromDocument', {
             file_uri: file_uri
           });
 
@@ -688,7 +688,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
                     </div>
                     {ver.file_uri && (
                       <Badge variant="outline" className="cursor-pointer hover:bg-slate-200" onClick={async () => {
-                        const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: ver.file_uri, expires_in: 300 });
+                        const { signed_url } = await backendClient.integrations.Core.CreateFileSignedUrl({ file_uri: ver.file_uri, expires_in: 300 });
                         window.open(signed_url, '_blank');
                       }}>
                         Vedi File

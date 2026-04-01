@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,10 +61,10 @@ export default function AttivitaInternePage() {
     setIsLoading(true);
     try {
       const [attivitaData, utentiData, cantieriData, user] = await Promise.all([
-        base44.entities.AttivitaInterna.list("-data_scadenza"),
-        base44.entities.User.list(),
-        base44.entities.Cantiere.list(),
-        base44.auth.me()
+        backendClient.entities.AttivitaInterna.list("-data_scadenza"),
+        backendClient.entities.User.list(),
+        backendClient.entities.Cantiere.list(),
+        backendClient.auth.me()
       ]);
       setAttivita(attivitaData);
       setUtenti(utentiData);
@@ -79,9 +79,9 @@ export default function AttivitaInternePage() {
   const handleSubmit = async (formData) => {
     try {
       if (editingAttivita) {
-        await base44.entities.AttivitaInterna.update(editingAttivita.id, formData);
+        await backendClient.entities.AttivitaInterna.update(editingAttivita.id, formData);
       } else {
-        await base44.entities.AttivitaInterna.create(formData);
+        await backendClient.entities.AttivitaInterna.create(formData);
       }
       setShowForm(false);
       setEditingAttivita(null);
@@ -104,7 +104,7 @@ export default function AttivitaInternePage() {
   const handleDelete = async (id) => {
     if (confirm("Sei sicuro di voler eliminare questa attività?")) {
       try {
-        await base44.entities.AttivitaInterna.delete(id);
+        await backendClient.entities.AttivitaInterna.delete(id);
         loadData();
       } catch (error) {
         console.error("Errore eliminazione attività:", error)
@@ -152,7 +152,7 @@ export default function AttivitaInternePage() {
               {(currentUser?.role === 'admin' || hasPermission('attivita_interne', 'edit')) && (
                 <Dialog open={showForm} onOpenChange={setShowForm}>
                   <DialogTrigger asChild>
-                    <Button onClick={handleAddNew} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10">
+                    <Button onClick={handleAddNew} className="shadow-sm h-10">
                       <Plus className="w-4 h-4 mr-2" />
                       Nuova Attività
                     </Button>

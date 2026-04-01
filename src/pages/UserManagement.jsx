@@ -29,6 +29,7 @@ export default function UserManagementPage() {
 
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRoleId, setInviteRoleId] = useState("");
   const [isInviting, setIsInviting] = useState(false);
 
   const { isAdmin } = usePermissions();
@@ -131,7 +132,17 @@ export default function UserManagementPage() {
   const handleUpdateUser = async (userId, data) => {
     try {
       if (data.ruolo_id !== undefined) {
+        // Assegna il nuovo ruolo
         await supabaseDB.rbac.assignRuoloToProfile(userId, data.ruolo_id || null);
+        
+        // Se l'utente sta modificando il proprio ruolo, forza il refresh della sessione
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser?.id === userId) {
+          // Refresh token per aggiornare i claim del ruolo
+          const { data: { session } } = await supabase.auth.refreshSession();
+          console.log('[UserManagement] Sessione refreshata dopo cambio ruolo');
+        }
+        
         toast.success("Ruolo assegnato con successo");
       } else if (data.team_ids !== undefined) {
         // diff old vs new team membership
@@ -170,14 +181,19 @@ export default function UserManagementPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ email: inviteEmail }),
+        body: JSON.stringify({ 
+          email: inviteEmail,
+          role_id: inviteRoleId || undefined // Invia il ruolo se selezionato
+        }),
       });
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Errore durante l\'invito');
 
-      toast.success(`Invito inviato a ${inviteEmail}`);
+      const roleName = inviteRoleId ? (ruoli.find(r => r.id === inviteRoleId)?.nome || '') : 'member (default)';
+      toast.success(`Invito inviato a ${inviteEmail}${inviteRoleId ? ` con ruolo: ${roleName}` : ''}`);
       setInviteEmail("");
+      setInviteRoleId("");
       setShowInviteDialog(false);
     } catch (error) {
       toast.error(error.message);
@@ -544,7 +560,7 @@ export default function UserManagementPage() {
         />
 
         {/* DIALOG INVITO */}
-        <Dialog open={showInviteDialog} onOpenChange={(open) => { setShowInviteDialog(open); if (!open) setInviteEmail(""); }}>
+        <Dialog open={showInviteDialog} onOpenChange={(open) => { setShowInviteDialog(open); if (!open) { setInviteEmail(""); setInviteRoleId(""); } }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Invita un nuovo utente</DialogTitle>
@@ -566,11 +582,28 @@ export default function UserManagementPage() {
                   className="mt-1.5"
                 />
               </div>
+              
+              <div>
+                <Label htmlFor="invite-role">Ruolo *</Label>
+                <Select value={inviteRoleId} onValueChange={setInviteRoleId} required>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Seleziona un ruolo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ruoli.map((ruolo) => (
+                      <SelectItem key={ruolo.id} value={ruolo.id}>
+                        {ruolo.nome} {ruolo.is_system && <Badge variant="outline" className="ml-2 text-xs">Sistema</Badge>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setShowInviteDialog(false)} disabled={isInviting}>
                   Annulla
                 </Button>
-                <Button type="submit" disabled={isInviting || !inviteEmail}>
+                <Button type="submit" disabled={isInviting || !inviteEmail || !inviteRoleId}>
                   {isInviting ? (
                     <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Invio...</>
                   ) : (

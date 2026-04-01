@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, TrendingUp, Lightbulb, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { Badge } from '@/components/ui/badge';
 
 export default function AIInsightsWidget() {
@@ -12,7 +12,7 @@ export default function AIInsightsWidget() {
         const fetchInsights = async () => {
             try {
                 // Call the backend function
-                const response = await base44.functions.invoke('analyzeProjectData');
+                const response = await backendClient.functions.invoke('analyzeProjectData');
                 setData(response.data);
             } catch (error) {
                 console.error("Failed to fetch AI insights", error);

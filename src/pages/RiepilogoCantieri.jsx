@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export default function RiepilogoCantieri() {
   const loadCantieri = async () => {
     setIsLoading(true);
     try {
-      const data = await base44.entities.Cantiere.list("-created_date");
+      const data = await backendClient.entities.Cantiere.list("-created_date");
       setCantieri(data);
       setFilteredCantieri(data);
     } catch (error) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -93,10 +93,10 @@ export default function SubappaltiPage() {
     setIsLoading(true);
     try {
       const [subappaltiData, cantieriData, impreseData, user] = await Promise.all([
-        base44.entities.Subappalto.list("-created_date"),
-        base44.entities.Cantiere.list(),
-        base44.entities.Impresa.list(),
-        base44.auth.me()
+        backendClient.entities.Subappalto.list("-created_date"),
+        backendClient.entities.Cantiere.list(),
+        backendClient.entities.Impresa.list(),
+        backendClient.auth.me()
       ]);
       setSubappalti(subappaltiData);
       setCantieri(cantieriData);
@@ -111,9 +111,9 @@ export default function SubappaltiPage() {
   const handleSubmit = async (formData) => {
     try {
       if (editingSubappalto) {
-        await base44.entities.Subappalto.update(editingSubappalto.id, formData);
+        await backendClient.entities.Subappalto.update(editingSubappalto.id, formData);
       } else {
-        await base44.entities.Subappalto.create(formData);
+        await backendClient.entities.Subappalto.create(formData);
       }
       setShowForm(false);
       setEditingSubappalto(null);
@@ -126,7 +126,7 @@ export default function SubappaltiPage() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) {
       try {
-        await base44.entities.Subappalto.delete(id);
+        await backendClient.entities.Subappalto.delete(id);
         loadData();
       } catch (error) {
         console.error("Errore eliminazione:", error);
@@ -184,7 +184,7 @@ export default function SubappaltiPage() {
             </div>
             {(currentUser?.role === 'admin' || hasPermission('subappalti', 'edit')) && (
               <div className="flex gap-2">
-                <Button onClick={handleNuovoSubappalto} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm">
+                <Button onClick={handleNuovoSubappalto} className="shadow-sm">
                   <Plus className="w-5 h-5 mr-2" />
                   Nuovo Subappalto
                 </Button>

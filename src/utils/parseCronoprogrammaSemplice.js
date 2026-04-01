@@ -10,6 +10,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { assertSafeSpreadsheetBuffer } from './safeSpreadsheet';
 
 function toISO(date) {
   if (!(date instanceof Date) || isNaN(date.getTime())) return null;
@@ -132,6 +133,8 @@ export function parseCronoprogrammaSemplice(fileBuffer, options = {}) {
   const logs = [];
   
   try {
+    assertSafeSpreadsheetBuffer(fileBuffer);
+
     const workbook = XLSX.read(fileBuffer, {
       type: 'array',
       cellDates: true,

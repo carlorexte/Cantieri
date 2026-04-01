@@ -306,7 +306,7 @@ export default function RuoloDialog({ open, onOpenChange, ruolo, onSave }) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
               Annulla
             </Button>
-            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={isSaving}>
+            <Button type="submit" className="" disabled={isSaving}>
               {isSaving ? (
                 <>
                   <span className="animate-spin mr-2">⏳</span> Salvataggio...

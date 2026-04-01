@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Upload, FileText, Loader2, X, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -41,7 +41,7 @@ export default function PolizzaUploader({
     setIsUploading(true);
     try {
       toast.info("Caricamento file in corso...");
-      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file: fileToUpload });
+      const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
       
       onChange(file_uri);
       setShowUploadDialog(false);
@@ -61,7 +61,7 @@ export default function PolizzaUploader({
     
     try {
       toast.info("Caricamento anteprima...");
-      const result = await base44.integrations.Core.CreateFileSignedUrl({ 
+      const result = await backendClient.integrations.Core.CreateFileSignedUrl({ 
         file_uri: value,
         expires_in: 3600
       });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,8 +38,8 @@ export default function ImpresePage() {
     setIsLoading(true);
     try {
       const [impreseData, user] = await Promise.all([
-        base44.entities.Impresa.list("-created_date", 100),
-        base44.auth.me()
+        backendClient.entities.Impresa.list("-created_date", 100),
+        backendClient.auth.me()
       ]);
 
       let subappaltiData = [];
@@ -48,9 +48,9 @@ export default function ImpresePage() {
 
       try {
         const results = await Promise.allSettled([
-          base44.entities.Subappalto.filter({ stato: 'attivo' }),
-          base44.entities.SocioConsorzio.filter({ stato: 'attivo' }),
-          base44.entities.Cantiere.filter({ stato: 'attivo' })
+          backendClient.entities.Subappalto.filter({ stato: 'attivo' }),
+          backendClient.entities.SocioConsorzio.filter({ stato: 'attivo' }),
+          backendClient.entities.Cantiere.filter({ stato: 'attivo' })
         ]);
         
         if (results[0].status === 'fulfilled') subappaltiData = results[0].value;
@@ -104,10 +104,10 @@ export default function ImpresePage() {
     setIsSaving(true);
     try {
       if (editingImpresa) {
-        await base44.entities.Impresa.update(editingImpresa.id, impresaData);
+        await backendClient.entities.Impresa.update(editingImpresa.id, impresaData);
         toast.success("Impresa aggiornata con successo");
       } else {
-        await base44.entities.Impresa.create(impresaData);
+        await backendClient.entities.Impresa.create(impresaData);
         toast.success("Impresa creata con successo");
       }
       setShowForm(false);
@@ -130,7 +130,7 @@ export default function ImpresePage() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questa impresa? L'azione è irreversibile.")) {
       try {
-        await base44.entities.Impresa.delete(id);
+        await backendClient.entities.Impresa.delete(id);
         loadData();
       } catch (error) {
         console.error("Errore eliminazione impresa:", error);

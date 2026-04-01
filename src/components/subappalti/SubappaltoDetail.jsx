@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
   const loadSAL = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await base44.entities.SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
+      const data = await backendClient.entities.SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
       setSalList(data);
     } catch (error) {
       console.error("Errore caricamento SAL:", error);
@@ -58,13 +58,13 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
       };
 
       if (salData.id) {
-        await base44.entities.SALSubappalto.update(salData.id, dataToSave);
+        await backendClient.entities.SALSubappalto.update(salData.id, dataToSave);
       } else {
-        await base44.entities.SALSubappalto.create(dataToSave);
+        await backendClient.entities.SALSubappalto.create(dataToSave);
       }
 
       // After saving, re-fetch the latest SALs to update the list and get the correct next numero_sal
-      const updatedSalList = await base44.entities.SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
+      const updatedSalList = await backendClient.entities.SALSubappalto.filter({ subappalto_id: subappalto.id }, "numero_sal");
       setSalList(updatedSalList); // Update the state with the fresh list
       setEditingRow(null);
 

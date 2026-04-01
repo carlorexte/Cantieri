@@ -169,7 +169,7 @@ export default function DashboardWidgetManager({ currentConfig, availableWidgets
           <Button variant="outline" onClick={() => setIsOpen(false)}>
             Annulla
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={handleSave} disabled={isSaving} className="">
             {isSaving ? "Salvataggio..." : "Salva Modifiche"}
           </Button>
         </div>

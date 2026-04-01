@@ -79,15 +79,10 @@ export function usePermissions() {
         const mod = override.permessi[module];
         if (mod[action] === true) return true;
         if (mod.admin && mod.admin[action] === true) return true;
-        
-        // If override exists for the module but value is false, IT BLOCKS even if global role says true?
-        // Usually Overrides are additive or replacements. 
-        // Let's assume Replacement for that module. 
-        // If the module object exists in override, we respect it.
-        // If the specific key is undefined/false in override, it's denied (if we treat it as replacement).
-        // BUT, usually "Override" means "Specific settings". 
-        // Let's implement: If module is defined in override, USE IT. Ignore Global.
-        return false; 
+
+        // If override explicitly denies, block. Otherwise fallback to global.
+        if (mod[action] === false) return false;
+        if (mod.admin && mod.admin[action] === false) return false;
     }
 
     // Fallback to Global Role

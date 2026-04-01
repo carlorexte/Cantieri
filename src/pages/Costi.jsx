@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,9 +86,9 @@ export default function CostiPage() {
     setIsLoading(true);
     try {
       const [costiData, cantieriData, user] = await Promise.all([
-        base44.entities.Costo.list("-data_sostenimento"),
-        base44.entities.Cantiere.list(),
-        base44.auth.me()
+        backendClient.entities.Costo.list("-data_sostenimento"),
+        backendClient.entities.Cantiere.list(),
+        backendClient.auth.me()
       ]);
       setCosti(costiData);
       setCantieri(cantieriData);
@@ -102,9 +102,9 @@ export default function CostiPage() {
   const handleSubmit = async (formData) => {
     try {
       if (editingCosto) {
-        await base44.entities.Costo.update(editingCosto.id, formData);
+        await backendClient.entities.Costo.update(editingCosto.id, formData);
       } else {
-        await base44.entities.Costo.create(formData);
+        await backendClient.entities.Costo.create(formData);
       }
       setShowForm(false);
       setEditingCosto(null);
@@ -117,7 +117,7 @@ export default function CostiPage() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo costo?")) {
       try {
-        await base44.entities.Costo.delete(id);
+        await backendClient.entities.Costo.delete(id);
         loadData();
       } catch (error) {
         console.error("Errore eliminazione:", error);
@@ -154,7 +154,7 @@ export default function CostiPage() {
                 <p className="text-slate-600 mt-1">Monitoraggio e gestione costi di cantiere</p>
               </div>
               {(currentUser?.role === 'admin' || hasPermission('costi', 'edit')) && (
-                <Button onClick={() => { setEditingCosto(null); setShowForm(true); }} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm">
+                <Button onClick={() => { setEditingCosto(null); setShowForm(true); }} className="shadow-sm">
                   <Plus className="w-5 h-5 mr-2" />
                   Nuovo Costo
                 </Button>

@@ -11,6 +11,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { assertSafeSpreadsheetBuffer } from './safeSpreadsheet';
 
 // ============================================================================
 // COSTANTI E CONFIGURAZIONE
@@ -506,6 +507,8 @@ export function parseXLSXCronoprogramma(fileBuffer, options = {}) {
   const logs = [];
   
   try {
+    assertSafeSpreadsheetBuffer(fileBuffer);
+
     // Leggi workbook
     const workbook = XLSX.read(fileBuffer, { 
       type: 'array', 

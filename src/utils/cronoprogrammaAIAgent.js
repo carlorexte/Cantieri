@@ -13,6 +13,7 @@
 
 import * as XLSX from 'xlsx';
 import { parseXLSXCronoprogramma } from './parseXLSXCronoprogramma';
+import { assertSafeSpreadsheetBuffer } from './safeSpreadsheet';
 
 // ============================================================================
 // PARSER PER GANTT ORIZZONTALI CON COLORI (Google Sheets / Excel)
@@ -622,6 +623,7 @@ function chooseBestResult(results) {
 
 export async function parseCronoprogrammaAIAgent(fileBuffer, options = {}) {
   const logs = ['[Parser Ibrido] Avvio pipeline parsing cronoprogramma (SENZA AI)'];
+  assertSafeSpreadsheetBuffer(fileBuffer);
 
   // 1. Prova parser per Gantt orizzontali con colori (Google Sheets, Excel grafici)
   const styled = (() => {

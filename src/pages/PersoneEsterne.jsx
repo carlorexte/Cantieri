@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -44,7 +44,7 @@ export default function PersoneEsterne() {
 
   const loadUser = async () => {
     try {
-      const user = await base44.auth.me();
+      const user = await backendClient.auth.me();
       setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento utente:", error);
@@ -54,7 +54,7 @@ export default function PersoneEsterne() {
   const loadPersone = async () => {
     setIsLoading(true);
     try {
-      const data = await base44.entities.PersonaEsterna.list("-created_date");
+      const data = await backendClient.entities.PersonaEsterna.list("-created_date");
       // Ordina alfabeticamente per cognome e poi per nome
       const sortedData = data.sort((a, b) => {
         const cognomeCompare = (a.cognome || '').localeCompare(b.cognome || '');
@@ -85,9 +85,9 @@ export default function PersoneEsterne() {
   const handleSubmit = async (personaData) => {
     try {
       if (editingPersona) {
-        await base44.entities.PersonaEsterna.update(editingPersona.id, personaData);
+        await backendClient.entities.PersonaEsterna.update(editingPersona.id, personaData);
       } else {
-        await base44.entities.PersonaEsterna.create(personaData);
+        await backendClient.entities.PersonaEsterna.create(personaData);
       }
       setShowForm(false);
       setEditingPersona(null);
@@ -100,7 +100,7 @@ export default function PersoneEsterne() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questa persona? L'azione è irreversibile.")) {
       try {
-        await base44.entities.PersonaEsterna.delete(id);
+        await backendClient.entities.PersonaEsterna.delete(id);
         loadPersone();
       } catch (error) {
         console.error("Errore eliminazione persona:", error);
@@ -130,7 +130,7 @@ export default function PersoneEsterne() {
                     setEditingPersona(null);
                     setShowForm(true);
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+                  className="shadow-sm"
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   Nuova Persona

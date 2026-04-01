@@ -21,7 +21,7 @@ import SalForm from "../components/sal/SalForm";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { toast } from "sonner";
 import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 import AdvancedSearch from "@/components/shared/AdvancedSearch";
@@ -67,10 +67,10 @@ export default function SalPage() {
     setIsLoading(true);
     try {
       const [salResponse, cantieriData, user] = await Promise.all([
-        base44.functions.invoke('getMySALs'),
+        backendClient.functions.invoke('getMySALs'),
         // Use getMyCantieri for consistency
-        base44.functions.invoke('getMyCantieri'),
-        base44.auth.me()
+        backendClient.functions.invoke('getMyCantieri'),
+        backendClient.auth.me()
       ]);
       
       const salPayload = salResponse.data || salResponse;
@@ -103,7 +103,7 @@ export default function SalPage() {
 
   const handleSubmit = async (salData) => {
     try {
-      await base44.entities.SAL.create(salData);
+      await backendClient.entities.SAL.create(salData);
       setShowForm(false);
       loadData();
       toast.success("SAL salvato con successo!");
@@ -122,7 +122,7 @@ export default function SalPage() {
     
     setLoadingDocumenti(true);
     try {
-      const docs = await base44.entities.Documento.filter({ 
+      const docs = await backendClient.entities.Documento.filter({ 
         entita_collegata_id: sal.cantiere_id,
         entita_collegata_tipo: 'cantiere',
         tipo_documento: 'economica_sal'
@@ -143,7 +143,7 @@ export default function SalPage() {
     setViewerOpen(true);
     
     try {
-      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ 
+      const { signed_url } = await backendClient.integrations.Core.CreateFileSignedUrl({ 
         file_uri: fileUri,
         expires_in: 3600
       });
@@ -257,7 +257,7 @@ export default function SalPage() {
                 </SelectContent>
               </Select>
               {canCreateSAL && (
-                <Button onClick={() => setShowForm(true)} className="bg-indigo-600 hover:bg-indigo-700 shadow-sm h-10" disabled={!selectedCantiereId}>
+                <Button onClick={() => setShowForm(true)} className="shadow-sm h-10" disabled={!selectedCantiereId}>
                   <Plus className="w-4 h-4 mr-2" />
                   Nuovo SAL
                 </Button>
@@ -490,7 +490,7 @@ export default function SalPage() {
                           </div>
                           <Button
                             onClick={() => handleViewFile(selectedSal.file_uri, `SAL_${selectedSal.numero_sal || 'Anticipo'}_${new Date(selectedSal.data_sal).toLocaleDateString('it-IT')}.pdf`)}
-                            className="bg-indigo-600 hover:bg-indigo-700"
+                            className=""
                           >
                             <ExternalLink className="w-4 h-4 mr-2" />
                             Apri

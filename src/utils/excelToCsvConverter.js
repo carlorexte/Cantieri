@@ -6,6 +6,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { assertSafeSpreadsheetBuffer } from './safeSpreadsheet';
 
 /**
  * Converte un file Excel in CSV e estrae le attività
@@ -24,6 +25,7 @@ export function convertExcelToActivities(fileBuffer, options = {}) {
 
   try {
     console.log('📖 Lettura workbook...');
+    assertSafeSpreadsheetBuffer(fileBuffer);
     
     // Leggi workbook
     const workbook = XLSX.read(fileBuffer, {

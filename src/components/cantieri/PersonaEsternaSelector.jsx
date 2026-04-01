@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function PersonaEsternaSelector({ value, onSelect, label = "Seleziona Persona" }) {
+export default function PersonaEsternaSelector({ value, onSelect, label = "Seleziona Persona", buttonClassName }) {
   const [open, setOpen] = useState(false);
   const [persone, setPersone] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(null);
@@ -26,7 +26,7 @@ export default function PersonaEsternaSelector({ value, onSelect, label = "Selez
 
   const loadPersone = async () => {
     try {
-      const data = await base44.entities.PersonaEsterna.list("nome");
+      const data = await backendClient.entities.PersonaEsterna.list("nome");
       setPersone(data);
     } catch (error) {
       console.error("Errore caricamento persone:", error);
@@ -51,7 +51,7 @@ export default function PersonaEsternaSelector({ value, onSelect, label = "Selez
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className={cn("w-full justify-between", buttonClassName)}
         >
           {selectedPersona ? `${selectedPersona.nome} ${selectedPersona.cognome}${selectedPersona.qualifica ? ` - ${selectedPersona.qualifica}` : ''}` : label}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

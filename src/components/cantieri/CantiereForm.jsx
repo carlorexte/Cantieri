@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Save, X, Plus, Trash2, Building2, Calendar, Euro, FileText, Users, User, Briefcase, Handshake, ClipboardList, Database, Edit, PlusCircle } from "lucide-react";
-import { addDays, format, parseISO } from 'date-fns';
+import { Save, X, Plus, Trash2, Building2, Calendar, Euro, FileText, Users, User, Briefcase, Handshake, ClipboardList, Database, Edit, PlusCircle, AlertCircle, Loader2 } from "lucide-react";
+import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 
 import CategorieSOASelector from "./CategorieSOASelector";
 import ImpresaSelectorForCantiere from "./ImpresaSelectorForCantiere";
@@ -24,7 +24,29 @@ import PersonaEsternaSelector from "./PersonaEsternaSelector";
 import PolizzaUploader from "./PolizzaUploader"; // Added PolizzaUploader import
 import DocumentUploader from "./DocumentUploader"; // Added DocumentUploader import
 
-export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Removed onDirtyChange prop
+const validateCF = (cf) => {
+  if (!cf) return null;
+  const v = cf.trim().toUpperCase();
+  if (/^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/.test(v)) return null;
+  if (/^[0-9]{11}$/.test(v)) return null;
+  return "Codice fiscale non valido (16 caratteri per persone fisiche o 11 cifre per enti)";
+};
+
+const validatePIVA = (piva) => {
+  if (!piva) return null;
+  if (/^[0-9]{11}$/.test(piva.trim())) return null;
+  return "Partita IVA non valida (11 cifre)";
+};
+
+const FieldError = ({ error }) =>
+  error ? (
+    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+      {error}
+    </p>
+  ) : null;
+
+export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChange, isSaving }) {
   const [form, setForm] = useState({
     denominazione: cantiere?.denominazione || "",
     referente_interno: cantiere?.referente_interno || "",
@@ -132,6 +154,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
 
   const [initialData, setInitialData] = useState("");
   const [teams, setTeams] = useState([]);
+  const [errors, setErrors] = useState({});
 
   // State for Subappalti and Subaffidamenti
   const [subappalti, setSubappalti] = useState([]);
@@ -255,11 +278,15 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     setInitialData(JSON.stringify(data));
   }, [cantiere, calculateImportoContrattualeFromCantiere]);
 
-  // Removed onDirtyChange useEffect block
+  useEffect(() => {
+    if (onDirtyChange && initialData) {
+      onDirtyChange(JSON.stringify(form) !== initialData);
+    }
+  }, [form, initialData, onDirtyChange]);
 
   const loadSubappaltiSubaffidamenti = useCallback(async (cantiereId) => {
     try {
-      const data = await base44.entities.Subappalto.filter({ cantiere_id: cantiereId });
+      const data = await backendClient.entities.Subappalto.filter({ cantiere_id: cantiereId });
       setSubappalti(data.filter(s => s.tipo_relazione === "subappalto"));
       setSubaffidamenti(data.filter(s => s.tipo_relazione === "subaffidamento"));
     } catch (error) {
@@ -275,7 +302,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
     // Load Teams
     const loadTeams = async () => {
       try {
-        const teamsList = await base44.entities.Team.list("nome");
+        const teamsList = await backendClient.entities.Team.list("nome");
         setTeams(teamsList);
       } catch (error) {
         console.error("Errore caricamento teams:", error);
@@ -286,12 +313,21 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
 
 
   const updateField = useCallback((field, value) => {
+    setErrors(prev => {
+      if (prev[field]) {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      }
+      return prev;
+    });
     setForm(prev => {
       const updatedForm = { ...prev, [field]: value };
 
       const startDate = updatedForm.data_inizio;
       const duration = parseInt(updatedForm.giorni_previsti, 10);
 
+      // data_inizio o giorni_previsti → calcola data_fine_prevista
       if ((field === 'data_inizio' || field === 'giorni_previsti') && startDate && !isNaN(duration) && duration > 0) {
         try {
           const endDate = addDays(parseISO(startDate), duration - 1);
@@ -300,6 +336,17 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
           console.error("Errore nel calcolo della data di fine prevista:", e);
         }
       }
+
+      // data_fine_prevista modificata direttamente → calcola giorni_previsti
+      if (field === 'data_fine_prevista' && startDate && value) {
+        try {
+          const days = differenceInDays(parseISO(value), parseISO(startDate)) + 1;
+          if (days > 0) updatedForm.giorni_previsti = days;
+        } catch (e) {
+          console.error("Errore nel calcolo dei giorni:", e);
+        }
+      }
+
       return updatedForm;
     });
   }, []);
@@ -350,9 +397,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
   const handleSubappaltoSubmit = async (subappaltoData) => {
     try {
       if (editingSubappalto) {
-        await base44.entities.Subappalto.update(editingSubappalto.id, subappaltoData);
+        await backendClient.entities.Subappalto.update(editingSubappalto.id, subappaltoData);
       } else {
-        await base44.entities.Subappalto.create(subappaltoData);
+        await backendClient.entities.Subappalto.create(subappaltoData);
       }
       setShowSubappaltoDialog(false);
       setShowSubaffidamentoDialog(false);
@@ -368,7 +415,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
   const handleDeleteSubappalto = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) {
       try {
-        await base44.entities.Subappalto.delete(id);
+        await backendClient.entities.Subappalto.delete(id);
         if (cantiere?.id) {
           loadSubappaltiSubaffidamenti(cantiere.id);
         }
@@ -381,28 +428,133 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
 
+    // Validazione campi obbligatori e formato
+    const newErrors = {};
+    if (!form.denominazione?.trim()) newErrors.denominazione = "Campo obbligatorio";
+    if (!form.data_inizio) newErrors.data_inizio = "Campo obbligatorio";
+    const cfCommittenteErr = validateCF(form.committente_cf);
+    if (cfCommittenteErr) newErrors.committente_cf = cfCommittenteErr;
+    const pivaCommittenteErr = validatePIVA(form.committente_piva);
+    if (pivaCommittenteErr) newErrors.committente_piva = pivaCommittenteErr;
+    const cfAppaltatriceErr = validateCF(form.azienda_appaltatrice_cf);
+    if (cfAppaltatriceErr) newErrors.azienda_appaltatrice_cf = cfAppaltatriceErr;
+    const pivaAppaltatriceErr = validatePIVA(form.azienda_appaltatrice_piva);
+    if (pivaAppaltatriceErr) newErrors.azienda_appaltatrice_piva = pivaAppaltatriceErr;
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     const importoContrattualeOltreIva = parseFloat(getImportoContrattuale()) || 0;
     const ivaPercentuale = parseFloat(form.percentuale_iva) || 0;
     const importoTotaleConIva = importoContrattualeOltreIva * (1 + ivaPercentuale / 100);
 
+    // Sanitizzazione AGGRESSIVA: converte TUTTE le stringhe vuote in null
+    const sanitizeValue = (value) => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'string' && value.trim() === '') return null;
+      return value;
+    };
+
     const dataToSubmit = {
-      ...form,
-      // Ensure arrays are preserved
-      verbali_consegna: form.verbali_consegna,
-      date_consegna: form.date_consegna,
-      contatti_committente: form.contatti_committente,
-      team_assegnati: form.team_assegnati,
+      // Campi principali
+      denominazione: sanitizeValue(form.denominazione),
+      referente_interno: sanitizeValue(form.referente_interno),
+      oggetto_lavori: sanitizeValue(form.oggetto_lavori),
+      codice_cig: sanitizeValue(form.codice_cig),
+      codice_cup: sanitizeValue(form.codice_cup),
+      indirizzo: sanitizeValue(form.indirizzo),
+      indirizzo_cap: sanitizeValue(form.indirizzo_cap),
+      indirizzo_citta: sanitizeValue(form.indirizzo_citta),
+      stato: sanitizeValue(form.stato),
+      note: sanitizeValue(form.note),
+      tipologia_appalto: sanitizeValue(form.tipologia_appalto),
+      
+      // Date
+      data_consegna_area: sanitizeValue(form.data_consegna_area),
+      data_inizio: sanitizeValue(form.data_inizio),
+      data_fine_prevista: sanitizeValue(form.data_fine_prevista),
+      data_inizio_proroga_1: sanitizeValue(form.data_inizio_proroga_1),
+      data_fine_proroga_1: sanitizeValue(form.data_fine_proroga_1),
+      data_inizio_proroga_2: sanitizeValue(form.data_inizio_proroga_2),
+      data_fine_proroga_2: sanitizeValue(form.data_fine_proroga_2),
+      data_inizio_sospensione: sanitizeValue(form.data_inizio_sospensione),
+      data_fine_sospensione: sanitizeValue(form.data_fine_sospensione),
+      contratto_data_firma: sanitizeValue(form.contratto_data_firma),
+      contratto_principale_data: sanitizeValue(form.contratto_principale_data),
+      
+      // Numeri
       importo_lavori_netto_ribasso: parseFloat(form.importo_lavori_netto_ribasso) || null,
       importo_progettazione: parseFloat(form.importo_progettazione) || null,
       oneri_sicurezza_importo: parseFloat(form.oneri_sicurezza_importo) || null,
       importo_contrattuale_oltre_iva: importoContrattualeOltreIva || null,
-      importo_contratto: importoTotaleConIva || null, // AGGIUNTO: importo totale comprensivo di IVA
+      importo_contratto: importoTotaleConIva || null,
       percentuale_iva: parseFloat(form.percentuale_iva) || null,
       percentuale_ribasso: parseFloat(form.percentuale_ribasso) || null,
-      giorni_previsti: parseInt(form.giorni_previsti, 10) || null
+      giorni_previsti: parseInt(form.giorni_previsti, 10) || null,
+      
+      // UUID
+      responsabile_sicurezza_id: sanitizeValue(form.responsabile_sicurezza_id),
+      direttore_lavori_id: sanitizeValue(form.direttore_lavori_id),
+      responsabile_unico_procedimento_id: sanitizeValue(form.responsabile_unico_procedimento_id),
+      
+      // Polizze
+      polizza_definitiva_numero: sanitizeValue(form.polizza_definitiva_numero),
+      polizza_definitiva_url: sanitizeValue(form.polizza_definitiva_url),
+      polizza_definitiva_scadenza: sanitizeValue(form.polizza_definitiva_scadenza),
+      polizza_definitiva_durata: sanitizeValue(form.polizza_definitiva_durata),
+      polizza_definitiva_agenzia: sanitizeValue(form.polizza_definitiva_agenzia),
+      polizza_car_numero: sanitizeValue(form.polizza_car_numero),
+      polizza_car_url: sanitizeValue(form.polizza_car_url),
+      polizza_car_scadenza: sanitizeValue(form.polizza_car_scadenza),
+      polizza_car_durata: sanitizeValue(form.polizza_car_durata),
+      polizza_car_agenzia: sanitizeValue(form.polizza_car_agenzia),
+      polizza_anticipazione_numero: sanitizeValue(form.polizza_anticipazione_numero),
+      polizza_anticipazione_url: sanitizeValue(form.polizza_anticipazione_url),
+      polizza_anticipazione_scadenza: sanitizeValue(form.polizza_anticipazione_scadenza),
+      polizza_anticipazione_durata: sanitizeValue(form.polizza_anticipazione_durata),
+      polizza_anticipazione_agenzia: sanitizeValue(form.polizza_anticipazione_agenzia),
+      
+      // Committente
+      committente_ragione_sociale: sanitizeValue(form.committente_ragione_sociale),
+      committente_indirizzo: sanitizeValue(form.committente_indirizzo),
+      committente_cap: sanitizeValue(form.committente_cap),
+      committente_citta: sanitizeValue(form.committente_citta),
+      committente_telefono: sanitizeValue(form.committente_telefono),
+      committente_email: sanitizeValue(form.committente_email),
+      committente_cf: sanitizeValue(form.committente_cf),
+      committente_piva: sanitizeValue(form.committente_piva),
+      committente_referente_ragione_sociale: sanitizeValue(form.committente_referente_ragione_sociale),
+      committente_referente_indirizzo: sanitizeValue(form.committente_referente_indirizzo),
+      committente_referente_cap: sanitizeValue(form.committente_referente_cap),
+      committente_referente_citta: sanitizeValue(form.committente_referente_citta),
+      committente_referente_telefono: sanitizeValue(form.committente_referente_telefono),
+      committente_referente_email: sanitizeValue(form.committente_referente_email),
+      committente_referente_cf: sanitizeValue(form.committente_referente_cf),
+      committente_referente_piva: sanitizeValue(form.committente_referente_piva),
+      
+      // Azienda appaltatrice
+      tipologia_azienda_appaltatrice: sanitizeValue(form.tipologia_azienda_appaltatrice),
+      azienda_appaltatrice_ragione_sociale: sanitizeValue(form.azienda_appaltatrice_ragione_sociale),
+      azienda_appaltatrice_indirizzo: sanitizeValue(form.azienda_appaltatrice_indirizzo),
+      azienda_appaltatrice_cap: sanitizeValue(form.azienda_appaltatrice_cap),
+      azienda_appaltatrice_citta: sanitizeValue(form.azienda_appaltatrice_citta),
+      azienda_appaltatrice_telefono: sanitizeValue(form.azienda_appaltatrice_telefono),
+      azienda_appaltatrice_email: sanitizeValue(form.azienda_appaltatrice_email),
+      azienda_appaltatrice_cf: sanitizeValue(form.azienda_appaltatrice_cf),
+      azienda_appaltatrice_piva: sanitizeValue(form.azienda_appaltatrice_piva),
+      
+      // Array
+      verbali_consegna: form.verbali_consegna || [],
+      date_consegna: form.date_consegna || [],
+      contatti_committente: form.contatti_committente || [],
+      team_assegnati: form.team_assegnati || [],
+      categorie_soa: form.categorie_soa || [],
+      partner_consorziati: form.partner_consorziati || [],
     };
+    
+    console.log('[CantiereForm.handleSubmit] Data da inviare:', dataToSubmit);
     onSubmit(dataToSubmit);
-    // Removed onDirtyChange(false)
   }, [form, onSubmit, getImportoContrattuale]);
 
   return (
@@ -426,7 +578,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                     <Input
                       value={form.denominazione}
                       onChange={(e) => updateField("denominazione", e.target.value)}
-                      required />
+                      className={errors.denominazione ? "border-red-500" : ""}
+                    />
+                    <FieldError error={errors.denominazione} />
                   </div>
                   <div>
                     <Label>Referente Interno</Label>
@@ -683,7 +837,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                           type="date"
                           value={form.data_inizio}
                           onChange={(e) => updateField("data_inizio", e.target.value)}
-                          required />
+                          className={errors.data_inizio ? "border-red-500" : ""}
+                        />
+                        <FieldError error={errors.data_inizio} />
                       </div>
                       <div>
                         <Label>Giorni Previsti</Label>
@@ -694,13 +850,13 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                           placeholder="es. 90" />
                       </div>
                       <div>
-                        <Label>Fine Prevista (auto)</Label>
+                        <Label>Fine Prevista</Label>
                         <Input
                           type="date"
                           value={form.data_fine_prevista}
                           onChange={(e) => updateField("data_fine_prevista", e.target.value)}
-                          className="bg-slate-100"
-                          readOnly />
+                        />
+                        <p className="text-xs text-slate-400 mt-1">Calcolata automaticamente da inizio + giorni</p>
                       </div>
                       <div>
                         <Label>Consegna Area (Precedente)</Label>
@@ -1104,16 +1260,22 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel }) { // Remo
                       <Input
                         value={form.committente_cf}
                         onChange={(e) => updateField("committente_cf", e.target.value)}
+                        onBlur={() => { const err = validateCF(form.committente_cf); if (err) setErrors(p => ({ ...p, committente_cf: err })); }}
                         placeholder="00000000000"
+                        className={errors.committente_cf ? "border-red-500" : ""}
                       />
+                      <FieldError error={errors.committente_cf} />
                     </div>
                     <div>
                       <Label>Partita IVA</Label>
                       <Input
                         value={form.committente_piva}
                         onChange={(e) => updateField("committente_piva", e.target.value)}
+                        onBlur={() => { const err = validatePIVA(form.committente_piva); if (err) setErrors(p => ({ ...p, committente_piva: err })); }}
                         placeholder="00000000000"
+                        className={errors.committente_piva ? "border-red-500" : ""}
                       />
+                      <FieldError error={errors.committente_piva} />
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 // Entities compatibility layer
-import { base44 } from './base44Client';
+import { backendClient } from './backendClient';
 
-export const Query = base44.entities.Query;
-export const User = base44.auth;
+export const Query = backendClient.entities.Query;
+export const User = backendClient.auth;

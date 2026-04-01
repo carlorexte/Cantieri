@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
 import * as XLSX from 'npm:xlsx@0.18.5';
+import { assertSafeSpreadsheetBytes } from './spreadsheetSafety.ts';
 
 Deno.serve(async (req) => {
     console.log('=== IMPORTAZIONE CRONOPROGRAMMA SEMPLIFICATA ===');
@@ -25,6 +26,7 @@ Deno.serve(async (req) => {
             bytes[i] = binaryString.charCodeAt(i);
         }
 
+        assertSafeSpreadsheetBytes(bytes);
         const workbook = XLSX.read(bytes, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(worksheet);

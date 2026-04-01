@@ -1,12 +1,12 @@
 // Integrations compatibility layer
-import { base44 } from './base44Client';
+import { backendClient } from './backendClient';
 
-export const Core = base44.integrations.Core;
-export const InvokeLLM = base44.integrations.Core.InvokeLLM;
-export const SendEmail = base44.integrations.Core.SendEmail;
-export const SendSMS = base44.integrations.Core.SendSMS;
-export const UploadFile = base44.integrations.Core.UploadFile;
-export const GenerateImage = base44.integrations.Core.GenerateImage;
-export const ExtractDataFromUploadedFile = base44.integrations.Core.ExtractDataFromUploadedFile;
-export const CreateFileSignedUrl = base44.integrations.Core.CreateFileSignedUrl;
-export const UploadPrivateFile = base44.integrations.Core.UploadPrivateFile;
+export const Core = backendClient.integrations.Core;
+export const InvokeLLM = backendClient.integrations.Core.InvokeLLM;
+export const SendEmail = backendClient.integrations.Core.SendEmail;
+export const SendSMS = backendClient.integrations.Core.SendSMS;
+export const UploadFile = backendClient.integrations.Core.UploadFile;
+export const GenerateImage = backendClient.integrations.Core.GenerateImage;
+export const ExtractDataFromUploadedFile = backendClient.integrations.Core.ExtractDataFromUploadedFile;
+export const CreateFileSignedUrl = backendClient.integrations.Core.CreateFileSignedUrl;
+export const UploadPrivateFile = backendClient.integrations.Core.UploadPrivateFile;

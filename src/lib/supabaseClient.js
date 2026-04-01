@@ -2,19 +2,66 @@
  * Supabase Client Diretto
  * 
  * Configurazione per connettersi direttamente a Supabase
- * senza passare per Base44
+ * senza passare per backendClient
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { createPlanningActivity, planningActivitiesToDb } from '@/utils/planningModel';
 
+// Colonne che potrebbero non esistere in tutte le tabelle attivita
 const OPTIONAL_ATTIVITA_COLUMNS = [
   'parent_id',
   'vincolo_tipo',
   'vincolo_data',
   'baseline_start_date',
-  'baseline_end_date'
+  'baseline_end_date',
+  'livello',
+  'note',
+  'gruppo_fase',
+  'colore',
+  'categoria',
+  'predecessori',
+  'responsabile',
+  'assegnatario_tipo',
+  'assegnatario_id',
+  'percentuale_completamento',
+  'importo_eseguito',
+  'wbs_code'
 ];
+
+// Colonne OBBLIGATORIE per attivita (queste devono esistere SEMPRE)
+const REQUIRED_ATTIVITA_COLUMNS = [
+  'id',
+  'cantiere_id',
+  'wbs',
+  'descrizione',
+  'tipo_attivita',
+  'data_inizio',
+  'data_fine',
+  'durata_giorni',
+  'importo_previsto',
+  'stato',
+  'created_date',
+  'updated_date'
+];
+
+const UUID_FIELD_NAMES = new Set([
+  'id',
+  'referente_impresa_id',
+  'responsabile_sicurezza_id',
+  'cantiere_id',
+  'impresa_id',
+  'socio_id',
+  'subappalto_id',
+  'responsabile_id',
+  'assegnatario_id',
+  'sub_user_id',
+  'societa_intestataria_id',
+  'attivita_collegata_id',
+  'parent_id'
+]);
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isMissingColumnError(error) {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
@@ -36,6 +83,41 @@ function stripUnsupportedAttivitaColumns(payload) {
   for (const column of OPTIONAL_ATTIVITA_COLUMNS) {
     delete next[column];
   }
+  return next;
+}
+
+function sanitizeRecord(payload, { dropEmptyId = false } = {}) {
+  const next = {};
+
+  Object.entries(payload || {}).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+
+      if (trimmed === '') {
+        if (dropEmptyId && key === 'id') {
+          return;
+        }
+
+        next[key] = null;
+        return;
+      }
+
+      if (UUID_FIELD_NAMES.has(key) && !UUID_PATTERN.test(trimmed)) {
+        next[key] = null;
+        return;
+      }
+
+      next[key] = trimmed;
+      return;
+    }
+
+    next[key] = value;
+  });
+
+  if (dropEmptyId && !next.id) {
+    delete next.id;
+  }
+
   return next;
 }
 
@@ -83,7 +165,7 @@ export const supabaseDB = {
         .from('cantieri')
         .select('*')
         .order('created_date', { ascending: false });
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -94,40 +176,85 @@ export const supabaseDB = {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
 
     create: async (cantiere) => {
+      // Sanitizza i campi UUID: stringa vuota → null
+      const sanitized = {};
+      Object.entries(cantiere || {}).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed === '') {
+            sanitized[key] = null;
+            return;
+          }
+          if (UUID_FIELD_NAMES.has(key) && trimmed && !UUID_PATTERN.test(trimmed)) {
+            sanitized[key] = null;
+            return;
+          }
+          sanitized[key] = trimmed;
+          return;
+        }
+        sanitized[key] = value;
+      });
+
       const { data, error } = await supabase
         .from('cantieri')
-        .insert([cantiere])
+        .insert([sanitized])
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
 
     update: async (id, updates) => {
+      // Sanitizza i campi UUID: stringa vuota → null
+      const sanitized = {};
+      Object.entries(updates || {}).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed === '') {
+            sanitized[key] = null;
+            return;
+          }
+          if (UUID_FIELD_NAMES.has(key) && trimmed && !UUID_PATTERN.test(trimmed)) {
+            sanitized[key] = null;
+            return;
+          }
+          sanitized[key] = trimmed;
+          return;
+        }
+        sanitized[key] = value;
+      });
+
       const { data, error } = await supabase
         .from('cantieri')
-        .update(updates)
+        .update(sanitized)
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
 
     delete: async (id) => {
+      // Ensure attivita linked to the cantiere are removed first to avoid FK conflicts.
+      try {
+        await supabaseDB.attivita.deleteByCantiere(id);
+      } catch (cleanupError) {
+        console.warn("Unable to cascade delete attivita for cantiere:", cleanupError.message);
+      }
+
       const { error } = await supabase
         .from('cantieri')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
       return true;
     }
@@ -140,7 +267,7 @@ export const supabaseDB = {
         .from('attivita')
         .select('*')
         .order('wbs', { ascending: true });
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -151,7 +278,7 @@ export const supabaseDB = {
         .select('*')
         .eq('cantiere_id', cantiereId)
         .order('wbs', { ascending: true });
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -163,7 +290,7 @@ export const supabaseDB = {
           .insert([payload])
           .select()
           .single();
-      
+
         if (error) throw error;
         return data;
       };
@@ -177,7 +304,7 @@ export const supabaseDB = {
           .from('attivita')
           .insert(payload)
           .select();
-        
+
         if (error) throw error;
         return data || [];
       };
@@ -193,7 +320,7 @@ export const supabaseDB = {
           .eq('id', id)
           .select()
           .single();
-        
+
         if (error) throw error;
         return data;
       };
@@ -206,7 +333,7 @@ export const supabaseDB = {
         .from('attivita')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
       return true;
     },
@@ -216,7 +343,7 @@ export const supabaseDB = {
         .from('attivita')
         .delete()
         .eq('cantiere_id', cantiereId);
-      
+
       if (error) throw error;
       return true;
     }
@@ -229,7 +356,7 @@ export const supabaseDB = {
         .from('imprese')
         .select('*')
         .order('ragione_sociale', { ascending: true });
-      
+
       if (error) {
         const isMissingRelation =
           error.code === 'PGRST205' ||
@@ -247,37 +374,53 @@ export const supabaseDB = {
     },
 
     create: async (impresa) => {
-      const payload = {
-        ...impresa,
-        // sincronizza denominazione (colonna originale NOT NULL) con ragione_sociale
-        denominazione: impresa.ragione_sociale || impresa.denominazione || '',
-        created_date: impresa?.created_date || new Date().toISOString(),
-        updated_date: new Date().toISOString(),
-      };
+      console.log('supabaseDB.imprese.create - payload originale:', impresa);
+
+      const payload = sanitizeRecord(impresa, { dropEmptyId: true });
+
+      // Sincronizza denominazione (NOT NULL) con ragione_sociale
+      payload.denominazione = payload.ragione_sociale || payload.denominazione || 'Nuova Impresa';
+      payload.created_date = payload.created_date || new Date().toISOString();
+      payload.updated_date = new Date().toISOString();
+
+      console.log('supabaseDB.imprese.create - payload sanitizzato:', payload);
+
       const { data, error } = await supabase
         .from('imprese')
         .insert([payload])
         .select()
         .single();
-      
-      if (error) throw error;
+
+      if (error) {
+        console.error('supabaseDB.imprese.create - Errore:', error);
+        throw error;
+      }
       return data;
     },
 
     update: async (id, updates) => {
-      const payload = {
-        ...updates,
-        denominazione: updates.ragione_sociale || updates.denominazione || '',
-        updated_date: new Date().toISOString(),
-      };
+      console.log(`supabaseDB.imprese.update - id: ${id}, updates:`, updates);
+
+      const payload = sanitizeRecord(updates);
+
+      if (payload.ragione_sociale || payload.denominazione) {
+        payload.denominazione = payload.ragione_sociale || payload.denominazione;
+      }
+      payload.updated_date = new Date().toISOString();
+
+      console.log('supabaseDB.imprese.update - payload sanitizzato:', payload);
+
       const { data, error } = await supabase
         .from('imprese')
         .update(payload)
         .eq('id', id)
         .select()
         .single();
-      
-      if (error) throw error;
+
+      if (error) {
+        console.error('supabaseDB.imprese.update - Errore:', error);
+        throw error;
+      }
       return data;
     },
 
@@ -286,7 +429,7 @@ export const supabaseDB = {
         .from('imprese')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
       return true;
     }

@@ -914,7 +914,7 @@ export default function GanttAvanzato({
             <FileDown className="w-4 h-4 mr-2" />
             Export PDF
           </Button>
-          <Button size="sm" onClick={onAddAttivita} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button size="sm" onClick={onAddAttivita} className="">
             <Plus className="w-4 h-4 mr-2" />
             Aggiungi Voce
           </Button>

@@ -5,8 +5,15 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Implicit flow: #access_token=... in hash
+        // Check for password recovery hash
         const hash = window.location.hash;
+        if (hash && hash.includes('recover-password')) {
+          // User came from password recovery email
+          window.location.replace('/reset-password?recovered=true');
+          return;
+        }
+
+        // Implicit flow: #access_token=... in hash
         if (hash) {
           const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
           const access_token = params.get('access_token');
@@ -21,7 +28,7 @@ export default function AuthCallback() {
         // PKCE flow: ?code=... in query string
         const code = new URLSearchParams(window.location.search).get('code');
         if (code) {
-          await supabase.auth.exchangeCodeForSession(window.location.href);
+          await supabase.auth.exchangeCodeForSession(code);
           window.location.replace('/');
           return;
         }

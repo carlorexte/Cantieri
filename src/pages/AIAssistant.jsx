@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Send, Bot, User as UserIcon, Sparkles, Mail, Settings, Play, CheckCircle2, AlertCircle, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,15 +54,15 @@ function EmailIntegrationPanel() {
     const queryClient = useQueryClient();
     const { data: users } = useQuery({
         queryKey: ['users-list'],
-        queryFn: () => base44.entities.User.list(),
+        queryFn: () => backendClient.entities.User.list(),
         initialData: []
     });
 
     const { data: config, isLoading } = useQuery({
         queryKey: ['email-config'],
         queryFn: async () => {
-            if (!base44.entities?.EmailConfig) return null;
-            const list = await base44.entities.EmailConfig.list(1);
+            if (!backendClient.entities?.EmailConfig) return null;
+            const list = await backendClient.entities.EmailConfig.list(1);
             return list[0] || null;
         }
     });
@@ -70,16 +70,16 @@ function EmailIntegrationPanel() {
     const updateConfig = useMutation({
         mutationFn: async (data) => {
             if (config) {
-                return base44.entities.EmailConfig.update(config.id, data);
+                return backendClient.entities.EmailConfig.update(config.id, data);
             } else {
-                return base44.entities.EmailConfig.create(data);
+                return backendClient.entities.EmailConfig.create(data);
             }
         },
         onSuccess: () => queryClient.invalidateQueries(['email-config'])
     });
 
     const runProcess = useMutation({
-        mutationFn: () => base44.functions.invoke('processEmails'),
+        mutationFn: () => backendClient.functions.invoke('processEmails'),
         onSuccess: (res) => {
             if (res.error) {
                 toast.error("Errore: " + res.error);
@@ -241,7 +241,7 @@ export default function AIAssistantPage() {
     const initConversation = async (forceNew = false) => {
         try {
             if (forceNew) {
-                const newConv = await base44.agents.createConversation({
+                const newConv = await backendClient.agents.createConversation({
                     agent_name: 'analyst',
                     metadata: { name: `Analysis ${new Date().toLocaleString()}` }
                 });
@@ -252,14 +252,14 @@ export default function AIAssistantPage() {
             }
 
             // Check for existing or create new
-            const existing = await base44.agents.listConversations({ agent_name: 'analyst' });
+            const existing = await backendClient.agents.listConversations({ agent_name: 'analyst' });
             let convId;
             // Get the most recent one if multiple exist
             if (existing && existing.length > 0) {
                 convId = existing[0].id;
                 setMessages(existing[0].messages || []);
             } else {
-                const newConv = await base44.agents.createConversation({
+                const newConv = await backendClient.agents.createConversation({
                     agent_name: 'analyst',
                     metadata: { name: "General Analysis" }
                 });
@@ -286,7 +286,7 @@ export default function AIAssistantPage() {
     useEffect(() => {
         if (!conversationId) return;
 
-        const unsubscribe = base44.agents.subscribeToConversation(conversationId, (data) => {
+        const unsubscribe = backendClient.agents.subscribeToConversation(conversationId, (data) => {
             setMessages(data.messages);
             setIsLoading(data.status === 'running');
         });
@@ -309,7 +309,7 @@ export default function AIAssistantPage() {
         setIsLoading(true);
 
         try {
-            await base44.agents.addMessage({ id: conversationId }, {
+            await backendClient.agents.addMessage({ id: conversationId }, {
                 role: "user",
                 content: content
             });
@@ -404,9 +404,9 @@ export default function AIAssistantPage() {
                                 <Bot className="h-5 w-5 text-white" />
                             </div>
                             <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm flex items-center gap-2">
-                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                         </div>
                     )}
@@ -418,14 +418,14 @@ export default function AIAssistantPage() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Chiedi all'IA di analizzare i dati..."
-                            className="pr-12 py-6 rounded-xl border-slate-200 focus-visible:ring-indigo-500"
+                            className="pr-12 py-6 rounded-xl border-slate-200"
                             disabled={isLoading}
                         />
                         <Button 
                             type="submit" 
                             size="icon" 
                             disabled={isLoading || !input.trim()}
-                            className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-all"
+                            className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg transition-all"
                         >
                             <Send className="w-4 h-4" />
                         </Button>

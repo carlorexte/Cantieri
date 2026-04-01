@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, ExternalLink, Loader2, FileText, ZoomIn, ZoomOut } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { toast } from 'sonner';
 
 export default function DocumentViewer({ documento, isOpen, onClose }) {
@@ -32,7 +32,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       let signedUrl = documento.cloud_file_url;
       
       if (documento.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
+        const result = await backendClient.integrations.Core.CreateFileSignedUrl({
           file_uri: documento.file_uri,
           expires_in: 3600
         });
@@ -50,7 +50,7 @@ export default function DocumentViewer({ documento, isOpen, onClose }) {
       // Gestione speciale per .p7m: estrazione contenuto tramite backend
       if (documento.nome_documento?.toLowerCase().endsWith('.p7m') || documento.file_uri?.toLowerCase().endsWith('.p7m')) {
         try {
-          const res = await base44.functions.invoke('previewP7M', { 
+          const res = await backendClient.functions.invoke('previewP7M', { 
             file_uri: documento.file_uri,
             cloud_file_url: documento.cloud_file_url
           });

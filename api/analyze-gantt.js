@@ -1,55 +1,30 @@
-const VISION_PROMPT = `Sei un esperto in project management e cronoprogrammi edilizi.
-Analizza questa immagine di Gantt chart e estrai TUTTE le attività visibili.
+const VISION_PROMPT = `Analizza questo Gantt chart ed estrai le attività principali.
 
-REGOLE CRITICHE:
-1. Date in formato ISO: YYYY-MM-DD (esempio: 2025-03-15)
-2. data_fine deve essere >= data_inizio SEMPRE
-3. Descrizione obbligatoria per ogni attività, mai vuota
-4. Se vedi date relative come "Q1 2025", convertile: Q1=01/01-03/31, Q2=04/01-06/30, etc.
-5. Se mancano date precise, stimale dalla posizione visiva delle barre colorate
+IMPORTANTE: Devi rispondere SOLO con JSON valido. NIENTE altro testo.
 
-TIPI DI ATTIVITÀ:
-- "task": attività normale con durata >1 giorno
-- "milestone": evento puntuale, durata 1 giorno, simbolo rombo/stella
-- "raggruppamento": fase/categoria (testo spesso MAIUSCOLO, durata >10 giorni)
-
-GERARCHIA (livello):
-- 0: Fasi principali (es: "FONDAZIONI")
-- 1: Attività standard (es: "Scavo fondazioni")
-- 2: Sotto-attività (es: "Scavo manuale zona A")
-
-ESTRAI per ogni attività:
-1. descrizione: testo esatto dell'attività
-2. data_inizio: data inizio formato YYYY-MM-DD
-3. data_fine: data fine formato YYYY-MM-DD
-4. durata_giorni: numero giorni (calcolato da fine-inizio+1)
-5. tipo_attivita: task/milestone/raggruppamento
-6. livello: 0, 1 o 2 in base a indentazione/gerarchia
-7. wbs: codice WBS se presente (es: "1.2.3")
-8. colore: colore barra in hex (es: "#3b82f6")
-
-Rispondi in JSON con questa struttura:
+Struttura JSON richiesta:
 {
   "attivita": [
     {
       "descrizione": "Nome attività",
-      "data_inizio": "2025-04-01",
-      "data_fine": "2025-04-15",
-      "durata_giorni": 15,
+      "data_inizio": "2026-01-15",
+      "data_fine": "2026-01-30",
+      "durata_giorni": 16,
       "tipo_attivita": "task",
-      "livello": 1,
-      "wbs": "1.1",
-      "colore": "#3b82f6"
+      "livello": 1
     }
-  ],
-  "metadata": {
-    "ganttType": "horizontal",
-    "confidence": "high",
-    "totalActivities": 10
-  }
+  ]
 }
 
-Rispondi SOLO con JSON valido, senza markdown o altri testi.`;
+REGOLE:
+- Estrai SOLO le attività principali (max 20 attività)
+- Date in formato YYYY-MM-DD
+- tipo_attivita: "task", "milestone", o "raggruppamento"
+- livello: 0 (fasi principali), 1 (attività normali)
+- Se data illeggibile: usa "2026-01-01"
+- Chiudi SEMPRE il JSON correttamente
+
+Rispondi SOLO con il JSON, niente spiegazioni.`;
 
 function applyCors(req, res) {
   const origin = req.headers.origin;
@@ -79,7 +54,7 @@ function applyCors(req, res) {
   }
 }
 
-module.exports = async (req, res) => {
+export default async function (req, res) {
   applyCors(req, res);
 
   // Handle CORS preflight
@@ -88,19 +63,25 @@ module.exports = async (req, res) => {
   }
 
   if (req.method !== 'POST') {
+    console.log('[analyze-gantt] Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  console.log('[analyze-gantt] Request body:', JSON.stringify({ base64Image: req.body.base64Image?.substring(0, 50) + '...', mimeType: req.body.mimeType }));
+  console.log('[analyze-gantt] API Key presente:', process.env.GOOGLE_API_KEY ? 'Sì (lunghezza: ' + process.env.GOOGLE_API_KEY.length + ')' : 'No');
 
   try {
     const { base64Image, mimeType } = req.body;
 
     if (!base64Image || !mimeType) {
+      console.log('[analyze-gantt] Missing parameters');
       return res.status(400).json({ error: 'Missing base64Image or mimeType' });
     }
 
     // Get Google API key from environment
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
+      console.log('[analyze-gantt] API Key non configurata');
       return res.status(500).json({
         error: 'GOOGLE_API_KEY not configured in Vercel environment variables'
       });
@@ -109,8 +90,10 @@ module.exports = async (req, res) => {
     console.log('[analyze-gantt] Calling Google Gemini API...');
     console.log('[analyze-gantt] Image size:', base64Image.length, 'chars');
 
-    // Gemini API URL - gemini-1.5-pro supporta vision e text
-    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+    // Gemini API URL - gemini-2.5-flash è il modello più recente
+    const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    
+    console.log('[analyze-gantt] Gemini URL:', GEMINI_API_URL.replace(apiKey, '***'));
 
     const requestBody = {
       contents: [{
@@ -128,10 +111,11 @@ module.exports = async (req, res) => {
       }],
       generationConfig: {
         temperature: 0,
-        maxOutputTokens: 4000
+        maxOutputTokens: 16000
       }
     };
 
+    console.log('[analyze-gantt] Invio richiesta a Gemini...');
     const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
@@ -154,6 +138,8 @@ module.exports = async (req, res) => {
 
     const data = await response.json();
 
+    console.log('[analyze-gantt] Gemini response:', JSON.stringify(data).substring(0, 500));
+
     // Extract text from Gemini response
     let responseText = '';
     if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
@@ -168,9 +154,32 @@ module.exports = async (req, res) => {
       });
     }
 
-    console.log('[analyze-gantt] Success! Response length:', responseText.length);
+    console.log('[analyze-gantt] Raw response (first 1000 chars):', responseText.substring(0, 1000));
 
-    return res.status(200).json({ responseText });
+    // Pulizia della risposta: rimuovi markdown code blocks
+    let cleanedText = responseText.trim();
+    
+    // Rimuovi eventuali code blocks markdown
+    cleanedText = cleanedText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    
+    // Rimuovi eventuali spiegazioni testuali prima/dopo il JSON
+    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanedText = jsonMatch[0];
+    }
+    
+    console.log('[analyze-gantt] Cleaned response (first 500 chars):', cleanedText.substring(0, 500));
+
+    // Validazione JSON
+    try {
+      JSON.parse(cleanedText);
+      console.log('[analyze-gantt] JSON valido!');
+    } catch (e) {
+      console.error('[analyze-gantt] JSON non valido:', e.message);
+      console.error('[analyze-gantt] Response problematic:', cleanedText.substring(0, 500));
+    }
+
+    return res.status(200).json({ responseText: cleanedText });
 
   } catch (error) {
     console.error('[analyze-gantt] Error:', error);
@@ -179,13 +188,13 @@ module.exports = async (req, res) => {
       error: error.message || 'Internal server error'
     });
   }
-};
+}
 
-module.exports.config = {
+export const config = {
   api: {
     bodyParser: {
       sizeLimit: '10mb',
     },
   },
 };
-module.exports.maxDuration = 60;
+export const maxDuration = 60;

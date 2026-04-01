@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, X, ExternalLink, Download } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { toast } from "react-hot-toast";
 
 export default function DocumentiSalDialog({ open, onClose, sal }) {
@@ -18,7 +18,7 @@ export default function DocumentiSalDialog({ open, onClose, sal }) {
   const loadDocumenti = async () => {
     setIsLoading(true);
     try {
-      const docs = await base44.entities.Documento.filter({ 
+      const docs = await backendClient.entities.Documento.filter({ 
         entita_collegata_id: sal.cantiere_id,
         entita_collegata_tipo: 'cantiere',
         tipo_documento: 'economica_sal'
@@ -35,7 +35,7 @@ export default function DocumentiSalDialog({ open, onClose, sal }) {
 
   const handleViewFile = async (fileUri) => {
     try {
-      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ 
+      const { signed_url } = await backendClient.integrations.Core.CreateFileSignedUrl({ 
         file_uri: fileUri,
         expires_in: 3600
       });
@@ -76,7 +76,7 @@ export default function DocumentiSalDialog({ open, onClose, sal }) {
                   </div>
                   <Button
                     onClick={() => handleViewFile(sal.file_uri)}
-                    className="bg-indigo-600 hover:bg-indigo-700"
+                    className=""
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Apri

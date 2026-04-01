@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,10 +61,10 @@ export default function DocumentiPage() {
     setIsLoading(true);
     try {
       const [documentiData, cantieriData, impreseData, user] = await Promise.all([
-        base44.entities.Documento.list("-created_date", 100),
-        base44.entities.Cantiere.list("-created_date", 100),
-        base44.entities.Impresa.list("-created_date", 100),
-        base44.auth.me()
+        backendClient.entities.Documento.list("-created_date", 100),
+        backendClient.entities.Cantiere.list("-created_date", 100),
+        backendClient.entities.Impresa.list("-created_date", 100),
+        backendClient.auth.me()
       ]);
       setDocumenti(documentiData);
       setCantieri(cantieriData);
@@ -85,10 +85,10 @@ export default function DocumentiPage() {
   const handleSubmit = async (documentoData) => {
     try {
       if (editingDocumento) {
-        await base44.entities.Documento.update(editingDocumento.id, documentoData);
+        await backendClient.entities.Documento.update(editingDocumento.id, documentoData);
         toast.success("Documento aggiornato!");
       } else {
-        await base44.entities.Documento.create(documentoData);
+        await backendClient.entities.Documento.create(documentoData);
         toast.success("Documento creato!");
       }
       setShowForm(false);
@@ -103,7 +103,7 @@ export default function DocumentiPage() {
   const handleDelete = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo documento?")) {
       try {
-        await base44.entities.Documento.delete(id);
+        await backendClient.entities.Documento.delete(id);
         toast.success("Documento eliminato");
         loadData();
       } catch (error) {
@@ -116,7 +116,7 @@ export default function DocumentiPage() {
   const handleArchive = async (id) => {
     if (window.confirm("Sei sicuro di voler archiviare questo documento?")) {
       try {
-        await base44.functions.invoke('archiveDocument', { document_id: id });
+        await backendClient.functions.invoke('archiveDocument', { document_id: id });
         toast.success("Documento archiviato");
         loadData();
       } catch (error) {
@@ -261,7 +261,7 @@ export default function DocumentiPage() {
                     setEditingDocumento(null);
                     setShowForm(true);
                   }}
-                  className="bg-indigo-600 hover:bg-indigo-700"
+                  className=""
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   Nuovo Documento
@@ -552,7 +552,7 @@ export default function DocumentiPage() {
     try {
       let url = doc.cloud_file_url;
       if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
+        const result = await backendClient.integrations.Core.CreateFileSignedUrl({
           file_uri: doc.file_uri,
           expires_in: 300
         });

@@ -10,6 +10,7 @@
     "jsx": "react-jsx",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "maxNodeModuleJsDepth": 0,
     "lib": ["esnext", "dom"],
     "target": "esnext",
     "checkJs": true,
@@ -17,7 +18,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": []
+    "types": ["node"]
   },
   "include": [
     "src/components/cronoprogramma/**/*.jsx",

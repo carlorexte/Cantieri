@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock } from 'lucide-react';
+import logoOpen from '@/assets/logo-open.png';
+import logoCollapsed from '@/assets/logo-collapsed.png';
 import {
   format,
   addDays,
@@ -25,6 +27,8 @@ import { useCPM } from '@/hooks/useCPM';
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 60;
 const SIDEBAR_WIDTH = 380;
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH = 800;
 
 function compareRows(a, b) {
   const aStart = a?._startDate instanceof Date ? a._startDate.getTime() : Number.MAX_SAFE_INTEGER;
@@ -52,12 +56,15 @@ export default function PrimusGantt({
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isCompactWbsView, setIsCompactWbsView] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState('week');
   const [hoveredRow, setHoveredRow] = useState(null);
   const [draggingActivity, setDraggingActivity] = useState(null);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(1200);
   const scrollContainerRef = useRef(null);
   const sidebarRef = useRef(null);
+  const resizeHandleRef = useRef(null);
 
   const projectStartForCPM = useMemo(() => {
     if (cantiere?.data_inizio) return cantiere.data_inizio;
@@ -267,6 +274,43 @@ export default function PrimusGantt({
     }
   };
 
+  // Resize sidebar con drag
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      const newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, e.clientX - 200));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const startResize = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  // Doppio click per collassare/espandere sidebar
+  const handleSidebarDoubleClick = () => {
+    setIsSidebarCollapsed(prev => !prev);
+  };
+
   const toggleGroup = (id) => {
     setIsCompactWbsView(false);
     setExpandedGroups((current) => ({
@@ -426,67 +470,87 @@ export default function PrimusGantt({
 
   return (
     <div className={`flex flex-col h-full bg-white border border-slate-200 shadow-sm overflow-hidden ${isSectionFullView ? 'rounded-none' : 'rounded-lg'}`}>
-      <div className="border-b border-slate-200 px-4 py-3 bg-slate-50">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            <div>
-              <h3 className="font-bold text-slate-900">Cronoprogramma Lavori</h3>
-              <p className="text-xs text-slate-500">
-                Inizio {formatPlanningDate(overviewStats.projectStart)} · Fine {formatPlanningDate(overviewStats.projectEnd)}
-              </p>
-            </div>
-            <div className="flex bg-white rounded-md border border-slate-200 p-0.5">
-              <Button variant={viewMode === 'day' ? 'secondary' : 'ghost'} size="sm" className="h-8 text-xs px-2" onClick={() => setViewMode('day')}>Giorni</Button>
-              <Button variant={viewMode === 'week' ? 'secondary' : 'ghost'} size="sm" className="h-8 text-xs px-2" onClick={() => setViewMode('week')}>Settimane</Button>
-              <Button variant={viewMode === 'month' ? 'secondary' : 'ghost'} size="sm" className="h-8 text-xs px-2" onClick={() => setViewMode('month')}>Mesi</Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 bg-white"
-              onClick={onToggleSectionFullView}
-            >
-              {isSectionFullView ? <Minimize2 className="w-3 h-3 mr-1" /> : <Maximize2 className="w-3 h-3 mr-1" />}
-              {isSectionFullView ? 'Esci vista totale' : 'Vista totale'}
-            </Button>
-            {isSectionFullView && (
+      <div className="border-b border-slate-200 px-4 py-3 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Left: logo (when collapsed) + title + date range */}
+          <div className="flex items-center gap-4 min-w-0">
+            {/* Logo button when sidebar collapsed */}
+            {isSidebarCollapsed && (
               <Button
-                variant="outline"
-                size="sm"
-                className="h-8 bg-white"
-                onClick={handleFitToProject}
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-slate-100 flex-shrink-0"
+                onClick={() => setIsSidebarCollapsed(false)}
+                title="Mostra lista attività"
               >
-                Adatta progetto
+                <img
+                  src={logoCollapsed}
+                  alt="Mostra menu"
+                  className="w-6 h-6 object-contain"
+                />
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 bg-white"
-              onClick={() => setIsSidebarCollapsed(v => !v)}
-              title={isSidebarCollapsed ? 'Mostra lista attività' : 'Nascondi lista attività'}
-            >
-              {isSidebarCollapsed
-                ? <PanelLeftOpen className="w-4 h-4" />
-                : <PanelLeftClose className="w-4 h-4" />}
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 bg-white" onClick={handleExportPdf}>
-              <FileDown className="w-4 h-4 mr-2" />
-              PDF 1 pagina
-            </Button>
+            
+            <div className="min-w-0">
+              <h3 className="font-bold text-slate-900 text-sm leading-tight">Cronoprogramma Lavori</h3>
+              <p className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                {formatPlanningDate(overviewStats.projectStart)} → {formatPlanningDate(overviewStats.projectEnd)}
+              </p>
+            </div>
+
+            {/* Time scale toggle */}
+            <div className="flex bg-slate-100 rounded-lg p-0.5">
+              <Button variant={viewMode === 'day' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'day' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setViewMode('day')}>Giorni</Button>
+              <Button variant={viewMode === 'week' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'week' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setViewMode('week')}>Settimane</Button>
+              <Button variant={viewMode === 'month' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'month' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setViewMode('month')}>Mesi</Button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
-              <div className="text-slate-500">Attivita in ritardo</div>
-              <div className="font-semibold text-amber-700">{overviewStats.delayedActivities}</div>
+          {/* Right: stats + actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {overviewStats.delayedActivities > 0 && (
+              <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-amber-700 font-semibold">{overviewStats.delayedActivities} in ritardo</span>
+              </div>
+            )}
+            {overviewStats.salToInvoice > 0 && (
+              <div className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1.5 text-xs">
+                <CalendarClock className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-blue-700 font-semibold">{overviewStats.salToInvoice} SAL da verificare</span>
+              </div>
+            )}
+
+            {/* Icon buttons */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-slate-100"
+                onClick={() => setIsSidebarCollapsed(v => !v)}
+                title={isSidebarCollapsed ? 'Mostra lista' : 'Nascondi lista'}
+              >
+                <img
+                  src={isSidebarCollapsed ? logoCollapsed : logoOpen}
+                  alt={isSidebarCollapsed ? 'Apri menu' : 'Chiudi menu'}
+                  className="w-6 h-6 object-contain"
+                />
+              </Button>
+              {isSectionFullView && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600" onClick={handleFitToProject} title="Adatta progetto">
+                  <Layers className="w-4 h-4" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600" onClick={onToggleSectionFullView} title={isSectionFullView ? 'Esci vista totale' : 'Vista totale'}>
+                {isSectionFullView ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600" onClick={handleExportPdf} title="Esporta PDF">
+                <FileDown className="w-4 h-4" />
+              </Button>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
-              <div className="text-slate-500">SAL da verificare/fatturare</div>
-              <div className="font-semibold text-slate-900">{overviewStats.salToInvoice}</div>
-            </div>
-            <Button size="sm" onClick={onAddAttivita} className="bg-indigo-600 hover:bg-indigo-700">
-              <Plus className="w-4 h-4 mr-2" />
+
+            <Button size="sm" onClick={onAddAttivita} className="h-8">
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
               Nuova Voce
             </Button>
           </div>
@@ -494,14 +558,16 @@ export default function PrimusGantt({
       </div>
 
       <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar */}
         <div
           ref={sidebarRef}
           className="flex-shrink-0 border-r border-slate-200 overflow-hidden bg-white z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] transition-[width] duration-300"
-          style={{ width: isSidebarCollapsed ? 0 : SIDEBAR_WIDTH }}
+          style={{ width: isSidebarCollapsed ? 0 : sidebarWidth }}
+          onDoubleClick={handleSidebarDoubleClick}
         >
-          <div className="flex border-b border-slate-200 bg-slate-100 font-semibold text-xs text-slate-600 uppercase tracking-wider" style={{ height: HEADER_HEIGHT }}>
+          <div className="flex border-b border-slate-200 bg-slate-50 font-semibold text-[10px] text-slate-400 uppercase tracking-widest" style={{ height: HEADER_HEIGHT }}>
             <div className="w-16 border-r border-slate-200 flex items-center justify-center">WBS</div>
-            <div className="flex-1 border-r border-slate-200 flex items-center px-3">Descrizione</div>
+            <div className="flex-1 border-r border-slate-200 flex items-center px-3">Descrizione attività</div>
             <div className="w-24 border-r border-slate-200 flex items-center justify-end px-2">Importo</div>
             <div className="w-16 flex items-center justify-center">GG</div>
           </div>
@@ -510,7 +576,7 @@ export default function PrimusGantt({
             {processedData.map((item) => (
               <div
                 key={item.id}
-                className={`flex border-b border-slate-100 text-sm hover:bg-indigo-50 transition-colors cursor-pointer ${hoveredRow === item.id ? 'bg-indigo-50' : ''}`}
+                className={`flex border-b border-slate-100 text-sm hover:bg-orange-50/60 transition-colors cursor-pointer ${hoveredRow === item.id ? 'bg-orange-50/60' : ''}`}
                 style={{ height: ROW_HEIGHT }}
                 onMouseEnter={() => setHoveredRow(item.id)}
                 onMouseLeave={() => setHoveredRow(null)}
@@ -533,7 +599,7 @@ export default function PrimusGantt({
                         {expandedGroups[item.id] !== false ? <ChevronDown className="w-3 h-3" /> : <ChevronRightIcon className="w-3 h-3" />}
                       </button>
                     )}
-                    <span className={`truncate ${item.tipo_attivita === 'raggruppamento' ? 'font-bold text-slate-800' : 'text-slate-700'}`}>
+                    <span className={`truncate ${item.tipo_attivita === 'raggruppamento' ? 'font-bold text-slate-800' : 'text-slate-700'}`} title={item.descrizione}>
                       {item.descrizione}
                     </span>
                   </div>
@@ -547,11 +613,48 @@ export default function PrimusGantt({
               </div>
             ))}
 
-            <div className="border-t-2 border-slate-300 bg-slate-50 px-3 text-right font-bold text-xs flex items-center justify-end" style={{ height: 72 }}>
-              SCADENZE SAL
+            <div className="border-t-2 border-slate-300 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-4" style={{ height: 72 }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-orange-800 uppercase tracking-wider">📋 Scadenze SAL</span>
+                <span className="text-[10px] text-orange-600 font-medium">{salMarkers.length} SAL</span>
+              </div>
+              {salMarkers.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {salMarkers.slice(0, 6).map((sal) => (
+                    <div
+                      key={sal.id}
+                      className="inline-flex items-center gap-1 bg-orange-100 border border-orange-300 text-orange-800 text-[9px] px-1.5 py-0.5 rounded font-medium"
+                      title={`${sal.description}\n${format(sal.date, 'dd/MM/yyyy')}\n${Math.round(sal.amount).toLocaleString('it-IT')} €`}
+                    >
+                      <span>{format(sal.date, 'dd/MM')}</span>
+                    </div>
+                  ))}
+                  {salMarkers.length > 6 && (
+                    <div className="inline-flex items-center bg-orange-200 text-orange-700 text-[9px] px-1.5 py-0.5 rounded font-medium">
+                      +{salMarkers.length - 6}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[10px] text-orange-600 italic">Nessun SAL pianificato</div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Resize handle */}
+        {!isSidebarCollapsed && (
+          <div
+            ref={resizeHandleRef}
+            className="w-1 hover:w-1.5 bg-slate-200 hover:bg-indigo-500 cursor-col-resize z-30 transition-colors group"
+            onMouseDown={startResize}
+            title="Trascina per ridimensionare - Doppio click per collassare/espandere"
+          >
+            <div className="opacity-0 group-hover:opacity-100 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">
+              Trascina o doppio click
+            </div>
+          </div>
+        )}
 
         <GanttDndProvider
           onActivityDrop={(activityId, deltaDays) => handleActivityDateChange(activityId, deltaDays)}
@@ -587,7 +690,7 @@ export default function PrimusGantt({
                     });
 
                     return blocks.map((block, index) => (
-                      <div key={index} className="border-r border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-bold text-slate-600 uppercase" style={{ width: block.width }}>
+                      <div key={index} className="border-r border-slate-200 bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-500 uppercase tracking-wider" style={{ width: block.width }}>
                         {block.name}
                       </div>
                     ));
@@ -602,7 +705,7 @@ export default function PrimusGantt({
                     else label = format(colDate, 'MMM', { locale: it });
 
                     return (
-                      <div key={index} className="flex items-center justify-center text-[10px] border-r border-slate-100 text-slate-600" style={{ width: config.colWidth }}>
+                      <div key={index} className="flex items-center justify-center text-[10px] border-r border-slate-100 text-slate-400" style={{ width: config.colWidth }}>
                         {label}
                       </div>
                     );
@@ -623,7 +726,7 @@ export default function PrimusGantt({
                   return (
                     <div
                       key={item.id}
-                      className={`relative border-b border-slate-100 transition-colors ${hoveredRow === item.id ? 'bg-indigo-50/50' : ''}`}
+                      className={`relative border-b border-slate-100 transition-colors ${hoveredRow === item.id ? 'bg-orange-50/40' : ''}`}
                       style={{ height: ROW_HEIGHT }}
                       onMouseEnter={() => setHoveredRow(item.id)}
                       onMouseLeave={() => setHoveredRow(null)}
@@ -683,15 +786,19 @@ export default function PrimusGantt({
         </GanttDndProvider>
       </div>
 
-      <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+      <div className="border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] text-slate-400">
         <div className="flex flex-wrap items-center gap-4">
-          <span className="inline-flex items-center gap-1">
-            <CalendarClock className="w-3.5 h-3.5 text-orange-500" />
-            I marker SAL evidenziano quando verificare la fatturazione.
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
+            Marker SAL — verifica fatturazione
           </span>
-          <span className="inline-flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            Le attivita oltre la data fine prevista vengono conteggiate come ritardi.
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+            Attività oltre la data fine = ritardo
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+            Percorso critico CPM
           </span>
         </div>
       </div>

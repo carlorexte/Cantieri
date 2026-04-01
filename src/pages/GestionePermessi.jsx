@@ -115,7 +115,7 @@ export default function GestionePermessiPage() {
               <Button onClick={() => {
                 setEditingRuolo(null);
                 setShowRuoloDialog(true);
-              }} className="bg-indigo-600 hover:bg-indigo-700">
+              }} className="">
                 <Plus className="w-4 h-4 mr-2" />
                 Nuovo Ruolo
               </Button>

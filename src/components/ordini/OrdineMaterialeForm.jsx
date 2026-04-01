@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,8 +53,8 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
       setLoadingAziende(true);
       try {
         const [usersList, aziendeList] = await Promise.all([
-          base44.entities.User.list(),
-          base44.entities.Azienda.list()
+          backendClient.entities.User.list(),
+          backendClient.entities.Azienda.list()
         ]);
         setUsers(usersList);
         setAziende(aziendeList);
@@ -90,7 +90,7 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
 
     setIsUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await backendClient.integrations.Core.UploadFile({ file });
       form.setValue("file_allegato_uri", file_url);
       toast.success("File caricato con successo");
     } catch (error) {
@@ -116,7 +116,7 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
     if (!ordine && !data.numero_ordine) {
         data.numero_ordine = `ORD-${Date.now().toString().slice(-6)}`;
         // Set current user as sub_user
-        const me = await base44.auth.me();
+        const me = await backendClient.auth.me();
         data.sub_user_id = me.id;
     }
 

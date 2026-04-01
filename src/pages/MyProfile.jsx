@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { supabaseDB } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ export default function MyProfilePage() {
   const loadUserData = async () => {
     setIsLoading(true);
     try {
-      const user = await base44.auth.me();
+      const user = await backendClient.auth.me();
       setCurrentUser(user);
       setFormData({
         full_name: user.full_name || "",

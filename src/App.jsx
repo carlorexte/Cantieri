@@ -1,5 +1,5 @@
 import './App.css'
-const _BUILD = "20260317-2"; // cache buster
+import { useEffect } from 'react'
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -13,6 +13,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginPage from '@/pages/Login';
 import AuthCallback from '@/pages/AuthCallback';
+
+const APP_BUILD = typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'unknown';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -54,9 +56,12 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Se non autenticato mostra login (ma lascia passare il callback OAuth)
-  if (!isAuthenticated && !window.location.pathname.startsWith('/auth/callback')) {
-    return <LoginPage />;
+  // Se non autenticato mostra la pagina pubblica corretta o il login
+  if (!isAuthenticated) {
+    const path = window.location.pathname;
+    if (path.startsWith('/register')) return <Pages.Register />;
+    if (path.startsWith('/resetpassword')) return <Pages.ResetPassword />;
+    if (!path.startsWith('/auth/callback')) return <LoginPage />;
   }
 
   // Handle authentication errors
@@ -93,6 +98,13 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    window.__APP_BUILD__ = APP_BUILD;
+    document.documentElement.setAttribute('data-app-build', APP_BUILD);
+    console.info(`[build] ${APP_BUILD}`);
+  }, []);
 
   return (
     <AuthProvider>

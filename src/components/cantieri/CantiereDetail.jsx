@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { format, differenceInDays, isPast } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { CheckCircle2, Clock, Calendar } from 'lucide-react';
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 
 const DetailField = ({ label, value, className = "" }) => (
   <div className={className}>
@@ -40,7 +40,7 @@ export default function CantiereDetail({ cantiere }) {
 
     if (cantiere?.responsabile_sicurezza_id) {
       try {
-        const persone = await base44.entities.PersonaEsterna.filter({ id: cantiere.responsabile_sicurezza_id });
+        const persone = await backendClient.entities.PersonaEsterna.filter({ id: cantiere.responsabile_sicurezza_id });
         if (persone.length > 0) setResponsabileSicurezza(persone[0]);
       } catch (error) {
         console.error("Errore caricamento responsabile sicurezza:", error);
@@ -49,7 +49,7 @@ export default function CantiereDetail({ cantiere }) {
     
     if (cantiere?.direttore_lavori_id) {
       try {
-        const persone = await base44.entities.PersonaEsterna.filter({ id: cantiere.direttore_lavori_id });
+        const persone = await backendClient.entities.PersonaEsterna.filter({ id: cantiere.direttore_lavori_id });
         if (persone.length > 0) setDirettoreLavori(persone[0]);
       } catch (error) {
         console.error("Errore caricamento direttore lavori:", error);
@@ -58,7 +58,7 @@ export default function CantiereDetail({ cantiere }) {
     
     if (cantiere?.responsabile_unico_procedimento_id) {
       try {
-        const persone = await base44.entities.PersonaEsterna.filter({ id: cantiere.responsabile_unico_procedimento_id });
+        const persone = await backendClient.entities.PersonaEsterna.filter({ id: cantiere.responsabile_unico_procedimento_id });
         if (persone.length > 0) setResponsabileUnico(persone[0]);
       } catch (error) {
         console.error("Errore caricamento RUP:", error);

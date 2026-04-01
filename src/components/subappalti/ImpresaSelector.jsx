@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,7 +20,7 @@ export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagra
   const loadImprese = async () => {
     setIsLoading(true);
     try {
-      const data = await base44.entities.Impresa.list("ragione_sociale");
+      const data = await backendClient.entities.Impresa.list("ragione_sociale");
       setImprese(data);
     } catch (error) {
       console.error("Errore caricamento imprese:", error);

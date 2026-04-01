@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
 
   const loadCantieri = async () => {
     try {
-      const data = await base44.entities.Cantiere.list("-created_date", 100);
+      const data = await backendClient.entities.Cantiere.list("-created_date", 100);
       setCantieri(data);
     } catch (error) {
       console.error("Errore caricamento cantieri:", error);
@@ -75,7 +75,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     try {
       let url = doc.cloud_file_url;
       if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
+        const result = await backendClient.integrations.Core.CreateFileSignedUrl({
           file_uri: doc.file_uri,
           expires_in: 3600
         });
@@ -92,7 +92,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
     try {
       let url = doc.cloud_file_url;
       if (doc.file_uri) {
-        const result = await base44.integrations.Core.CreateFileSignedUrl({
+        const result = await backendClient.integrations.Core.CreateFileSignedUrl({
           file_uri: doc.file_uri,
           expires_in: 300
         });
@@ -115,7 +115,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
   const handleSearch = useCallback(async () => {
     setIsSearching(true);
     try {
-      let documenti = await base44.entities.Documento.list("-created_date", 200);
+      let documenti = await backendClient.entities.Documento.list("-created_date", 200);
       
       if (categoriaFilter) {
         documenti = documenti.filter(doc => doc.categoria_principale === categoriaFilter);
@@ -279,7 +279,7 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
           <div className="flex gap-3 pt-2">
             <Button 
               onClick={handleSearch} 
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className=""
               disabled={isSearching}
             >
               {isSearching ? (

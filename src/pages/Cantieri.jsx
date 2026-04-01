@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Plus, Search, Building2, Calendar, Euro, MoreHorizontal, Edit, Trash2, MapPin, BarChart3 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
@@ -154,8 +155,10 @@ CantiereCard.displayName = 'CantiereCard';
 export default function Cantieri() {
   const { cantieri, refreshCantieri } = useData();
   const { user: currentUser, hasPermission } = usePermissions();
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("tutti");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingCantiere, setEditingCantiere] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
@@ -187,28 +190,41 @@ export default function Cantieri() {
   }, [baseCantieri]);
 
   const handleSubmit = useCallback(async (cantiereData) => {
+    setIsSaving(true);
     try {
+      console.log('[Cantieri.handleSubmit] Cantiere data:', cantiereData);
       if (editingCantiere) {
-        await base44.entities.Cantiere.update(editingCantiere.id, cantiereData);
+        console.log('[Cantieri.handleSubmit] Updating cantiere ID:', editingCantiere.id);
+        const result = await backendClient.entities.Cantiere.update(editingCantiere.id, cantiereData);
+        console.log('[Cantieri.handleSubmit] Update result:', result);
       } else {
         const maxNumero = cantieri.reduce((max, c) => Math.max(max, c.numero_cantiere || 0), 0);
-        await base44.entities.Cantiere.create({
+        const result = await backendClient.entities.Cantiere.create({
           ...cantiereData,
           numero_cantiere: maxNumero + 1
         });
+        console.log('[Cantieri.handleSubmit] Create result:', result);
       }
+      toast({ title: editingCantiere ? "Cantiere aggiornato" : "Cantiere creato", description: cantiereData.denominazione });
       setShowForm(false);
       setFormIsDirty(false);
       await refreshCantieri();
     } catch (error) {
-      console.error("Errore salvataggio cantiere:", error);
+      console.error("[Cantieri.handleSubmit] Errore completo:", error);
+      console.error("[Cantieri.handleSubmit] Error message:", error?.message);
+      console.error("[Cantieri.handleSubmit] Error details:", error?.details);
+      console.error("[Cantieri.handleSubmit] Error hint:", error?.hint);
+      console.error("[Cantieri.handleSubmit] Error code:", error?.code);
+      toast({ title: "Errore nel salvataggio", description: error?.message || error?.details || "Si è verificato un errore", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
-  }, [editingCantiere, cantieri, refreshCantieri]);
+  }, [editingCantiere, cantieri, refreshCantieri, toast]);
 
   const handleDelete = useCallback(async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo cantiere? L'azione è irreversibile.")) {
       try {
-        await base44.entities.Cantiere.delete(id);
+        await backendClient.entities.Cantiere.delete(id);
         await refreshCantieri();
       } catch (error) {
         console.error("Errore durante l'eliminazione del cantiere:", error);
@@ -244,7 +260,7 @@ export default function Cantieri() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -266,7 +282,7 @@ export default function Cantieri() {
                     setFormIsDirty(false); 
                     setShowForm(true); 
                   }} 
-                  className="bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+                  className="shadow-sm"
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   Nuovo Cantiere
@@ -293,7 +309,7 @@ export default function Cantieri() {
                       key={status}
                       variant={statusFilter === status ? "default" : "outline"}
                       onClick={() => setStatusFilter(status)}
-                      className={statusFilter === status ? "bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap" : "border-slate-200 hover:bg-slate-50 whitespace-nowrap"}
+                      className={statusFilter === status ? "whitespace-nowrap" : "border-slate-200 hover:bg-slate-50 whitespace-nowrap"}
                     >
                       {status === "tutti" ? "Tutti" : status.replace('_', ' ')}
                     </Button>
@@ -404,29 +420,26 @@ export default function Cantieri() {
           )}
 
           {/* Dialog per il form cantiere */}
-          <Dialog 
-            open={showForm} 
+          <Dialog
+            open={showForm}
             onOpenChange={(open) => {
               if (!open) {
                 if (formIsDirty) {
-                   if (window.confirm("Hai modifiche non salvate. Chiudere?")) {
-                     handleCloseForm();
-                   }
+                  if (window.confirm("Hai modifiche non salvate. Chiudere?")) {
+                    handleCloseForm();
+                  }
                 } else {
-                   handleCloseForm();
+                  handleCloseForm();
                 }
               }
             }}
           >
-            <DialogContent 
+            <DialogContent
               className="max-w-4xl max-h-[90vh] overflow-y-auto"
-              onInteractOutside={(e) => {
-                e.preventDefault();
-              }}
+              onInteractOutside={(e) => e.preventDefault()}
+              onPointerDownOutside={(e) => e.preventDefault()}
               onEscapeKeyDown={(e) => {
-                if (formIsDirty) {
-                  e.preventDefault();
-                }
+                if (formIsDirty) e.preventDefault();
               }}
             >
               <DialogHeader>
@@ -438,9 +451,8 @@ export default function Cantieri() {
                 cantiere={editingCantiere}
                 onSubmit={handleSubmit}
                 onCancel={handleCloseForm}
-                onDirtyChange={(isDirty) => {
-                  setFormIsDirty(isDirty);
-                }}
+                onDirtyChange={setFormIsDirty}
+                isSaving={isSaving}
               />
             </DialogContent>
           </Dialog>

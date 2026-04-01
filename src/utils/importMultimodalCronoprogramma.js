@@ -273,7 +273,21 @@ async function runParsersForSource(source, options) {
   for (const parser of parsers) {
     try {
       const result = await parser.run();
-      if (!result?.success || !Array.isArray(result.attivita) || result.attivita.length === 0) {
+      
+      if (!result || !result.success) {
+        candidates.push({
+          key: parser.key,
+          label: parser.label,
+          score: -1,
+          confidence: 'low',
+          error: result?.error || 'Errore restituito dal parser',
+          result: null,
+          diagnostics: null
+        });
+        continue;
+      }
+      
+      if (!Array.isArray(result.attivita) || result.attivita.length === 0) {
         continue;
       }
 
@@ -303,44 +317,54 @@ async function runParsersForSource(source, options) {
     }
   }
 
-  return candidates
+  const validCandidates = candidates
     .filter((candidate) => candidate.result)
     .sort((a, b) => b.score - a.score);
+
+  const failedCandidates = candidates.filter((candidate) => !candidate.result);
+
+  return { validCandidates, failedCandidates };
 }
 
 export async function parseMultimodalCronoprogramma(source, options = {}) {
-  const candidates = await runParsersForSource(source, options);
+  const { validCandidates, failedCandidates } = await runParsersForSource(source, options);
 
-  if (candidates.length === 0) {
+  if (validCandidates.length === 0) {
+    // Raccogli eventuali errori dai parser che hanno fallito
+    const errors = failedCandidates
+      .filter((c) => c.error)
+      .map((c) => `${c.label}: ${c.error}`)
+      .join(' | ');
+
     return {
       success: false,
-      error: 'Nessun parser multimodale ha prodotto un risultato valido.',
+      error: errors ? `Errori API rilevati: ${errors}` : 'Nessun parser multimodale ha prodotto un risultato valido.',
       candidates: [],
       canonical: null
     };
   }
 
-  const selectedCandidate = candidates[0];
+  const selectedCandidate = validCandidates[0];
   const canonical = toCanonicalProject(selectedCandidate, source);
 
   return {
     success: true,
-    source,
-    candidates: candidates.map((candidate) => ({
+    data: canonical,
+    candidates: validCandidates.map((candidate) => ({
       key: candidate.key,
       label: candidate.label,
       strategy: candidate.strategy,
       score: candidate.score,
       confidence: candidate.confidence,
       dateCoverage: candidate.dateCoverage,
-      attivitaCount: candidate.result.attivita.length,
-      metadata: candidate.result.metadata || {},
-      logs: candidate.result.logs || []
+      diagnostics: candidate.diagnostics
     })),
-    selectedCandidateKey: selectedCandidate.key,
-    selectedCandidateLabel: selectedCandidate.label,
     canonical,
-    rawResults: Object.fromEntries(candidates.map((candidate) => [candidate.key, candidate.result]))
+    selectedCandidate: {
+      key: selectedCandidate.key,
+      label: selectedCandidate.label
+    },
+    rawResults: Object.fromEntries(validCandidates.map((candidate) => [candidate.key, candidate.result]))
   };
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ export default function ImpresaSelectorForCantiere({ label, currentValues, onImp
   const loadImprese = async () => {
     setIsLoading(true);
     try {
-      const data = await base44.entities.Impresa.list();
+      const data = await backendClient.entities.Impresa.list();
       setImprese(data);
     } catch (error) {
       console.error("Errore caricamento imprese:", error);

@@ -10,6 +10,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import * as XLSX from "npm:xlsx@0.18.5";
 import pdfParse from "npm:pdf-parse@1.1.1";
+import { assertSafeSpreadsheetBytes } from "./spreadsheetSafety.ts";
 
 // ============================================================================
 // UTILITÀ PER LA FORMATTAZIONE DEL TESTO
@@ -507,6 +508,7 @@ async function parseXLSX(fileBuffer, cantiereId, base44) {
   try {
     console.log("📖 Lettura file Excel...");
     const uint8Array = new Uint8Array(fileBuffer);
+    assertSafeSpreadsheetBytes(uint8Array);
     const workbook = XLSX.read(uint8Array, { type: 'array', cellDates: true, dateNF: 'yyyy-mm-dd' });
 
     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {

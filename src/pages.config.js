@@ -62,10 +62,13 @@ import Guida from './pages/Guida';
 import Home from './pages/Home';
 import ImpresaDashboard from './pages/ImpresaDashboard';
 import Imprese from './pages/Imprese';
+import Login from './pages/Login';
 import MyProfile from './pages/MyProfile';
 import OrdiniMateriali from './pages/OrdiniMateriali';
 import PersoneEsterne from './pages/PersoneEsterne';
 import ProfiloAzienda from './pages/ProfiloAzienda';
+import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 import RiepilogoCantieri from './pages/RiepilogoCantieri';
 import Roadmap from './pages/Roadmap';
 import SAL from './pages/SAL';
@@ -92,10 +95,13 @@ export const PAGES = {
     "Home": Home,
     "ImpresaDashboard": ImpresaDashboard,
     "Imprese": Imprese,
+    "Login": Login,
     "MyProfile": MyProfile,
     "OrdiniMateriali": OrdiniMateriali,
     "PersoneEsterne": PersoneEsterne,
     "ProfiloAzienda": ProfiloAzienda,
+    "Register": Register,
+    "ResetPassword": ResetPassword,
     "RiepilogoCantieri": RiepilogoCantieri,
     "Roadmap": Roadmap,
     "SAL": SAL,

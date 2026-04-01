@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 
 export default function AttivitaInternaForm({ attivita, onSubmit, onCancel }) {
   const [formData, setFormData] = useState(attivita || {
@@ -32,9 +32,9 @@ export default function AttivitaInternaForm({ attivita, onSubmit, onCancel }) {
 
   const loadDependencies = async () => {
     try {
-      const usersData = await base44.entities.User.list();
+      const usersData = await backendClient.entities.User.list();
       setUtenti(usersData);
-      const cantieriData = await base44.entities.Cantiere.list();
+      const cantieriData = await backendClient.entities.Cantiere.list();
       setCantieri(cantieriData);
     } catch (error) {
       console.error("Errore caricamento dipendenze:", error);

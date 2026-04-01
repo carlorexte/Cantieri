@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, FileText, Eye, Download, Trash2, Edit, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { toast } from "sonner";
 import DocumentoForm from "../documenti/DocumentoForm";
 
@@ -27,7 +27,7 @@ export default function DocumentiSALManager({ salId, cantiereId }) {
   const loadDocumenti = async () => {
     setIsLoading(true);
     try {
-      const docs = await base44.entities.Documento.filter({
+      const docs = await backendClient.entities.Documento.filter({
         entita_collegata_tipo: 'sal',
         entita_collegata_id: salId
       });
@@ -41,10 +41,10 @@ export default function DocumentiSALManager({ salId, cantiereId }) {
   const handleSubmit = async (documentoData) => {
     try {
       if (editingDocumento) {
-        await base44.entities.Documento.update(editingDocumento.id, documentoData);
+        await backendClient.entities.Documento.update(editingDocumento.id, documentoData);
         toast.success("Documento aggiornato con successo");
       } else {
-        await base44.entities.Documento.create({
+        await backendClient.entities.Documento.create({
           ...documentoData,
           entita_collegata_id: salId,
           entita_collegata_tipo: 'sal',
@@ -68,7 +68,7 @@ export default function DocumentiSALManager({ salId, cantiereId }) {
   const handleDelete = async (documento) => {
     if (window.confirm(`Sei sicuro di voler eliminare "${documento.nome_documento}"?`)) {
       try {
-        await base44.entities.Documento.delete(documento.id);
+        await backendClient.entities.Documento.delete(documento.id);
         toast.success("Documento eliminato con successo");
         loadDocumenti();
       } catch (error) {
@@ -88,7 +88,7 @@ export default function DocumentiSALManager({ salId, cantiereId }) {
       try {
         let urlToLoad = documento.cloud_file_url;
         if (documento.file_uri) {
-          const result = await base44.integrations.Core.CreateFileSignedUrl({ 
+          const result = await backendClient.integrations.Core.CreateFileSignedUrl({ 
             file_uri: documento.file_uri,
             expires_in: 3600
           });
@@ -113,7 +113,7 @@ export default function DocumentiSALManager({ salId, cantiereId }) {
       try {
         let urlToDownload = documento.cloud_file_url;
         if (documento.file_uri) {
-          const result = await base44.integrations.Core.CreateFileSignedUrl({ 
+          const result = await backendClient.integrations.Core.CreateFileSignedUrl({ 
             file_uri: documento.file_uri,
             expires_in: 300
           });

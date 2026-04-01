@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { useData } from '@/components/shared/DataContext';
 import { PermissionGuard, usePermissions } from '@/components/shared/PermissionGuard';
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ export default function OrdiniMateriali() {
   const loadOrdini = async () => {
     setLoading(true);
     try {
-      const data = await base44.entities.OrdineMateriale.list("-data_ordine");
+      const data = await backendClient.entities.OrdineMateriale.list("-data_ordine");
       setOrdini(data);
     } catch (error) {
       console.error("Errore caricamento ordini:", error);
@@ -65,7 +65,7 @@ export default function OrdiniMateriali() {
 
   const handleCreate = async (data) => {
     try {
-      await base44.entities.OrdineMateriale.create(data);
+      await backendClient.entities.OrdineMateriale.create(data);
       toast.success("Ordine creato con successo");
       setIsFormOpen(false);
       loadOrdini();
@@ -89,7 +89,7 @@ export default function OrdiniMateriali() {
           updateData.note_approvazione = note;
       }
 
-      await base44.entities.OrdineMateriale.update(id, updateData);
+      await backendClient.entities.OrdineMateriale.update(id, updateData);
 
       const taskId = ordineCorrente?.attivita_collegata_id;
       if (taskId) {
@@ -111,7 +111,7 @@ export default function OrdiniMateriali() {
         }
 
         if (Object.keys(taskUpdate).length > 0) {
-          await base44.entities.AttivitaInterna.update(taskId, taskUpdate);
+          await backendClient.entities.AttivitaInterna.update(taskId, taskUpdate);
         }
       }
 
@@ -174,7 +174,7 @@ export default function OrdiniMateriali() {
           
           {(hasPermission('ordini_materiale', 'edit') || hasPermission('admin')) && (
             <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+                className="shadow-sm"
                 onClick={() => { setSelectedOrdine(null); setIsFormOpen(true); }}
             >
               <Plus className="w-5 h-5 mr-2" />

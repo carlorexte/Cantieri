@@ -5,6 +5,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { assertSafeSpreadsheetBuffer } from './safeSpreadsheet';
 
 function parseDateTokenToISO(token) {
   if (!token) return null;
@@ -49,6 +50,8 @@ export function parseSimpleGantt(fileBuffer, dataInizioDefault = null) {
   const logs = [];
 
   try {
+    assertSafeSpreadsheetBuffer(fileBuffer);
+
     const workbook = XLSX.read(fileBuffer, {
       type: 'array',
       cellDates: true

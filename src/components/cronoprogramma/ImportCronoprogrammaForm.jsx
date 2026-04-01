@@ -56,7 +56,6 @@ function ResultBanner({ importResult }) {
 }
 
 export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel }) {
-  const googleApiKeyConfigured = Boolean(import.meta.env.VITE_GOOGLE_API_KEY);
   const [importMode, setImportMode] = useState('file');
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedImageFile, setSelectedImageFile] = useState(null);
@@ -431,7 +430,6 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
             <Button
               onClick={handleSaveReviewedImport}
               disabled={isImporting}
-              className="bg-indigo-600 hover:bg-indigo-700"
             >
               {isImporting ? (
                 <>
@@ -606,10 +604,8 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
                   resetReviewState();
                 }}
               />
-              <p className={`text-xs ${googleApiKeyConfigured ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {googleApiKeyConfigured
-                  ? 'Google API key caricata correttamente. Questa e una sorgente strutturata preferibile rispetto a PDF o immagini.'
-                  : 'Se VITE_GOOGLE_API_KEY non e disponibile, verra tentato automaticamente il fallback export XLSX pubblico del foglio.'}
+              <p className="text-xs text-slate-600">
+                Se il foglio e pubblico verra usato l'export XLSX strutturato. Questa sorgente resta preferibile rispetto a PDF o immagini.
               </p>
             </div>
           )}
@@ -662,7 +658,6 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
         <Button
           onClick={handleAnalyze}
           disabled={!sourceReady || !selectedCantiere || isImporting}
-          className="bg-indigo-600 hover:bg-indigo-700"
         >
           {isImporting ? (
             <>

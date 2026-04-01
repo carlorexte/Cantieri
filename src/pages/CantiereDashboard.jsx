@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { usePermissions } from '@/components/shared/PermissionGuard';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -74,7 +74,7 @@ export default function CantiereDashboardPage() {
     setIsLoading(true);
     try {
       // Use backend function to bypass RLS issues and ensure consistent visibility rules
-      const response = await base44.functions.invoke('getCantiereDashboardData', { cantiere_id: cantiereId });
+      const response = await backendClient.functions.invoke('getCantiereDashboardData', { cantiere_id: cantiereId });
       
       if (response.data && !response.data.error) {
         const { cantiere: cantiereData, subappalti, documenti, imprese, sal, attivita, permissions: perms } = response.data;
@@ -94,7 +94,7 @@ export default function CantiereDashboardPage() {
           
           if (cantiereData.responsabile_sicurezza_id) {
             personaPromises.push(
-              base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id })
+              backendClient.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id })
                 .then(persone => persone.length > 0 && setResponsabileSicurezza(persone[0]))
                 .catch(err => console.error("Errore caricamento responsabile sicurezza:", err))
             );
@@ -102,7 +102,7 @@ export default function CantiereDashboardPage() {
           
           if (cantiereData.direttore_lavori_id) {
             personaPromises.push(
-              base44.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id })
+              backendClient.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id })
                 .then(persone => persone.length > 0 && setDirettoreLavori(persone[0]))
                 .catch(err => console.error("Errore caricamento direttore lavori:", err))
             );
@@ -110,7 +110,7 @@ export default function CantiereDashboardPage() {
           
           if (cantiereData.responsabile_unico_procedimento_id) {
             personaPromises.push(
-              base44.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id })
+              backendClient.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id })
                 .then(persone => persone.length > 0 && setResponsabileUnico(persone[0]))
                 .catch(err => console.error("Errore caricamento RUP:", err))
             );
@@ -148,7 +148,7 @@ export default function CantiereDashboardPage() {
         toast.error("Errore: ID Cantiere non disponibile.");
         return;
       }
-      await base44.entities.Documento.create({
+      await backendClient.entities.Documento.create({
         ...formData,
         entita_collegata_id: cantiere.id,
         entita_collegata_tipo: 'cantiere',
@@ -165,7 +165,7 @@ export default function CantiereDashboardPage() {
   const handleCantiereSubmit = useCallback(async (formData) => {
     try {
       if (cantiere?.id) {
-        await base44.entities.Cantiere.update(cantiere.id, formData);
+        await backendClient.entities.Cantiere.update(cantiere.id, formData);
         setShowCantiereForm(false);
         loadData(cantiere.id);
         toast.success("Cantiere aggiornato con successo!");
@@ -271,7 +271,7 @@ export default function CantiereDashboardPage() {
       try {
         let urlToDownload = documento.cloud_file_url;
         if (documento.file_uri) {
-          const result = await base44.integrations.Core.CreateFileSignedUrl({
+          const result = await backendClient.integrations.Core.CreateFileSignedUrl({
             file_uri: documento.file_uri,
             expires_in: 300
           });
@@ -432,7 +432,7 @@ export default function CantiereDashboardPage() {
           {(currentUser?.role === 'admin' || hasCantiereObjectPermission(cantiere, 'cantieri', 'edit')) && (
             <Button 
               onClick={() => setShowCantiereForm(true)}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className=""
             >
               <Edit className="w-4 h-4 mr-2" />
               Modifica Cantiere
@@ -930,7 +930,7 @@ export default function CantiereDashboardPage() {
                                       <div className="flex items-center gap-2 mb-2">
                                         <span className="font-medium text-slate-900">{impresa.ragione_sociale || 'Nome non disponibile'}</span>
                                         {impresa.isPrincipale && (
-                                          <Badge className="bg-indigo-600 text-white">PRINCIPALE</Badge>
+                                          <Badge className="bg-orange-500 text-white">PRINCIPALE</Badge>
                                         )}
                                       </div>
                                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
@@ -951,7 +951,7 @@ export default function CantiereDashboardPage() {
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="font-medium text-slate-900">{impresa.ragione_sociale || 'Nome non disponibile'}</span>
                                     {impresa.isPrincipale && (
-                                      <Badge className="bg-indigo-600 text-white">PRINCIPALE</Badge>
+                                      <Badge className="bg-orange-500 text-white">PRINCIPALE</Badge>
                                     )}
                                   </div>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
@@ -1106,7 +1106,7 @@ export default function CantiereDashboardPage() {
                           size="icon"
                           onClick={async () => {
                             try {
-                              const result = await base44.integrations.Core.CreateFileSignedUrl({
+                              const result = await backendClient.integrations.Core.CreateFileSignedUrl({
                                 file_uri: cantiere.verbale_inizio_lavori_url,
                                 expires_in: 3600
                               });

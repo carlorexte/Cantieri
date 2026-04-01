@@ -44,7 +44,8 @@ import { DataProvider } from '@/components/shared/DataContext';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from '@/lib/supabaseClient';
-import rcsLogo from '@/assets/logo-rcs3.png';
+import logoOpen from '@/assets/logo-open.png';
+import logoCollapsed from '@/assets/logo-collapsed.png';
 
 function LayoutContent({ children }) {
     const location = useLocation();
@@ -110,16 +111,16 @@ function LayoutContent({ children }) {
                          {/* Expanded Logo */}
                          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden transition-all duration-300 overflow-hidden">
                             <img
-                                src={rcsLogo}
+                                src={logoOpen}
                                 alt="RCS Logo"
                                 className="h-8 w-auto object-contain"
                             />
                          </div>
 
-                         {/* Collapsed Icon */}
+                         {/* Collapsed Logo */}
                          <div className="hidden group-data-[collapsible=icon]:flex w-full justify-center items-center">
                             <img
-                                src={rcsLogo}
+                                src={logoCollapsed}
                                 alt="RCS Icon"
                                 className="h-8 w-8 object-contain"
                             />
@@ -140,7 +141,7 @@ function LayoutContent({ children }) {
                                             asChild 
                                             isActive={location.pathname.includes(item.url) || (item.url === 'Dashboard' && location.pathname === '/')}
                                             tooltip={item.title}
-                                            className="hover:bg-orange-50 hover:text-orange-600 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-600 data-[active=true]:border-r-4 data-[active=true]:border-orange-500 rounded-none px-6 py-5 transition-all"
+                                            className="hover:bg-orange-50 hover:text-orange-600 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-600 data-[active=true]:font-semibold rounded-lg mx-1 px-3 py-2.5 transition-all"
                                         >
                                             <Link to={createPageUrl(item.url)} className="flex items-center gap-3">
                                                 <item.icon className="w-5 h-5" />
@@ -165,7 +166,7 @@ function LayoutContent({ children }) {
                                             asChild 
                                             isActive={location.pathname.includes(item.url)}
                                             tooltip={item.title}
-                                            className="hover:bg-orange-50 hover:text-orange-600 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-600 data-[active=true]:border-r-4 data-[active=true]:border-orange-500 rounded-none px-6 py-5 transition-all"
+                                            className="hover:bg-orange-50 hover:text-orange-600 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-600 data-[active=true]:font-semibold rounded-lg mx-1 px-3 py-2.5 transition-all"
                                         >
                                             <Link to={createPageUrl(item.url)} className="flex items-center gap-3">
                                                 <item.icon className="w-5 h-5" />

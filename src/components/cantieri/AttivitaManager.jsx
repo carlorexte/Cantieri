@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CheckCircle2, Circle, Clock, AlertCircle, Plus, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function AttivitaManager({ cantiereId, attivitaList, onUpdate }) {
@@ -59,7 +59,7 @@ export default function AttivitaManager({ cantiereId, attivitaList, onUpdate }) 
   const handleDelete = async (id) => {
     if (!confirm("Sei sicuro di voler eliminare questa attività?")) return;
     try {
-      await base44.entities.Attivita.delete(id);
+      await backendClient.entities.Attivita.delete(id);
       toast({ title: "Attività eliminata" });
       onUpdate();
     } catch (error) {
@@ -76,10 +76,10 @@ export default function AttivitaManager({ cantiereId, attivitaList, onUpdate }) 
       };
 
       if (editingAttivita) {
-        await base44.entities.Attivita.update(editingAttivita.id, payload);
+        await backendClient.entities.Attivita.update(editingAttivita.id, payload);
         toast({ title: "Attività aggiornata" });
       } else {
-        await base44.entities.Attivita.create(payload);
+        await backendClient.entities.Attivita.create(payload);
         toast({ title: "Attività creata" });
       }
       

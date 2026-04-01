@@ -177,7 +177,7 @@ export default function ProfiloAziendaForm({ azienda, onSubmit, onCancel }) {
           <X className="w-4 h-4 mr-2" />
           Annulla
         </Button>
-        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+        <Button type="submit" className="">
           <Save className="w-4 h-4 mr-2" />
           {azienda ? "Aggiorna" : "Salva"} Profilo
         </Button>

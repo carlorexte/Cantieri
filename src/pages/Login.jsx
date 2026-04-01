@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 function GoogleIcon() {
   return (
@@ -46,7 +47,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-3">
+          <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-3">
             <Building2 className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Cantieri.pro</h1>
@@ -94,13 +95,21 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <div className="flex justify-end mt-1">
+              <Link
+                to="/resetpassword"
+                className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+              >
+                Password dimenticata?
+              </Link>
+            </div>
           </div>
 
           {error && (
             <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           )}
 
-          <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? 'Accesso in corso...' : 'Accedi'}
           </Button>
         </form>

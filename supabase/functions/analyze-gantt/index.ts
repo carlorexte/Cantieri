@@ -3,58 +3,38 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514'
 
-const VISION_PROMPT = `Sei un esperto in project management e cronoprogrammi edilizi.
-Analizza questa immagine di Gantt chart e estrai TUTTE le attività visibili.
+const VISION_PROMPT = `Ruolo: Agisci come un Data Engineer senior specializzato in sistemi ERP per l'edilizia. Il tuo compito è trasformare stream OCR sporchi e immagini di cronoprogrammi in oggetti JSON strutturati e validati.
 
-REGOLE CRITICHE:
-1. Date in formato ISO: YYYY-MM-DD (esempio: 2025-03-15)
-2. data_fine deve essere >= data_inizio SEMPRE
-3. Descrizione obbligatoria per ogni attività, mai vuota
-4. Se vedi date relative come "Q1 2025", convertile: Q1=01/01-03/31, Q2=04/01-06/30, etc.
-5. Se mancano date precise, stimale dalla posizione visiva delle barre colorate
+Contesto Operativo:
+Stai processando il documento "Gantt_Giugliano_rev.pdf". Il testo contiene errori di scansione (es. "11301,28", "3gdom", "hm") e date che fluttuano tra il 2025 e il 2026.
 
-TIPI DI ATTIVITÀ:
-- "task": attività normale con durata >1 giorno
-- "milestone": evento puntuale, durata 1 giorno, simbolo rombo/stella
-- "raggruppamento": fase/categoria (testo spesso MAIUSCOLO, durata >10 giorni)
+Direttive di Parsing (Strict):
 
-GERARCHIA (livello):
-- 0: Fasi principali (es: "FONDAZIONI")
-- 1: Attività standard (es: "Scavo fondazioni")
-- 2: Sotto-attività (es: "Scavo manuale zona A")
+Normalizzazione Date: - Tutte le date devono essere in formato YYYY-MM-DD.
+Se l'OCR riporta "25" ma il contesto del progetto è chiaramente il 2026 (come per il fine cantiere al 30/06/2026), correggi l'anno in 2026.
+Esempio: "30 mar" diventa 2026-03-30.
 
-ESTRAI per ogni attività:
-1. descrizione: testo esatto dell'attività
-2. data_inizio: data inizio formato YYYY-MM-DD
-3. data_fine: data fine formato YYYY-MM-DD
-4. durata_giorni: numero giorni (calcolato da fine-inizio+1)
-5. tipo_attivita: task/milestone/raggruppamento
-6. livello: 0, 1 o 2 in base a indentazione/gerarchia
-7. wbs: codice WBS se presente (es: "1.2.3")
-8. colore: colore barra in hex (es: "#3b82f6")
+Gerarchia Task: - Identifica le macro-aree in MAIUSCOLO (es. "ALLESTIMENTO DEL CANTIERE", "RESTAURO ARTISTICO", "OPERE ARCHITETTONICHE", "OPERE STRUTTURALI").
+Associa ogni sotto-task alla sua macro-area di appartenenza.
 
-Rispondi in JSON con questa struttura:
+Calcolo Durata: - Estrai il valore numerico dalla stringa di durata (es. "10g" -> 10).
+Se end_date è illeggibile, calcolala come start_date + duration_days.
+
+Pulizia Stringhe: - Rimuovi residui OCR dai nomi dei task (es. "Reasons impianto elettric" -> "Revisione impianto elettrico").
+
+Schema di Output (JSON):
+Restituisci esclusivamente un array di oggetti:
+
+[
 {
-  "attivita": [
-    {
-      "descrizione": "Nome attività",
-      "data_inizio": "2025-04-01",
-      "data_fine": "2025-04-15",
-      "durata_giorni": 15,
-      "tipo_attivita": "task",
-      "livello": 1,
-      "wbs": "1.1",
-      "colore": "#3b82f6"
-    }
-  ],
-  "metadata": {
-    "ganttType": "horizontal",
-    "confidence": "high",
-    "totalActivities": 10
-  }
+  "macro_area": "string",
+  "task_name": "string",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD",
+  "duration_days": 10,
+  "data_integrity_score": 0.95
 }
-
-Rispondi SOLO con JSON valido, senza markdown o altri testi.`
+]`;
 
 function buildCorsHeaders(req: Request) {
   const allowedOrigins = [

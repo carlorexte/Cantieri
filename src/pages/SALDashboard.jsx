@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { backendClient } from '@/api/backendClient';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +45,7 @@ export default function SALDashboardPage() {
 
   const loadUser = async () => {
     try {
-      const user = await base44.auth.me();
+      const user = await backendClient.auth.me();
       setCurrentUser(user);
     } catch (error) {
       console.error("Errore caricamento utente:", error);
@@ -55,11 +55,11 @@ export default function SALDashboardPage() {
   const loadData = async (salId) => {
     setIsLoading(true);
     try {
-      const salData = await base44.entities.SAL.get(salId);
+      const salData = await backendClient.entities.SAL.get(salId);
       setSal(salData);
 
       if (salData.cantiere_id) {
-        const cantiereData = await base44.entities.Cantiere.get(salData.cantiere_id);
+        const cantiereData = await backendClient.entities.Cantiere.get(salData.cantiere_id);
         setCantiere(cantiereData);
       }
     } catch (error) {
@@ -71,7 +71,7 @@ export default function SALDashboardPage() {
 
   const handleUpdateSal = async (salData) => {
     try {
-      await base44.entities.SAL.update(sal.id, salData);
+      await backendClient.entities.SAL.update(sal.id, salData);
       toast.success("SAL aggiornato con successo!");
       setShowEditForm(false);
       loadData(sal.id);
@@ -133,7 +133,7 @@ export default function SALDashboardPage() {
           {canEdit && (
             <Button 
               onClick={() => setShowEditForm(true)}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className=""
             >
               <Edit className="w-4 h-4 mr-2" />
               Modifica SAL

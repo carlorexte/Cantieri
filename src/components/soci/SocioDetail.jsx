@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
   const loadSAL = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await base44.entities.SALSocio.filter({ socio_id: socio.id }, "numero_sal");
+      const data = await backendClient.entities.SALSocio.filter({ socio_id: socio.id }, "numero_sal");
       setSalList(data);
     } catch (error) {
       console.error("Errore caricamento SAL:", error);
@@ -58,9 +58,9 @@ export default function SocioDetail({ socio, cantiere, onClose }) {
       };
 
       if (salData.id) {
-        await base44.entities.SALSocio.update(salData.id, dataToSave);
+        await backendClient.entities.SALSocio.update(salData.id, dataToSave);
       } else {
-        await base44.entities.SALSocio.create(dataToSave);
+        await backendClient.entities.SALSocio.create(dataToSave);
       }
 
       await loadSAL(); // Ensure SAL list is reloaded after save

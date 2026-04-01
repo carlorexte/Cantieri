@@ -90,7 +90,7 @@ async function callGeminiVision(base64Image, mimeType) {
   // In development usa server locale, in production usa Vercel
   const isDev = import.meta.env.DEV;
   const apiUrl = isDev
-    ? 'http://localhost:3001/api/analyze-gantt'
+    ? 'http://localhost:3000/api/analyze-gantt'
     : '/api/analyze-gantt';
 
   console.log('[callGeminiVision] Chiamata Serverless Function...');
@@ -134,7 +134,7 @@ async function callGeminiVision(base64Image, mimeType) {
         throw new Error('Rate limit superato. Attendi qualche minuto e riprova.');
       }
       if (response.status === 500 && errorData.error?.includes('GOOGLE_API_KEY')) {
-        throw new Error('Google API Key non configurata. Contatta amministratore.');
+        throw new Error('GOOGLE_API_KEY_NOT_CONFIGURED');
       }
 
       throw new Error(
@@ -188,6 +188,25 @@ function validateAndTransformResponse(responseText) {
     jsonString = jsonMatch[0];
   }
 
+  // Fix per JSON troncato: aggiungi chiusure mancanti
+  if (!jsonString.endsWith('}')) {
+    console.log('[parseGanttWithVision] JSON troncato rilevato, provo a riparare...');
+    // Conta parentesi e aggiungi chiusure mancanti
+    const openBraces = (jsonString.match(/\{/g) || []).length;
+    const closeBraces = (jsonString.match(/\}/g) || []).length;
+    const openBrackets = (jsonString.match(/\[/g) || []).length;
+    const closeBrackets = (jsonString.match(/\]/g) || []).length;
+    
+    // Aggiungi chiusure mancanti
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+      jsonString += ']';
+    }
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+      jsonString += '}';
+    }
+    console.log('[parseGanttWithVision] JSON riparato:', jsonString.substring(0, 200));
+  }
+
   let parsed;
   try {
     parsed = JSON.parse(jsonString);
@@ -197,54 +216,92 @@ function validateAndTransformResponse(responseText) {
     throw new Error(`Risposta non valida dall'AI. Riprova o usa immagine più chiara.`);
   }
 
-  if (!parsed.attivita || !Array.isArray(parsed.attivita)) {
-    throw new Error('Risposta malformata: manca array attivita');
+  let rawList = [];
+  if (Array.isArray(parsed)) {
+    rawList = parsed;
+  } else if (parsed && Array.isArray(parsed.attivita)) {
+    rawList = parsed.attivita;
+  } else {
+    throw new Error('Risposta malformata: manca array delle attività');
   }
 
-  if (parsed.attivita.length === 0) {
+  if (rawList.length === 0) {
     throw new Error('Nessuna attività trovata nell\'immagine. Verifica che il Gantt sia leggibile.');
   }
 
-  const attivita = parsed.attivita.map((att, index) => {
+  // Pre-process section headers Se abbiamo "macro_area" o "section" nel JSON
+  const finalAttivita = [];
+  let currentIndex = 1;
+  const sezioniViste = new Set();
+
+  rawList.forEach((att) => {
+    const descrizioneAttivita = att.task_name || att.descrizione || '';
+    const sezione = att.macro_area || att.section || '';
+
+    // Se esiste una sezione e non l'abbiamo ancora aggiunta come raggruppamento
+    if (sezione && !sezioniViste.has(sezione)) {
+      sezioniViste.add(sezione);
+      finalAttivita.push({
+        id: `SEC_${sezioniViste.size}`,
+        descrizione: sezione.toUpperCase(),
+        data_inizio: att.start_date || att.data_inizio || '2026-01-01',
+        data_fine: att.end_date || att.data_fine || '2026-01-01',
+        durata_giorni: 1,
+        tipo_attivita: 'raggruppamento',
+        livello: 0,
+        isSection: true
+      });
+      currentIndex++;
+    }
+
+    if (descrizioneAttivita) {
+      finalAttivita.push({
+        ...att,
+        descrizione: descrizioneAttivita,
+        data_inizio: att.start_date || att.data_inizio || null,
+        data_fine: att.end_date || att.data_fine || null,
+        durata_giorni: att.duration_days || att.durata_giorni || null,
+        livello: sezione ? 1 : 0,
+        tipo_attivita: 'task'
+      });
+      currentIndex++;
+    }
+  });
+
+  const attivita = finalAttivita.map((att, index) => {
     // Valida descrizione
     if (!att.descrizione || att.descrizione.trim() === '') {
       throw new Error(`Attività ${index + 1}: descrizione vuota`);
     }
 
-    // Valida date ISO format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!att.data_inizio || !dateRegex.test(att.data_inizio)) {
-      console.warn(`Attività ${index + 1}: data_inizio formato invalido (${att.data_inizio})`);
-      // Non bloccare, usiamo data stimata
-      att.data_inizio = '2025-01-01';
-    }
-    if (!att.data_fine || !dateRegex.test(att.data_fine)) {
-      console.warn(`Attività ${index + 1}: data_fine formato invalido (${att.data_fine})`);
-      att.data_fine = att.data_inizio; // Fallback a data_inizio
-    }
+    // Normalizza date
+    let dInizio = att.data_inizio;
+    let dFine = att.data_fine;
+    
+    if (dInizio && dInizio.split('-').length < 3) dInizio = null; // pulizia noise
+    if (dFine && dFine.split('-').length < 3) dFine = null;
 
-    // Valida data_fine >= data_inizio
-    const start = new Date(att.data_inizio);
-    const end = new Date(att.data_fine);
-    if (end < start) {
-      console.warn(`Attività ${index + 1}: data_fine precede data_inizio, correggo`);
-      att.data_fine = att.data_inizio;
-    }
+    if (!dInizio) dInizio = '2026-01-01';
+    if (!dFine) dFine = dInizio;
 
-    // Calcola durata
-    const durataCalcolata = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    const start = new Date(dInizio);
+    const end = new Date(dFine);
+    if (end < start) dFine = dInizio;
 
-    // Normalizza output compatibile con supabaseClient.js
+    const finalStart = new Date(dInizio);
+    const finalEnd = new Date(dFine);
+    const durataCalcolata = Math.max(1, Math.ceil((finalEnd.getTime() - finalStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
     return {
       id: att.id || `VIS_${index + 1}`,
       wbs: att.wbs || '',
       wbs_code: att.wbs || '',
-      descrizione: att.descrizione.trim().substring(0, 500), // Max 500 char
+      descrizione: att.descrizione.trim().substring(0, 500),
       tipo_attivita: att.tipo_attivita || 'task',
       durata_giorni: att.durata_giorni || durataCalcolata,
-      data_inizio: att.data_inizio,
-      data_fine: att.data_fine,
-      livello: att.livello !== undefined ? Math.min(2, Math.max(0, att.livello)) : 1,
+      data_inizio: dInizio,
+      data_fine: dFine,
+      livello: att.livello !== undefined ? att.livello : 1,
       parent_id: null,
       predecessori: att.predecessori || [],
       colore: att.colore || '#3b82f6',
@@ -252,7 +309,7 @@ function validateAndTransformResponse(responseText) {
       importo_previsto: 0,
       stato: 'pianificata',
       categoria: 'altro',
-      note: 'Importato da immagine con Google Gemini Vision'
+      note: 'Importato via AI OCR'
     };
   });
 
@@ -278,7 +335,7 @@ function validateAndTransformResponse(responseText) {
       projectStart: validStarts[0] || null,
       projectEnd: validEnds[validEnds.length - 1] || null,
       metodo: 'gemini_vision',
-      model: 'gemini-1.5-pro'
+      model: 'gemini-1.5-flash'
     }
   };
 }
@@ -342,7 +399,7 @@ export async function parseGanttWithVision(file, options = {}) {
       logs: [...logs, `✗ Errore: ${error.message}`],
       metadata: {
         metodo: 'gemini_vision',
-        model: 'gemini-1.5-pro'
+        model: 'gemini-2.5-flash'
       }
     };
   }

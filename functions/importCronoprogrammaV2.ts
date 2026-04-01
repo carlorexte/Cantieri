@@ -14,6 +14,7 @@
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
 import * as XLSX from "npm:xlsx@0.18.5";
+import { assertSafeSpreadsheetBytes } from "./spreadsheetSafety.ts";
 
 // ============================================================================
 // PARSER XLSX (inline per Deno)
@@ -186,7 +187,9 @@ Deno.serve(async (req) => {
     console.log("\n📊 Step 5: Parsing XLSX...");
     
     // Leggi workbook
-    const workbook = XLSX.read(new Uint8Array(fileBuffer), { 
+    const spreadsheetBytes = new Uint8Array(fileBuffer);
+    assertSafeSpreadsheetBytes(spreadsheetBytes);
+    const workbook = XLSX.read(spreadsheetBytes, { 
       type: 'array', 
       cellDates: true,
       dateNF: 'yyyy-mm-dd'

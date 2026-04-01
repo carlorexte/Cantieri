@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,9 +32,9 @@ export default function GestionePermessiCantieriPage() {
     setIsLoading(true);
     try {
       const [cantieriData, utentiData, overridesData] = await Promise.all([
-        base44.entities.Cantiere.list('-created_date', 100),
-        base44.entities.User.list(),
-        base44.entities.PermessoCantiereUtente.list()
+        backendClient.entities.Cantiere.list('-created_date', 100),
+        backendClient.entities.User.list(),
+        backendClient.entities.PermessoCantiereUtente.list()
       ]);
       setCantieri(cantieriData);
       setUtenti(utentiData);
@@ -168,14 +168,14 @@ function OverrideDialog({ open, onOpenChange, user, cantiere, existingOverride, 
             if (Object.keys(permessi).length === 0) {
                 // If empty, verify if we should delete existing override
                 if (existingOverride) {
-                    await base44.entities.PermessoCantiereUtente.delete(existingOverride.id);
+                    await backendClient.entities.PermessoCantiereUtente.delete(existingOverride.id);
                     toast.success("Override rimosso");
                 }
             } else {
                 if (existingOverride) {
-                    await base44.entities.PermessoCantiereUtente.update(existingOverride.id, { permessi });
+                    await backendClient.entities.PermessoCantiereUtente.update(existingOverride.id, { permessi });
                 } else {
-                    await base44.entities.PermessoCantiereUtente.create({
+                    await backendClient.entities.PermessoCantiereUtente.create({
                         utente_id: user.id,
                         cantiere_id: cantiere.id,
                         permessi

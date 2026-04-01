@@ -32,9 +32,13 @@ export function usePermissions() {
     return map[module]?.[action];
   };
 
+  const isAdminUser = user?.role === 'admin' ||
+    ruolo?.nome?.toLowerCase().includes('amministrat') ||
+    ruolo?.permessi?.is_admin === true;
+
   const hasPermission = useCallback((module, action = 'view') => {
     if (!user) return false;
-    if (user.role === 'admin') return true;
+    if (isAdminUser) return true;
 
     // 1. Check Flattened User Permissions (Priority)
     const field = getPermissionField(module, action);
@@ -56,7 +60,7 @@ export function usePermissions() {
 
   const hasCantierePermission = useCallback((cantiereId, module, action = 'view') => {
     if (!user) return false;
-    if (user.role === 'admin') return true;
+    if (isAdminUser) return true;
 
     // 1. SCOPE CHECK
     // Is user allowed to access this cantiere?
@@ -124,7 +128,7 @@ export function usePermissions() {
     hasCantierePermission,
     hasCantiereObjectPermission,
     getAccessibleCantieri,
-    isAdmin: user?.role === 'admin'
+    isAdmin: isAdminUser
   };
 }
 

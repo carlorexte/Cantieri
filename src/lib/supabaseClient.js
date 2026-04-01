@@ -948,7 +948,8 @@ export const supabaseDB = {
       let legacyRole = 'member';
       if (ruoloId) {
         const { data: ruolo } = await supabase.from('ruoli').select('nome, permessi').eq('id', ruoloId).single();
-        if (ruolo?.nome?.toLowerCase() === 'admin' || ruolo?.permessi?.is_admin === true) {
+        const nomeRuolo = ruolo?.nome?.toLowerCase() || '';
+        if (nomeRuolo === 'admin' || nomeRuolo.includes('amministrat') || ruolo?.permessi?.is_admin === true) {
           legacyRole = 'admin';
         }
       }

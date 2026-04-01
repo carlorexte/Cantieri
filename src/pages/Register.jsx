@@ -98,17 +98,16 @@ export default function RegisterPage() {
     } catch (error) {
       console.error('Errore registrazione:', error);
       
-      let errorMessage = 'Errore durante la registrazione';
-      
-      if (error.message?.includes('already been registered')) {
+      let errorMessage = error.message || 'Errore durante la registrazione';
+
+      if (error.message?.includes('already been registered') || error.message?.includes('already registered')) {
         errorMessage = 'Questo indirizzo email è già registrato. Vai al login.';
       } else if (error.message?.includes('Invalid email')) {
         errorMessage = 'Indirizzo email non valido';
       } else if (error.message?.includes('Password should be')) {
         errorMessage = error.message;
       } else if (error.message?.includes('invite')) {
-        // Utente invitato che completa la registrazione
-        errorMessage = null; // Gestito dal successo
+        errorMessage = null;
       }
       
       if (errorMessage) {

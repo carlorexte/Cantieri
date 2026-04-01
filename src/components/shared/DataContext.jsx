@@ -79,6 +79,12 @@ export const DataProvider = ({ children }) => {
       );
       const teamIds = (teamMemberships || []).map(tm => tm.team?.id).filter(Boolean);
 
+      // Sincronizza role legacy dal ruolo RBAC (evita dipendenza dal campo DB)
+      const ruoloNome = profile.ruolo?.nome?.toLowerCase() || '';
+      if (ruoloNome.includes('amministrat') || profile.ruolo?.permessi?.is_admin === true) {
+        profile = { ...profile, role: 'admin' };
+      }
+
       const enrichedUser = {
         ...profile,
         full_name: profile.full_name || authUser.email,

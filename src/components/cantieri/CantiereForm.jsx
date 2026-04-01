@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { backendClient } from "@/api/backendClient";
+import { supabaseDB } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -302,7 +303,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
     // Load Teams
     const loadTeams = async () => {
       try {
-        const teamsList = await backendClient.entities.Team.list("nome");
+        const teamsList = await supabaseDB.rbac.getAllTeams();
         setTeams(teamsList);
       } catch (error) {
         console.error("Errore caricamento teams:", error);

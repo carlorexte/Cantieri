@@ -12,6 +12,7 @@ export default function ImportReviewPanel({
   importPackage,
   onSelectCandidate,
   onActivityChange,
+  onMacroAreaChange,
   showSummary = true,
   showActivityTable = true
 }) {
@@ -20,8 +21,15 @@ export default function ImportReviewPanel({
   const selectedLabel = importPackage?.selectedCandidateLabel;
   const review = importPackage?.canonical?.review;
   const activities = importPackage?.canonical?.activities || [];
+  const macroAreas = importPackage?.canonical?.macro_areas || [];
+  const project = importPackage?.canonical?.project || null;
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
+
+  const macroAreaMap = useMemo(
+    () => new Map(macroAreas.map((macroArea) => [macroArea.id, macroArea])),
+    [macroAreas]
+  );
 
   const filteredActivities = useMemo(() => {
     const normalizedTerm = searchTerm.trim().toLowerCase();
@@ -36,7 +44,8 @@ export default function ImportReviewPanel({
 
       const hasMissingDates = !activity.start_date || !activity.end_date;
       const hasSuspiciousDuration = !activity.duration_days || activity.duration_days <= 0 || activity.duration_days > 365;
-      return hasMissingDates || hasSuspiciousDuration;
+      const hasMissingParent = !activity.parent_id || !activity.macro_area_id;
+      return hasMissingDates || hasSuspiciousDuration || hasMissingParent;
     });
   }, [activities, searchTerm, showOnlyIssues]);
 
@@ -86,6 +95,10 @@ export default function ImportReviewPanel({
                 <div className="text-lg font-semibold text-slate-900">{review.totalActivities}</div>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="text-slate-500">Macro aree</div>
+                <div className="text-lg font-semibold text-slate-900">{review.macroAreasCount || macroAreas.length}</div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="text-slate-500">Con date</div>
                 <div className="text-lg font-semibold text-slate-900">{review.withDates}</div>
               </div>
@@ -93,11 +106,30 @@ export default function ImportReviewPanel({
                 <div className="text-amber-700">Date mancanti</div>
                 <div className="text-lg font-semibold text-amber-900">{review.missingDatesCount}</div>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 col-span-2 xl:col-span-4">
                 <div className="text-slate-500">Range progetto</div>
                 <div className="text-sm font-semibold text-slate-900">
-                  {review.projectStart || '-'} {'->'} {review.projectEnd || '-'}
+                  {(project?.name || 'Cronoprogramma importato')} {' | '} {review.projectStart || '-'} {'->'} {review.projectEnd || '-'}
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <div className="text-sm font-medium text-slate-900 mb-3">Struttura rilevata</div>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {macroAreas.map((macroArea) => {
+                  const childCount = activities.filter((activity) => activity.macro_area_id === macroArea.id).length;
+                  return (
+                    <div key={macroArea.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">Macro area</div>
+                      <div className="mt-1 font-medium text-slate-900">{macroArea.code || '-'} {macroArea.name}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {macroArea.start_date || '-'} {'->'} {macroArea.end_date || '-'}
+                      </div>
+                      <div className="mt-2 text-xs text-slate-600">{childCount} attività collegate</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -164,7 +196,7 @@ export default function ImportReviewPanel({
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Badge variant="outline">{filteredActivities.length} visibili</Badge>
               <Badge variant="outline">Editabile</Badge>
-              Modifica descrizione, durata, date e tipo prima del salvataggio definitivo.
+              Modifica descrizione, durata, date e tipo prima del salvataggio definitivo. I raggruppamenti si gestiscono come macro aree, non come attività.
             </div>
           </CardHeader>
           <CardContent>
@@ -173,6 +205,7 @@ export default function ImportReviewPanel({
                 <TableHeader className="sticky top-0 z-10 bg-white">
                   <TableRow>
                     <TableHead className="w-20">WBS</TableHead>
+                    <TableHead className="w-48">Macro area</TableHead>
                     <TableHead className="min-w-80">Descrizione</TableHead>
                     <TableHead className="w-24">Durata</TableHead>
                     <TableHead className="w-40">Inizio</TableHead>
@@ -184,6 +217,26 @@ export default function ImportReviewPanel({
                   {filteredActivities.map((activity) => (
                     <TableRow key={`${activity.id}-${activity.description}`}>
                       <TableCell className="font-mono text-xs">{activity.wbs || activity.id}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={activity.macro_area_id || activity.parent_id || ''}
+                          onValueChange={(value) => onActivityChange(activity.id, {
+                            macro_area_id: value,
+                            parent_id: value
+                          })}
+                        >
+                          <SelectTrigger className="h-8 min-w-40">
+                            <SelectValue placeholder="Seleziona macro area" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {macroAreas.map((macroArea) => (
+                              <SelectItem key={macroArea.id} value={macroArea.id}>
+                                {macroArea.code ? `${macroArea.code} - ` : ''}{macroArea.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <Input
                           value={activity.description || ''}
@@ -226,7 +279,6 @@ export default function ImportReviewPanel({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="task">task</SelectItem>
-                            <SelectItem value="raggruppamento">raggruppamento</SelectItem>
                             <SelectItem value="milestone">milestone</SelectItem>
                           </SelectContent>
                         </Select>
@@ -235,7 +287,7 @@ export default function ImportReviewPanel({
                   ))}
                   {filteredActivities.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-sm text-slate-500">
+                      <TableCell colSpan={7} className="h-24 text-center text-sm text-slate-500">
                         Nessuna attivita corrisponde al filtro corrente.
                       </TableCell>
                     </TableRow>

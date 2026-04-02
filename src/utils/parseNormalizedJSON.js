@@ -8,6 +8,7 @@ export async function parseNormalizedJSON(fileOrBuffer, options = {}) {
 
   try {
     let jsonData;
+    let canonicalPayload = null;
 
     // Se è un File object (dal browser)
     if (fileOrBuffer instanceof File) {
@@ -33,23 +34,64 @@ export async function parseNormalizedJSON(fileOrBuffer, options = {}) {
 
     logs.push('✓ File JSON caricato');
 
-    // Valida struttura
-    if (!jsonData.success || !Array.isArray(jsonData.attivita)) {
-      throw new Error('Formato JSON non valido: manca success o attivita');
+    let attivita = [];
+    let metadata = jsonData.metadata || {};
+
+    if (jsonData.schema_version && Array.isArray(jsonData.activities)) {
+      canonicalPayload = jsonData;
+      attivita = [
+        ...(jsonData.macro_areas || []).map((item) => ({
+          id: item.id,
+          wbs: item.code || '',
+          parent_id: item.parent_id || null,
+          descrizione: item.name,
+          tipo_attivita: 'raggruppamento',
+          data_inizio: item.start_date,
+          data_fine: item.end_date,
+          durata_giorni: item.duration_days,
+          colore: item.color
+        })),
+        ...jsonData.activities.map((item) => ({
+          id: item.id,
+          wbs: item.wbs || '',
+          parent_id: item.parent_id || null,
+          descrizione: item.description,
+          tipo_attivita: item.type || 'task',
+          data_inizio: item.start_date,
+          data_fine: item.end_date,
+          durata_giorni: item.duration_days,
+          predecessori: item.predecessors || [],
+          percentuale_completamento: item.progress || 0,
+          importo_previsto: item.amount || 0,
+          stato: item.status || 'pianificata',
+          colore: item.color
+        }))
+      ];
+      metadata = {
+        ...metadata,
+        metodo: 'normalized_json',
+        schema_version: jsonData.schema_version,
+        canonical: true
+      };
+    } else if (jsonData.success && Array.isArray(jsonData.attivita)) {
+      attivita = jsonData.attivita;
+      logs.push(`✓ ${jsonData.attivita.length} attività trovate`);
+      logs.push(`✓ Copertura date: ${metadata.dateCoverage || 0}%`);
+      metadata = {
+        ...metadata,
+        metodo: 'normalized_json'
+      };
+    } else {
+      throw new Error('Formato JSON non valido: atteso schema canonico o payload con attivita');
     }
 
-    logs.push(`✓ ${jsonData.attivita.length} attività trovate`);
-
-    const metadata = jsonData.metadata || {};
-    logs.push(`✓ Copertura date: ${metadata.dateCoverage || 0}%`);
+    logs.push(`✓ ${attivita.length} attività trovate`);
 
     return {
       success: true,
-      attivita: jsonData.attivita,
-      metadata: {
-        ...metadata,
-        metodo: 'normalized_json'
-      },
+      attivita,
+      metadata,
+      canonicalPayload,
       logs
     };
 

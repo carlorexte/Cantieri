@@ -4,6 +4,9 @@ import { parseCronoprogrammaSemplice } from './parseCronoprogrammaSemplice';
 import { parseGoogleSheetColorBars } from './parseGoogleSheetColorBars';
 import { parseGanttWithVision } from './parseGanttWithVision';
 import { parseNormalizedJSON } from './parseNormalizedJSON';
+import { adaptParsedActivitiesToCanonical } from './adaptParsedActivitiesToCanonical';
+import { validateCanonicalCronoprogramma } from './validateCanonicalCronoprogramma';
+import { normalizeCanonicalCronoprogramma } from './normalizeCanonicalCronoprogramma';
 import {
   createPlanningActivity,
   planningActivitiesToCanonical,
@@ -160,21 +163,31 @@ function scoreCandidate(result, parserKey) {
 }
 
 function toCanonicalProject(candidate, source) {
-  const rawActivities = Array.isArray(candidate.result.attivita) ? candidate.result.attivita : [];
-  const activities = rawActivities.map((activity, index) => normalizeActivity(activity, index, candidate.key));
-  const diagnostics = buildDiagnostics(activities);
-  const metadata = candidate.result.metadata || {};
+  const canonicalPayload = candidate.result?.canonicalPayload
+    || adaptParsedActivitiesToCanonical(candidate.result, source, candidate.key);
 
-  const starts = activities.map((activity) => activity.start_date).filter(Boolean).sort();
-  const ends = activities.map((activity) => activity.end_date).filter(Boolean).sort();
+  const validation = validateCanonicalCronoprogramma(canonicalPayload);
+  if (!validation.valid) {
+    throw new Error(validation.errors.slice(0, 5).join(' | ') || 'Payload canonico non valido');
+  }
 
-  const project = {
-    project_name: metadata.sheetName || metadata.foglio || source.label || 'Cronoprogramma importato',
-    activities,
+  const normalized = normalizeCanonicalCronoprogramma(canonicalPayload, {
+    projectSource: candidate.key
+  });
+  const diagnostics = buildDiagnostics(normalized.activities);
+
+  return {
+    schema_version: canonicalPayload.schema_version || '2.0',
+    success: true,
+    project: normalized.project,
+    project_name: normalized.project?.name || source.label || 'Cronoprogramma importato',
     timeline: {
-      start_date: starts[0] || null,
-      end_date: ends[ends.length - 1] || null
+      start_date: normalized.project?.start_date || null,
+      end_date: normalized.project?.end_date || null
     },
+    macro_areas: normalized.macro_areas,
+    activities: normalized.activities,
+    planningActivities: normalized.planningActivities,
     source_summary: {
       mode: source.mode,
       label: source.label,
@@ -183,36 +196,24 @@ function toCanonicalProject(candidate, source) {
       confidence: candidate.confidence
     },
     import_diagnostics: [
+      ...validation.warnings.slice(0, 20).map((message) => ({
+        severity: 'warning',
+        code: 'validation_warning',
+        message
+      })),
       ...diagnostics.missingDates.slice(0, 20).map((activity) => ({
         severity: 'warning',
         code: 'missing_dates',
         message: `${activity.description}: date incomplete`
-      })),
-      ...diagnostics.suspiciousDurations.slice(0, 20).map((activity) => ({
-        severity: 'warning',
-        code: 'suspicious_duration',
-        message: `${activity.description}: durata ${activity.duration_days} giorni`
       })),
       ...(diagnostics.anomalousStartCluster ? [{
         severity: 'error',
         code: 'start_date_cluster',
         message: `Cluster anomalo su ${diagnostics.dominantStartDate}: ${diagnostics.dominantStartCount} attivita partono lo stesso giorno`
       }] : [])
-    ]
-  };
-
-  return {
-    ...project,
+    ],
     review: {
-      totalActivities: activities.length,
-      withDates: activities.length - diagnostics.missingDates.length,
-      missingDatesCount: diagnostics.missingDates.length,
-      duplicateCount: diagnostics.duplicateRows.length,
-      suspiciousDurationsCount: diagnostics.suspiciousDurations.length,
-      projectStart: project.timeline.start_date,
-      projectEnd: project.timeline.end_date,
-      sampleMissingDates: diagnostics.missingDates.slice(0, 8),
-      sampleActivities: activities.slice(0, 12),
+      ...normalized.review,
       anomalousStartCluster: diagnostics.anomalousStartCluster,
       dominantStartDate: diagnostics.dominantStartDate,
       dominantStartCount: diagnostics.dominantStartCount,
@@ -301,6 +302,7 @@ async function runParsersForSource(source, options) {
         score: scored.score,
         confidence,
         dateCoverage: scored.effectiveCoverage,
+        attivitaCount: result.attivita.length,
         result,
         diagnostics: scored.diagnostics
       });
@@ -364,6 +366,9 @@ export async function parseMultimodalCronoprogramma(source, options = {}) {
       key: selectedCandidate.key,
       label: selectedCandidate.label
     },
+    selectedCandidateKey: selectedCandidate.key,
+    selectedCandidateLabel: selectedCandidate.label,
+    source,
     rawResults: Object.fromEntries(validCandidates.map((candidate) => [candidate.key, candidate.result]))
   };
 }
@@ -395,6 +400,18 @@ export function canonicalActivitiesToDbActivities(canonicalActivities) {
   const planningActivities = (canonicalActivities || []).map((activity) =>
     createPlanningActivity(activity, activity?.source_trace?.parser || 'canonical')
   );
+
+  return planningActivitiesToDb(planningActivities).map((activity) => ({
+    ...activity,
+    categoria: 'altro'
+  }));
+}
+
+export function canonicalProjectToDbActivities(canonicalProject) {
+  const planningActivities = canonicalProject?.planningActivities
+    || normalizeCanonicalCronoprogramma(canonicalProject, {
+      projectSource: canonicalProject?.source_summary?.parser || 'canonical'
+    }).planningActivities;
 
   return planningActivitiesToDb(planningActivities).map((activity) => ({
     ...activity,

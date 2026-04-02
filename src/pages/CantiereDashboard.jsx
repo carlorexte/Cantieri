@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, Tag } from 'lucide-react';
+import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, Tag, AlertTriangle } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -38,6 +38,9 @@ import AttivitaManager from '../components/cantieri/AttivitaManager';
 import ProgressChart from '../components/cantiere-dashboard/ProgressChart';
 import QuickNotes from '../components/cantiere-dashboard/QuickNotes';
 import SALAlerts from '@/components/sal/SALAlerts';
+import SegnalazioneForm from '@/components/cantieri/SegnalazioneForm';
+import SegnalazioniList from '@/components/cantieri/SegnalazioniList';
+import { supabaseDB } from '@/lib/supabaseClient';
 
 const DetailField = React.memo(({ label, value }) => (
   <div>
@@ -67,6 +70,8 @@ export default function CantiereDashboardPage() {
   const [responsabileSicurezza, setResponsabileSicurezza] = useState(null);
   const [direttoreLavori, setDirettoreLavori] = useState(null);
   const [responsabileUnico, setResponsabileUnico] = useState(null);
+  const [segnalazioni, setSegnalazioni] = useState([]);
+  const [showSegnalazioneForm, setShowSegnalazioneForm] = useState(false);
 
   // loadUser removed in favor of usePermissions
 
@@ -130,16 +135,26 @@ export default function CantiereDashboardPage() {
     setIsLoading(false);
   }, [setCantiere, setSubappalti, setDocumenti, setImprese, setSalList, setResponsabileSicurezza, setDirettoreLavori, setResponsabileUnico]);
 
+  const loadSegnalazioni = useCallback(async (cantiereId) => {
+    try {
+      const data = await supabaseDB.segnalazioni.getByCantiere(cantiereId);
+      setSegnalazioni(data);
+    } catch (err) {
+      console.error('Errore caricamento segnalazioni:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
 
     if (id) {
       loadData(id);
+      loadSegnalazioni(id);
     } else {
       setIsLoading(false);
     }
-  }, [loadData]);
+  }, [loadData, loadSegnalazioni]);
 
   const handleDocumentoSubmit = useCallback(async (formData) => {
     try {
@@ -508,16 +523,32 @@ export default function CantiereDashboardPage() {
               </div>
             )}
 
-            <div className="mb-6">
-              <AttivitaManager
-                cantiereId={cantiere.id}
-                attivitaList={attivita}
-                onUpdate={() => loadData(cantiere.id)}
-              />
-            </div>
-
             {/* Accordion con tutte le sezioni collassabili */}
             <Accordion type="multiple" defaultValue={["dati-generali"]} className="w-full mt-6">
+
+              {/* Attività */}
+              <AccordionItem value="attivita">
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-indigo-600" />
+                    Attività
+                    {attivita.length > 0 && (
+                      <span className="ml-2 text-xs bg-slate-100 text-slate-600 rounded-full px-2 py-0.5 font-normal">
+                        {attivita.length}
+                      </span>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-2">
+                    <AttivitaManager
+                      cantiereId={cantiere.id}
+                      attivitaList={attivita}
+                      onUpdate={() => loadData(cantiere.id)}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
               
               {/* Dati Generali */}
               <AccordionItem value="dati-generali">
@@ -1067,6 +1098,40 @@ export default function CantiereDashboardPage() {
                 </AccordionItem>
               )}
 
+              {/* Segnalazioni Cantiere */}
+              <AccordionItem value="segnalazioni">
+                <AccordionTrigger className="text-lg font-semibold hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    Segnalazioni Cantiere
+                    {segnalazioni.length > 0 && (
+                      <span className="ml-2 text-xs bg-amber-100 text-amber-800 rounded-full px-2 py-0.5 font-normal">
+                        {segnalazioni.length}
+                      </span>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-4">
+                    <div className="flex justify-end mb-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowSegnalazioneForm(true)}
+                      >
+                        <PlusCircle className="w-4 h-4 mr-2" />
+                        Nuova Segnalazione
+                      </Button>
+                    </div>
+                    <SegnalazioniList
+                      segnalazioni={segnalazioni}
+                      currentUser={currentUser}
+                      onRefresh={() => loadSegnalazioni(cantiere.id)}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
             </Accordion>
           </CardContent>
         </Card>
@@ -1254,6 +1319,24 @@ export default function CantiereDashboardPage() {
               subappalti={subappalti}
               imprese={imprese}
               sals={salList}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Form Segnalazione */}
+        <Dialog open={showSegnalazioneForm} onOpenChange={setShowSegnalazioneForm}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nuova Segnalazione</DialogTitle>
+            </DialogHeader>
+            <SegnalazioneForm
+              cantiereId={cantiere?.id}
+              attivitaList={attivita}
+              onSuccess={() => {
+                setShowSegnalazioneForm(false);
+                loadSegnalazioni(cantiere.id);
+              }}
+              onCancel={() => setShowSegnalazioneForm(false)}
             />
           </DialogContent>
         </Dialog>

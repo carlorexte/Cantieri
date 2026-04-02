@@ -1,27 +1,29 @@
 /**
  * ActivityBar con Drag & Drop per Gantt
- * 
+ *
  * Permette di spostare le attività con drag & drop
  * e aggiornare automaticamente le date
  */
 
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Flag, Move } from 'lucide-react';
 
-export function ActivityBar({ 
-  activity, 
-  startDate, 
-  duration, 
+export function ActivityBar({
+  activity,
+  startDate,
+  duration,
   isCritical,
   canDrag = true,
+  canResize = true,
   viewMode,
   timelineStart, // Nuova prop: data inizio timeline
   dayWidth = 40, // Nuova prop: pixel per giorno
   barLeft = null,
-  barWidth = null
+  barWidth = null,
+  onResizeCommit
 }) {
   const {
     attributes,
@@ -37,6 +39,8 @@ export function ActivityBar({
       type: 'activity'
     }
   });
+  const resizeStateRef = useRef(null);
+  const [resizePreview, setResizePreview] = useState(null);
 
   // Calcola larghezza
   const width = duration * dayWidth;
@@ -67,6 +71,91 @@ export function ActivityBar({
     }
   }
 
+  useEffect(() => () => {
+    resizeStateRef.current = null;
+  }, []);
+
+  function getResizeSnapshot(clientX) {
+    const state = resizeStateRef.current;
+    if (!state) return null;
+
+    const rawDeltaDays = Math.round((clientX - state.startX) / dayWidth);
+    if (state.edge === 'right') {
+      const nextDuration = Math.max(1, state.initialDuration + rawDeltaDays);
+      return {
+        edge: 'right',
+        deltaDays: nextDuration - state.initialDuration,
+        nextDuration,
+        nextLeft: state.initialLeft,
+        nextWidth: nextDuration * dayWidth
+      };
+    }
+
+    const clampedShift = Math.min(state.initialDuration - 1, rawDeltaDays);
+    const nextDuration = Math.max(1, state.initialDuration - clampedShift);
+
+    return {
+      edge: 'left',
+      deltaDays: clampedShift,
+      nextDuration,
+      nextLeft: state.initialLeft + (clampedShift * dayWidth),
+      nextWidth: nextDuration * dayWidth
+    };
+  }
+
+  const handleResizeMove = useCallback((event) => {
+    const snapshot = getResizeSnapshot(event.clientX);
+    if (!snapshot) return;
+
+    setResizePreview({
+      left: snapshot.nextLeft,
+      width: snapshot.nextWidth,
+      duration: snapshot.nextDuration
+    });
+  }, [dayWidth]);
+
+  const handleResizeEnd = useCallback((event) => {
+    const snapshot = getResizeSnapshot(event.clientX);
+    window.removeEventListener('mousemove', handleResizeMove);
+    window.removeEventListener('mouseup', handleResizeEnd);
+
+    if (resizeStateRef.current) {
+      document.body.style.userSelect = 'auto';
+      document.body.style.cursor = 'default';
+    }
+
+    resizeStateRef.current = null;
+    setResizePreview(null);
+
+    if (!snapshot || !onResizeCommit) return;
+    if (snapshot.deltaDays === 0 && snapshot.nextDuration === duration) return;
+
+    onResizeCommit(activity.id, {
+      edge: snapshot.edge,
+      deltaDays: snapshot.deltaDays,
+      durationDays: snapshot.nextDuration
+    });
+  }, [activity.id, duration, handleResizeMove, onResizeCommit]);
+
+  const handleResizeStart = useCallback((edge, event) => {
+    if (!canResize) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    resizeStateRef.current = {
+      edge,
+      startX: event.clientX,
+      initialLeft: left,
+      initialWidth: widthPx,
+      initialDuration: Math.max(1, duration)
+    };
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }, [canResize, duration, handleResizeEnd, handleResizeMove, left, widthPx]);
+
   // Colore in base allo stato
   const getStatusColor = () => {
     if (isCritical) return 'bg-red-500 border-red-700 hover:bg-red-600';
@@ -79,6 +168,10 @@ export function ActivityBar({
       default: return 'bg-indigo-500 border-indigo-700 hover:bg-indigo-600';
     }
   };
+
+  const effectiveLeft = resizePreview?.left ?? left;
+  const effectiveWidth = resizePreview?.width ?? widthPx;
+  const effectiveDuration = resizePreview?.duration ?? duration;
 
   return (
     <div
@@ -96,11 +189,20 @@ export function ActivityBar({
         hover:shadow-md
       `}
       style={{
-        left: `${left}px`,
-        width: `${widthPx}px`,
+        left: `${effectiveLeft}px`,
+        width: `${effectiveWidth}px`,
         transform: CSS.Translate.toString(transform)
       }}
     >
+      {canResize && (
+        <button
+          type="button"
+          className="absolute left-0 top-0 h-full w-2 cursor-ew-resize rounded-l-md bg-black/10 opacity-0 transition-opacity group-hover:opacity-100"
+          onMouseDown={(event) => handleResizeStart('left', event)}
+          aria-label="Ridimensiona inizio attività"
+        />
+      )}
+
       {/* Icona per attività critiche */}
       {isCritical && (
         <Flag className="w-3 h-3 text-white flex-shrink-0" />
@@ -113,7 +215,7 @@ export function ActivityBar({
       
       {/* Durata */}
       <Badge variant="secondary" className="text-xs px-1 py-0 h-auto">
-        {duration}g
+        {effectiveDuration}g
       </Badge>
 
       {/* Icona drag (solo hover) */}
@@ -121,6 +223,15 @@ export function ActivityBar({
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <Move className="w-3 h-3 text-white" />
         </div>
+      )}
+
+      {canResize && (
+        <button
+          type="button"
+          className="absolute right-0 top-0 h-full w-2 cursor-ew-resize rounded-r-md bg-black/10 opacity-0 transition-opacity group-hover:opacity-100"
+          onMouseDown={(event) => handleResizeStart('right', event)}
+          aria-label="Ridimensiona fine attività"
+        />
       )}
     </div>
   );

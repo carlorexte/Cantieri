@@ -452,6 +452,7 @@ function parseHorizontalGantt(rawData, headerRowIndex, dateColumns, dataInizioDe
       wbs_code: idRaw || '',
       livello: 0,
       parent_id: null,
+      source_row: headerRowIndex + 2 + i,
       descrizione: descrizioneTrimmed,
       tipo_attivita: tipoAttivita,
       data_inizio: dataInizio,
@@ -464,7 +465,7 @@ function parseHorizontalGantt(rawData, headerRowIndex, dateColumns, dataInizioDe
               tipoAttivita === 'milestone' ? '#f59e0b' : '#3b82f6',
       stato: 'pianificata',
       categoria: 'altro',
-      note: ''
+      note: `source_row:${headerRowIndex + 2 + i}`
     });
   }
   
@@ -670,6 +671,7 @@ export function parseXLSXCronoprogramma(fileBuffer, options = {}) {
         wbs_code: wbs,
         livello,
         parent_id: parentId,
+        source_row: headerRowIndex + 2 + i,
         descrizione: descrizioneTrimmed,
         tipo_attivita: tipoAttivita,
         data_inizio: dataInizio,
@@ -682,7 +684,7 @@ export function parseXLSXCronoprogramma(fileBuffer, options = {}) {
                 tipoAttivita === 'raggruppamento' ? '#64748b' : '#3b82f6',
         stato: 'pianificata',
         categoria: 'altro',
-        note: ''
+        note: `source_row:${headerRowIndex + 2 + i}`
       });
     }
     

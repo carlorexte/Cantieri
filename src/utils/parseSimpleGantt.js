@@ -117,6 +117,7 @@ export function parseSimpleGantt(fileBuffer, dataInizioDefault = null) {
         id: idRaw || `ACT_${attivita.length + 1}`,
         wbs: idRaw || '',
         wbs_code: idRaw || '',
+        source_row: headerRowIndex + 2 + i,
         descrizione,
         durata_giorni: durata,
         data_inizio: projectStartDate,
@@ -128,7 +129,7 @@ export function parseSimpleGantt(fileBuffer, dataInizioDefault = null) {
         importo_previsto: 0,
         percentuale_completamento: 0,
         categoria: 'altro',
-        note: ''
+        note: `source_row:${headerRowIndex + 2 + i}`
       });
     }
 

@@ -537,6 +537,7 @@ function parseStyledHorizontalGantt(fileBuffer, options = {}) {
       wbs_code: wbsRaw,
       livello,
       parent_id: null,
+      source_row: r + 1,
       descrizione,
       tipo_attivita: tipo,
       data_inizio: dataInizio,
@@ -548,7 +549,7 @@ function parseStyledHorizontalGantt(fileBuffer, options = {}) {
       colore: tipo === 'raggruppamento' ? '#64748b' : tipo === 'milestone' ? '#f59e0b' : '#3b82f6',
       stato: 'pianificata',
       categoria: 'altro',
-      note: span ? `inferenza:${span.source}` : ''
+      note: `${span ? `inferenza:${span.source};` : ''}source_row:${r + 1}`
     });
   }
 

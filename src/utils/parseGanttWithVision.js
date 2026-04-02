@@ -87,11 +87,8 @@ async function convertFileToBase64(file) {
  * Chiamata API Gemini Vision tramite Serverless Function
  */
 async function callGeminiVision(base64Image, mimeType) {
-  // In development usa server locale, in production usa Vercel
-  const isDev = import.meta.env.DEV;
-  const apiUrl = isDev
-    ? 'http://localhost:3000/api/analyze-gantt'
-    : '/api/analyze-gantt';
+  // Usa sempre il path relativo: in dev passa dal proxy Vite verso localhost:3000
+  const apiUrl = '/api/analyze-gantt';
 
   console.log('[callGeminiVision] Chiamata Serverless Function...');
   console.log('[callGeminiVision] URL:', apiUrl);

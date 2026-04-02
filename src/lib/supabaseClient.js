@@ -785,11 +785,19 @@ export const supabaseDB = {
 
       const planningActivities = attivitaList.map((att) => createPlanningActivity(att, 'supabase-import'));
       const dbActivities = planningActivitiesToDb(planningActivities);
+      const importedIdMap = new Map(
+        dbActivities.map((att) => {
+          const sourceId = att.id || att.wbs || crypto.randomUUID();
+          const persistentId = UUID_PATTERN.test(String(sourceId || '')) ? String(sourceId) : crypto.randomUUID();
+          return [sourceId, persistentId];
+        })
+      );
 
       attivitaDaInserire = dbActivities.map(att => ({
+        id: importedIdMap.get(att.id || att.wbs) || crypto.randomUUID(),
         cantiere_id: cantiereId,
         wbs: att.wbs || '',
-        parent_id: att.parent_id || null,
+        parent_id: att.parent_id ? (importedIdMap.get(att.parent_id) || null) : null,
         descrizione: att.descrizione,
         tipo_attivita: att.tipo_attivita || 'task',
         durata_giorni: att.durata_giorni || 1,
@@ -798,8 +806,12 @@ export const supabaseDB = {
         importo_previsto: att.importo_previsto || 0,
         percentuale_completamento: att.percentuale_completamento || 0,
         stato: att.stato || 'pianificata',
-        predecessori: att.predecessori || [],
+        predecessori: (att.predecessori || []).map((dependency) => ({
+          ...dependency,
+          attivita_id: importedIdMap.get(dependency.attivita_id) || dependency.attivita_id
+        })),
         colore: att.colore || '#3b82f6',
+        note: att.note || '',
         created_date: new Date().toISOString(),
         updated_date: new Date().toISOString()
       }));
@@ -856,6 +868,51 @@ export const supabaseDB = {
         attivita_ids: [],
         errori: [{ riga: 0, errore: error.message || 'Errore sconosciuto' }]
       };
+    }
+  },
+
+  // ==================== SEGNALAZIONI ====================
+  segnalazioni: {
+    getByCantiere: async (cantiereId) => {
+      const { data, error } = await supabase
+        .from('segnalazioni')
+        .select('*, autore:profiles(id, full_name, email), attivita:attivita(id, descrizione, wbs)')
+        .eq('cantiere_id', cantiereId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (s) => {
+      const { data, error } = await supabase
+        .from('segnalazioni')
+        .insert([{ ...s, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase
+        .from('segnalazioni')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('segnalazioni').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    uploadFoto: async (cantiereId, file) => {
+      const ext = file.name.split('.').pop();
+      const fileName = `${cantiereId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from('segnalazioni').upload(fileName, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('segnalazioni').getPublicUrl(fileName);
+      return publicUrl;
     }
   },
 

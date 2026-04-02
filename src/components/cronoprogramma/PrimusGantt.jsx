@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock } from 'lucide-react';
+import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock, GripVertical } from 'lucide-react';
 import logoOpen from '@/assets/logo-open.png';
 import logoCollapsed from '@/assets/logo-collapsed.png';
 import {
@@ -29,6 +29,23 @@ const HEADER_HEIGHT = 60;
 const SIDEBAR_WIDTH = 380;
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 800;
+const EXPLICIT_MACRO_AREA_SOURCE_ROWS = new Set([16, 30, 52, 60, 130]);
+
+function compareWbsLike(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'it', { numeric: true, sensitivity: 'base' });
+}
+
+function extractSourceRow(item) {
+  const metadataRow = Number(item?.metadata?.source_row);
+  if (Number.isFinite(metadataRow) && metadataRow > 0) return metadataRow;
+
+  const note = String(item?.note || '');
+  const match = note.match(/source_row:(\d+)/i);
+  if (!match) return null;
+
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
 
 function compareRows(a, b) {
   const aStart = a?._startDate instanceof Date ? a._startDate.getTime() : Number.MAX_SAFE_INTEGER;
@@ -61,10 +78,13 @@ export default function PrimusGantt({
   const [viewMode, setViewMode] = useState('week');
   const [hoveredRow, setHoveredRow] = useState(null);
   const [draggingActivity, setDraggingActivity] = useState(null);
+  const [draggedSidebarActivityId, setDraggedSidebarActivityId] = useState(null);
+  const [sidebarDropMacroAreaId, setSidebarDropMacroAreaId] = useState(null);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(1200);
   const scrollContainerRef = useRef(null);
   const sidebarRef = useRef(null);
   const resizeHandleRef = useRef(null);
+  const fullViewAutoFitAppliedRef = useRef(false);
 
   const projectStartForCPM = useMemo(() => {
     if (cantiere?.data_inizio) return cantiere.data_inizio;
@@ -171,6 +191,16 @@ export default function PrimusGantt({
     roots.forEach((root, index) => walk(root, 0, `${index + 1}`));
     return flat;
   }, [attivita, cpmResult, expandedGroups]);
+
+  const macroAreaRows = useMemo(
+    () => processedData.filter((item) => item.tipo_attivita === 'raggruppamento'),
+    [processedData]
+  );
+
+  const isExplicitMacroArea = useCallback((item) => {
+    if (item?.tipo_attivita !== 'raggruppamento') return false;
+    return EXPLICIT_MACRO_AREA_SOURCE_ROWS.has(extractSourceRow(item));
+  }, []);
 
   useEffect(() => {
     if (!processedData.length) return;
@@ -332,6 +362,91 @@ export default function PrimusGantt({
     };
   }, [config, timeRange.start]);
 
+  const handleSidebarMoveToMacroArea = useCallback(async (activityId, targetMacroAreaId) => {
+    if (!activityId || !targetMacroAreaId || !onAttivitaUpdate) return;
+
+    const active = attivita?.find((item) => item.id === activityId);
+    const targetMacroArea = attivita?.find((item) => item.id === targetMacroAreaId);
+    if (!active || !targetMacroArea) return;
+    if (active.tipo_attivita === 'raggruppamento') return;
+    if (targetMacroArea.tipo_attivita !== 'raggruppamento') return;
+    if ((active.parent_id || null) === targetMacroAreaId) return;
+
+    const treeMap = new Map((attivita || []).map((item) => {
+      const row = processedData.find((processed) => processed.id === item.id);
+      return [item.id, {
+        ...item,
+        children: [],
+        _currentWbs: row?.wbs || item.wbs || ''
+      }];
+    }));
+    const rootNodes = [];
+
+    treeMap.forEach((node) => {
+      if (node.parent_id && treeMap.has(node.parent_id)) {
+        treeMap.get(node.parent_id).children.push(node);
+      } else {
+        rootNodes.push(node);
+      }
+    });
+
+    treeMap.forEach((node) => {
+      node.children.sort((a, b) => compareWbsLike(a._currentWbs, b._currentWbs));
+    });
+
+    const sourceParentId = active.parent_id || null;
+    if (sourceParentId && treeMap.has(sourceParentId)) {
+      treeMap.get(sourceParentId).children = treeMap.get(sourceParentId).children.filter((child) => child.id !== activityId);
+    } else {
+      const rootIndex = rootNodes.findIndex((node) => node.id === activityId);
+      if (rootIndex >= 0) rootNodes.splice(rootIndex, 1);
+    }
+
+    const movingNode = treeMap.get(activityId);
+    movingNode.parent_id = targetMacroAreaId;
+    const targetChildren = treeMap.get(targetMacroAreaId)?.children || [];
+    targetChildren.push(movingNode);
+    targetChildren.sort((a, b) => compareWbsLike(a._currentWbs, b._currentWbs));
+    treeMap.get(targetMacroAreaId).children = targetChildren;
+
+    rootNodes.sort((a, b) => compareWbsLike(a._currentWbs, b._currentWbs));
+
+    const updates = [];
+    const visit = (node, prefix) => {
+      updates.push({
+        id: node.id,
+        wbs: prefix,
+        parent_id: node.parent_id || null
+      });
+      node.children.forEach((child, index) => visit(child, `${prefix}.${index + 1}`));
+    };
+
+    rootNodes.forEach((node, index) => visit(node, `${index + 1}`));
+
+    await onAttivitaUpdate(updates.map((item) => item.id), { directUpdates: updates });
+    toast.success('Attività spostata nella macro area selezionata');
+  }, [attivita, onAttivitaUpdate, processedData]);
+
+  const handleSidebarDragStart = useCallback((event, activityId) => {
+    event.stopPropagation();
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', activityId);
+    setDraggedSidebarActivityId(activityId);
+  }, []);
+
+  const handleSidebarDragEnd = useCallback(() => {
+    setDraggedSidebarActivityId(null);
+    setSidebarDropMacroAreaId(null);
+  }, []);
+
+  const handleSidebarMacroAreaDrop = useCallback(async (event, macroAreaId) => {
+    event.preventDefault();
+    const droppedActivityId = event.dataTransfer.getData('text/plain') || draggedSidebarActivityId;
+    setDraggedSidebarActivityId(null);
+    setSidebarDropMacroAreaId(null);
+    await handleSidebarMoveToMacroArea(droppedActivityId, macroAreaId);
+  }, [draggedSidebarActivityId, handleSidebarMoveToMacroArea]);
+
   const handleFitToProject = useCallback(() => {
     const dates = processedData
       .flatMap((item) => [item._startDate, item._endDate])
@@ -369,9 +484,22 @@ export default function PrimusGantt({
     setIsCompactWbsView(false);
   }, [processedData]);
 
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode);
+    if (mode !== 'fit') {
+      setIsCompactWbsView(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!isSectionFullView || !processedData.length) return;
+    if (!isSectionFullView) {
+      fullViewAutoFitAppliedRef.current = false;
+      return;
+    }
+
+    if (!processedData.length || fullViewAutoFitAppliedRef.current) return;
     handleFitToProject();
+    fullViewAutoFitAppliedRef.current = true;
   }, [handleFitToProject, isSectionFullView, processedData.length]);
 
   const handleExportPdf = useCallback(() => {
@@ -468,6 +596,38 @@ export default function PrimusGantt({
     toast.success(`Attivita spostata di ${deltaDays > 0 ? '+' : ''}${deltaDays} giorni`);
   }, [cpmResult, onAttivitaUpdate, processedData, rescheduleActivity]);
 
+  const handleActivityResize = useCallback(async (activityId, resizeData) => {
+    if (!onAttivitaUpdate || !resizeData) return;
+
+    const row = processedData.find((item) => item.id === activityId);
+    if (!row || !row._startDate || !row._endDate || !isValid(row._startDate) || !isValid(row._endDate)) return;
+    if (row.tipo_attivita !== 'task') return;
+
+    const nextDuration = Math.max(1, Number(resizeData.durationDays) || row._duration || 1);
+    let nextStart = row._startDate;
+    let nextEnd = row._endDate;
+
+    if (resizeData.edge === 'left') {
+      nextStart = addDays(row._startDate, Number(resizeData.deltaDays) || 0);
+      if (!isValid(nextStart) || nextStart > row._endDate) return;
+      nextEnd = row._endDate;
+    } else {
+      nextStart = row._startDate;
+      nextEnd = addDays(row._startDate, nextDuration - 1);
+    }
+
+    await onAttivitaUpdate([activityId], {
+      directUpdates: [{
+        id: activityId,
+        data_inizio: format(nextStart, 'yyyy-MM-dd'),
+        data_fine: format(nextEnd, 'yyyy-MM-dd'),
+        durata_giorni: nextDuration
+      }]
+    });
+
+    toast.success(`Durata attività aggiornata a ${nextDuration} giorni`);
+  }, [onAttivitaUpdate, processedData]);
+
   return (
     <div className={`flex flex-col h-full bg-white border border-slate-200 shadow-sm overflow-hidden ${isSectionFullView ? 'rounded-none' : 'rounded-lg'}`}>
       <div className="border-b border-slate-200 px-4 py-3 bg-white">
@@ -500,9 +660,9 @@ export default function PrimusGantt({
 
             {/* Time scale toggle */}
             <div className="flex bg-slate-100 rounded-lg p-0.5">
-              <Button variant={viewMode === 'day' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'day' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setViewMode('day')}>Giorni</Button>
-              <Button variant={viewMode === 'week' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'week' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setViewMode('week')}>Settimane</Button>
-              <Button variant={viewMode === 'month' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'month' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setViewMode('month')}>Mesi</Button>
+              <Button type="button" variant={viewMode === 'day' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'day' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => handleViewModeChange('day')}>Giorni</Button>
+              <Button type="button" variant={viewMode === 'week' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'week' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => handleViewModeChange('week')}>Settimane</Button>
+              <Button type="button" variant={viewMode === 'month' ? 'default' : 'ghost'} size="sm" className={`h-7 text-xs px-2.5 rounded-md ${viewMode === 'month' ? '' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => handleViewModeChange('month')}>Mesi</Button>
             </div>
           </div>
 
@@ -576,11 +736,34 @@ export default function PrimusGantt({
             {processedData.map((item) => (
               <div
                 key={item.id}
-                className={`flex border-b border-slate-100 text-sm hover:bg-orange-50/60 transition-colors cursor-pointer ${hoveredRow === item.id ? 'bg-orange-50/60' : ''}`}
+                className={`flex border-b border-slate-100 text-sm hover:bg-orange-50/60 transition-colors cursor-pointer ${
+                  hoveredRow === item.id ? 'bg-orange-50/60' : ''
+                } ${
+                  item.tipo_attivita === 'raggruppamento'
+                    ? (isExplicitMacroArea(item)
+                      ? 'bg-sky-50/90'
+                      : 'bg-slate-50')
+                    : ''
+                } ${
+                  sidebarDropMacroAreaId === item.id && item.tipo_attivita === 'raggruppamento' ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-300' : ''
+                }`}
                 style={{ height: ROW_HEIGHT }}
                 onMouseEnter={() => setHoveredRow(item.id)}
                 onMouseLeave={() => setHoveredRow(null)}
                 onClick={() => onEditAttivita(item)}
+                onDragOver={(event) => {
+                  if (item.tipo_attivita !== 'raggruppamento' || !draggedSidebarActivityId) return;
+                  event.preventDefault();
+                  if (sidebarDropMacroAreaId !== item.id) {
+                    setSidebarDropMacroAreaId(item.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (sidebarDropMacroAreaId === item.id) {
+                    setSidebarDropMacroAreaId(null);
+                  }
+                }}
+                onDrop={(event) => handleSidebarMacroAreaDrop(event, item.id)}
               >
                 <div className="w-16 border-r border-slate-200 flex items-center justify-center font-mono text-slate-500 text-xs truncate">
                   {item.wbs}
@@ -599,16 +782,44 @@ export default function PrimusGantt({
                         {expandedGroups[item.id] !== false ? <ChevronDown className="w-3 h-3" /> : <ChevronRightIcon className="w-3 h-3" />}
                       </button>
                     )}
-                    <span className={`truncate ${item.tipo_attivita === 'raggruppamento' ? 'font-bold text-slate-800' : 'text-slate-700'}`} title={item.descrizione}>
+                    <span className={`truncate ${
+                      item.tipo_attivita === 'raggruppamento'
+                        ? (isExplicitMacroArea(item) ? 'font-semibold text-sky-950' : 'font-medium text-slate-700')
+                        : 'text-slate-700'
+                    }`} title={item.descrizione}>
                       {item.descrizione}
                     </span>
+                    {item.tipo_attivita === 'raggruppamento' && (
+                      <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        isExplicitMacroArea(item)
+                          ? 'bg-sky-200 text-sky-900'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {isExplicitMacroArea(item) ? 'Macro area' : 'Totale'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-xs px-2">
                   {item._amount > 0 ? `${item._amount.toLocaleString('it-IT', { maximumFractionDigits: 0 })} €` : '-'}
                 </div>
-                <div className="w-16 flex items-center justify-center text-xs text-slate-500">
+                <div className="w-16 flex items-center justify-center text-xs text-slate-500 gap-1">
                   {item._duration}
+                  {item.tipo_attivita !== 'raggruppamento' && macroAreaRows.length > 0 && (
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(event) => handleSidebarDragStart(event, item.id)}
+                      onDragEnd={handleSidebarDragEnd}
+                      onClick={(event) => event.stopPropagation()}
+                      className={`rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 ${
+                        draggedSidebarActivityId === item.id ? 'bg-slate-200 text-slate-700' : ''
+                      }`}
+                      title="Trascina su una macro area per spostare l'attività"
+                    >
+                      <GripVertical className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -747,11 +958,13 @@ export default function PrimusGantt({
                             duration={item._duration || 1}
                             isCritical={isCritical}
                             canDrag={item.tipo_attivita === 'task'}
+                            canResize={item.tipo_attivita === 'task'}
                             viewMode={viewMode}
                             timelineStart={format(timeRange.start, 'yyyy-MM-dd')}
                             dayWidth={config.colWidth / config.daysPerCol}
                             barLeft={pos.left}
                             barWidth={pos.width}
+                            onResizeCommit={handleActivityResize}
                           />
                         )
                       )}
@@ -788,6 +1001,10 @@ export default function PrimusGantt({
 
       <div className="border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] text-slate-400">
         <div className="flex flex-wrap items-center gap-4">
+          <span className="inline-flex items-center gap-1.5">
+            <GripVertical className="w-3.5 h-3.5 text-slate-500" />
+            Trascina l'handle sulla macro area per spostare l'attività
+          </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
             Marker SAL — verifica fatturazione

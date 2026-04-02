@@ -243,6 +243,7 @@ export function parseCronoprogrammaSemplice(fileBuffer, options = {}) {
         wbs_code: idRaw || '',
         livello: idRaw && !idRaw.match(/^\d+$/) ? 0 : 1,
         parent_id: null,
+        source_row: r + 1,
         descrizione,
         tipo_attivita: tipo,
         data_inizio: dataInizio,
@@ -254,7 +255,7 @@ export function parseCronoprogrammaSemplice(fileBuffer, options = {}) {
         colore: tipo === 'raggruppamento' ? '#64748b' : tipo === 'milestone' ? '#f59e0b' : '#3b82f6',
         stato: 'pianificata',
         categoria: 'altro',
-        note: ''
+        note: `source_row:${r + 1}`
       });
     }
     

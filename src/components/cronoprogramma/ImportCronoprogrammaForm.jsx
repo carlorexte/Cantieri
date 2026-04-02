@@ -18,10 +18,11 @@ import { toast } from 'sonner';
 import { supabaseDB } from '@/lib/supabaseClient';
 import ImportReviewPanel from './ImportReviewPanel';
 import {
-  canonicalActivitiesToDbActivities,
+  canonicalProjectToDbActivities,
   materializeCandidate,
   parseMultimodalCronoprogramma
 } from '@/utils/importMultimodalCronoprogramma';
+import { normalizeCanonicalCronoprogramma } from '@/utils/normalizeCanonicalCronoprogramma';
 
 function ResultBanner({ importResult }) {
   if (!importResult) return null;
@@ -66,6 +67,18 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
   const [importResult, setImportResult] = useState(null);
   const [importPackage, setImportPackage] = useState(null);
   const [reviewTab, setReviewTab] = useState('summary');
+
+  const rebuildCanonicalState = (canonical, parserKey) => {
+    const normalized = normalizeCanonicalCronoprogramma(canonical, {
+      projectSource: parserKey || 'review-edit'
+    });
+
+    return {
+      ...canonical,
+      ...normalized,
+      source_summary: canonical.source_summary
+    };
+  };
 
   const resetReviewState = () => {
     setImportPackage(null);
@@ -197,7 +210,7 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
     setIsImporting(true);
 
     try {
-      const attivita = canonicalActivitiesToDbActivities(importPackage.canonical.activities);
+      const attivita = canonicalProjectToDbActivities(importPackage.canonical);
       const saveResult = await supabaseDB.importCronoprogramma(selectedCantiere, attivita);
 
       if (!saveResult.success) {
@@ -217,7 +230,7 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
       setImportResult({
         success: true,
         phase: 'import',
-        message: `Importazione completata: ${saveResult.attivita_importate} attivita salvate nel database`,
+        message: `Importazione completata: ${saveResult.attivita_importate} nodi salvati nel database`,
         attivita_importate: saveResult.attivita_importate,
         dettagli: {
           metodo_parsing: importPackage.selectedCandidateKey || 'multimodal-import',
@@ -230,7 +243,7 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
         }
       });
 
-      toast.success(`${saveResult.attivita_importate} attivita importate`);
+      toast.success(`${saveResult.attivita_importate} nodi importati`);
 
       if (incompleteDates.length === 0) {
         setTimeout(() => onSuccess(), 1000);
@@ -294,43 +307,14 @@ export default function ImportCronoprogrammaForm({ cantieri, onSuccess, onCancel
 
         return nextActivity;
       });
-
-      const starts = activities.map((activity) => activity.start_date).filter(Boolean).sort();
-      const ends = activities.map((activity) => activity.end_date).filter(Boolean).sort();
-      const missingDates = activities.filter((activity) => !activity.start_date || !activity.end_date);
-      const duplicateDescriptions = new Map();
-
-      for (const activity of activities) {
-        const key = (activity.description || '').trim().toLowerCase();
-        if (!key) continue;
-        duplicateDescriptions.set(key, (duplicateDescriptions.get(key) || 0) + 1);
-      }
-
-      const duplicateRows = activities.filter((activity) => duplicateDescriptions.get((activity.description || '').trim().toLowerCase()) > 1);
-      const suspiciousDurations = activities.filter((activity) => activity.duration_days > 365 || activity.duration_days <= 0);
+      const nextCanonical = rebuildCanonicalState({
+        ...current.canonical,
+        activities
+      }, current.selectedCandidateKey);
 
       return {
         ...current,
-        canonical: {
-          ...current.canonical,
-          activities,
-          timeline: {
-            start_date: starts[0] || null,
-            end_date: ends[ends.length - 1] || null
-          },
-          review: {
-            ...current.canonical.review,
-            totalActivities: activities.length,
-            withDates: activities.length - missingDates.length,
-            missingDatesCount: missingDates.length,
-            duplicateCount: duplicateRows.length,
-            suspiciousDurationsCount: suspiciousDurations.length,
-            projectStart: starts[0] || null,
-            projectEnd: ends[ends.length - 1] || null,
-            sampleMissingDates: missingDates.slice(0, 8),
-            sampleActivities: activities.slice(0, 12)
-          }
-        }
+        canonical: nextCanonical
       };
     });
   };

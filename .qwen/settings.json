@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(true)",
+      "Bash(curl *)",
+      "Bash(get-content *)",
+      "Bash(get-childitem *)",
+      "Bash(sort-object *)",
+      "Bash(select-object *)",
+      "Bash(write-host *)",
+      "Bash(measure-object)",
+      "Bash(taskkill *)",
+      "Bash(timeout *)",
+      "Bash(netstat *)",
+      "Bash(findstr *)",
+      "Bash(node *)",
+      "Bash(tasklist)",
+      "Bash(vercel *)"
+    ]
+  },
+  "$version": 3
+}

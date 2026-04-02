@@ -1243,7 +1243,7 @@ export default function CantiereDashboardPage() {
           </div>
 
           <div className="space-y-6">
-            <AlertScadenzeCard documenti={documenti} attivita={attivita} />
+            <AlertScadenzeCard documenti={documenti} attivita={attivita} cantiereId={cantiere.id} />
             
             <Card className="shadow-lg border-0">
               <CardHeader>

@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import GlobalErrorBoundary from "@/components/shared/GlobalErrorBoundary";
-import { PermissionGuard } from "@/components/shared/PermissionGuard";
+import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
 
 function MessageBubble({ message }) {
     const isUser = message.role === 'user';
@@ -329,6 +329,18 @@ export default function AIAssistantPage() {
             }
         }
     };
+
+    const { isAdmin } = usePermissions();
+
+    if (!isAdmin) {
+        return (
+            <div className="p-8 text-center">
+                <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                <h2 className="text-xl font-semibold mb-2">Accesso Riservato</h2>
+                <p className="text-slate-500">Questa sezione è riservata agli amministratori.</p>
+            </div>
+        );
+    }
 
     return (
         <PermissionGuard module="ai_assistant" action="view">

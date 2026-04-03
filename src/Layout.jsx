@@ -66,7 +66,7 @@ function LayoutContent({ children }) {
 
     const generaleItems = [
         { title: "Dashboard", url: "Dashboard", icon: LayoutDashboard, module: "dashboard", action: "view" },
-        { title: "AI Assistant", url: "AIAssistant", icon: Sparkles, module: "ai_assistant", action: "view" },
+        { title: "AI Assistant", url: "AIAssistant", icon: Sparkles, module: "ai_assistant", action: "view", adminOnly: true },
         { title: "Cantieri", url: "Cantieri", icon: Building2, module: "cantieri", action: "view" },
         { title: "Imprese", url: "Imprese", icon: Building, module: "imprese", action: "view" },
         { title: "Professionisti", url: "PersoneEsterne", icon: Users, module: "persone", action: "view" },
@@ -93,6 +93,7 @@ function LayoutContent({ children }) {
     const filterItems = (items) => {
         return items.filter(item => {
             if (isLoading || !user) return true; // caricamento o profilo non ancora caricato
+            if (item.adminOnly && !isAdmin) return false; // solo admin
             if (isAdmin) return true;            // admin vede tutto
             if (item.module === "all") return true;
             if (!ruolo) return true;             // nessun ruolo assegnato → nessuna restrizione

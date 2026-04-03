@@ -571,6 +571,14 @@ export const supabaseDB = {
       if (error) throw error;
       return data || [];
     },
+    uploadFile: async (cantiereId, file) => {
+      const ext = file.name.split('.').pop();
+      const fileName = `${cantiereId || 'generale'}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from('ordini-allegati').upload(fileName, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('ordini-allegati').getPublicUrl(fileName);
+      return publicUrl;
+    },
     create: async (ord) => {
       const { data, error } = await supabase.from('ordini_materiale').insert([{ ...ord, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
       if (error) throw error;
@@ -868,6 +876,43 @@ export const supabaseDB = {
         attivita_ids: [],
         errori: [{ riga: 0, errore: error.message || 'Errore sconosciuto' }]
       };
+    }
+  },
+
+  // ==================== PERMESSI CANTIERE PER UTENTE ====================
+  permessiCantiere: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('cantiere_permessi_utente')
+        .select('*');
+      if (error) throw error;
+      return data || [];
+    },
+    getByCantiere: async (cantiereId) => {
+      const { data, error } = await supabase
+        .from('cantiere_permessi_utente')
+        .select('*')
+        .eq('cantiere_id', cantiereId);
+      if (error) throw error;
+      return data || [];
+    },
+    upsert: async (utenteId, cantiereId, permessi) => {
+      const { data, error } = await supabase
+        .from('cantiere_permessi_utente')
+        .upsert([{ utente_id: utenteId, cantiere_id: cantiereId, permessi }], { onConflict: 'utente_id,cantiere_id' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (utenteId, cantiereId) => {
+      const { error } = await supabase
+        .from('cantiere_permessi_utente')
+        .delete()
+        .eq('utente_id', utenteId)
+        .eq('cantiere_id', cantiereId);
+      if (error) throw error;
+      return true;
     }
   },
 

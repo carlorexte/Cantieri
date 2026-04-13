@@ -34,7 +34,9 @@ export function usePermissions() {
 
   const isAdminUser = user?.role === 'admin' ||
     ruolo?.nome?.toLowerCase().includes('amministrat') ||
-    ruolo?.permessi?.is_admin === true;
+    ruolo?.nome?.toLowerCase().includes('admin') ||
+    ruolo?.permessi?.is_admin === true ||
+    ruolo?.permessi?.user_management?.manage_users === true;
 
   const hasPermission = useCallback((module, action = 'view') => {
     if (!user) return false;
@@ -132,19 +134,31 @@ export function usePermissions() {
   };
 }
 
-export function PermissionGuard({ module, action = 'view', cantiereId, children, fallback }) {
+export function PermissionGuard({ module, action = 'view', cantiereId, children, fallback, pageLevelGuard = false }) {
   const { hasPermission, hasCantierePermission, isLoading } = usePermissions();
 
-  if (isLoading) return null;
+  if (isLoading) {
+    if (!pageLevelGuard) return null;
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="w-6 h-6 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-  const hasAccess = cantiereId 
+  const hasAccess = cantiereId
     ? hasCantierePermission(cantiereId, module, action)
     : hasPermission(module, action);
 
   if (!hasAccess) {
-    return fallback || null; 
-    // Default fallback null is better for UI elements that should just disappear. 
-    // Page level guards should provide specific fallback.
+    if (fallback) return fallback;
+    if (!pageLevelGuard) return null;
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center">
+        <p className="text-slate-500">Non hai i permessi per accedere a questa sezione.</p>
+        <p className="text-sm text-slate-400 mt-1">Contatta un amministratore per ottenere l'accesso.</p>
+      </div>
+    );
   }
 
   return children;

@@ -140,7 +140,7 @@ export default function AttivitaInternePage() {
   };
 
   return (
-    <PermissionGuard module="attivita_interne" action="view">
+    <PermissionGuard module="attivita_interne" action="view" pageLevelGuard={true}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="p-8">
           <div className="max-w-full mx-auto">

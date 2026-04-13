@@ -54,8 +54,10 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
   const getCantiereNomi = useCallback((documento) => {
     const nomi = [];
     
-    if (documento.entita_collegate?.length > 0) {
-      documento.entita_collegate.forEach(e => {
+    let ec = documento.entita_collegate;
+    if (typeof ec === 'string') { try { ec = JSON.parse(ec); } catch { ec = []; } }
+    if (Array.isArray(ec) && ec.length > 0) {
+      ec.forEach(e => {
         if (e.entita_tipo === 'cantiere') {
           const cantiere = cantieri.find(c => c.id === e.entita_id);
           if (cantiere) nomi.push(cantiere.denominazione);
@@ -124,7 +126,9 @@ export default function RicercaAvanzataDocumenti({ onDocumentoSelect }) {
       if (cantiereFilter) {
         documenti = documenti.filter(doc => {
           if (doc.entita_collegata_id === cantiereFilter) return true;
-          if (doc.entita_collegate?.some(e => e.entita_id === cantiereFilter)) return true;
+          let docEc = doc.entita_collegate;
+          if (typeof docEc === 'string') { try { docEc = JSON.parse(docEc); } catch { docEc = []; } }
+          if (Array.isArray(docEc) && docEc.some(e => e.entita_id === cantiereFilter)) return true;
           return false;
         });
       }

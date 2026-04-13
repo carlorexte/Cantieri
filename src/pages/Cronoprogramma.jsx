@@ -314,6 +314,26 @@ export default function CronoprogrammaPage() {
     }
   }, [selectedCantiereId]);
 
+  const handleProgressUpdate = useCallback(async (attivitaId, percentuale) => {
+    if (!selectedCantiereId) return;
+    try {
+      await supabaseDB.attivita.update(attivitaId, {
+        percentuale_completamento: percentuale,
+        updated_date: new Date().toISOString()
+      });
+      setCantieriAttivita(prev => ({
+        ...prev,
+        [selectedCantiereId]: (prev[selectedCantiereId] || []).map(a =>
+          a.id === attivitaId ? { ...a, percentuale_completamento: percentuale } : a
+        )
+      }));
+      toast.success('Avanzamento aggiornato');
+    } catch (error) {
+      console.error('Errore aggiornamento avanzamento:', error);
+      toast.error('Errore durante l\'aggiornamento dell\'avanzamento');
+    }
+  }, [selectedCantiereId]);
+
   const handleDeleteCronoprogramma = useCallback(async () => {
     if (!selectedCantiereId) {
       toast.info("Seleziona un cantiere per resettare il cronoprogramma.");
@@ -387,6 +407,7 @@ export default function CronoprogrammaPage() {
               onAddAttivita={handleOpenNewAttivita}
               onEditAttivita={handleOpenEditAttivita}
               onAttivitaUpdate={handleAttivitaUpdate}
+              onProgressUpdate={handleProgressUpdate}
               isSectionFullView={isSectionFullView}
               onToggleSectionFullView={handleToggleSectionFullView}
             />
@@ -607,6 +628,7 @@ export default function CronoprogrammaPage() {
                   onAddAttivita={handleOpenNewAttivita}
                   onEditAttivita={handleOpenEditAttivita}
                   onAttivitaUpdate={handleAttivitaUpdate}
+                  onProgressUpdate={handleProgressUpdate}
                   isSectionFullView={isSectionFullView}
                   onToggleSectionFullView={handleToggleSectionFullView}
                 />

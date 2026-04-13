@@ -9,6 +9,7 @@ export default function PlanningGantt({
   onAddAttivita = () => {},
   onEditAttivita = () => {},
   onAttivitaUpdate,
+  onProgressUpdate = undefined,
   isSectionFullView = false,
   onToggleSectionFullView = () => {}
 }) {
@@ -25,6 +26,7 @@ export default function PlanningGantt({
       onAddAttivita={onAddAttivita}
       onEditAttivita={onEditAttivita}
       onAttivitaUpdate={onAttivitaUpdate}
+      onProgressUpdate={onProgressUpdate}
       isSectionFullView={isSectionFullView}
       onToggleSectionFullView={onToggleSectionFullView}
     />

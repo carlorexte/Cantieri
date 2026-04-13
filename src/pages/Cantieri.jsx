@@ -189,22 +189,164 @@ export default function Cantieri() {
     setFilteredCantieri(baseCantieri);
   }, [baseCantieri]);
 
+  // Funzione per creare documenti automatici dai file caricati nel cantiere
+  const creaDocumentiDaFileCantiere = async (cantiereId, cantiereData, existingCantiere) => {
+    alert('ENTRATO in creaDocumentiDaFileCantiere - cantiereId: ' + cantiereId);
+    console.log('[creaDocumentiDaFileCantiere] START - cantiereId:', cantiereId);
+    console.log('[creaDocumentiDaFileCantiere] Cantiere denominazione:', cantiereData.denominazione);
+
+    const fileMappings = [
+      {
+        field: 'contratto_file_url',
+        nome: 'Contratto Appalto',
+        tipo: 'contratto_appalto',
+        categoria: 'contratti',
+        dataField: 'contratto_data_firma'
+      },
+      {
+        field: 'polizza_definitiva_url',
+        nome: 'Polizza Definitiva',
+        tipo: 'polizze_decennale',
+        categoria: 'polizze',
+        dataField: 'polizza_definitiva_scadenza'
+      },
+      {
+        field: 'polizza_car_url',
+        nome: 'Polizza CAR',
+        tipo: 'polizze_car',
+        categoria: 'polizze',
+        dataField: 'polizza_car_scadenza'
+      },
+      {
+        field: 'polizza_anticipazione_url',
+        nome: 'Polizza Anticipazione',
+        tipo: 'polizze_rct',
+        categoria: 'polizze',
+        dataField: 'polizza_anticipazione_scadenza'
+      },
+      {
+        field: 'verbale_inizio_lavori_url',
+        nome: 'Verbale Inizio Lavori',
+        tipo: 'cantiere_verbale_consegna',
+        categoria: 'tecnici',
+        dataField: 'data_inizio'
+      }
+    ];
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
+    for (const mapping of fileMappings) {
+      const fileUrl = cantiereData[mapping.field];
+      console.log(`[creaDocumentiDaFileCantiere] Check ${mapping.field}:`, fileUrl ? `PRESENTE (${fileUrl})` : 'ASSENTE');
+
+      if (!fileUrl || fileUrl.trim() === '') {
+        console.log(`[creaDocumentiDaFileCantiere] SKIP ${mapping.nome} - fileUrl vuoto`);
+        skippedCount++;
+        continue;
+      }
+
+      // Crea il documento
+      try {
+        console.log(`[creaDocumentiDaFileCantiere] Tentativo creazione documento: ${mapping.nome}`);
+        const docData = {
+          nome_documento: `${mapping.nome} - ${cantiereData.denominazione || ''}`,
+          tipo_documento: mapping.tipo,
+          categoria_principale: mapping.categoria,
+          file_uri: fileUrl.startsWith('http') ? null : fileUrl,
+          cloud_file_url: fileUrl.startsWith('http') ? fileUrl : null,
+          data_emissione: cantiereData[mapping.dataField] || null,
+          entita_collegate: JSON.stringify([
+            { entita_tipo: 'cantiere', entita_id: cantiereId }
+          ]),
+          descrizione: `File caricato dalla form cantiere`,
+          note: `Generato automaticamente il ${new Date().toLocaleDateString('it-IT')}`
+        };
+        console.log(`[creaDocumentiDaFileCantiere] Dati documento:`, docData);
+
+        const result = await backendClient.entities.Documento.create(docData);
+        console.log(`[creaDocumentiDaFileCantiere] Documento "${mapping.nome}" CREATO! ID:`, result?.id);
+        createdCount++;
+      } catch (error) {
+        console.error(`[creaDocumentiDaFileCantiere] ERRORE CREAZIONE "${mapping.nome}":`, error);
+        console.error(`[creaDocumentiDaFileCantiere] Error.message:`, error?.message);
+        console.error(`[creaDocumentiDaFileCantiere] Error.details:`, error?.details);
+        console.error(`[creaDocumentiDaFileCantiere] Error.hint:`, error?.hint);
+        console.error(`[creaDocumentiDaFileCantiere] Error.code:`, error?.code);
+        errorCount++;
+      }
+    }
+
+    // Gestisci verbali_consegna (array di URL)
+    if (Array.isArray(cantiereData.verbali_consegna) && cantiereData.verbali_consegna.length > 0) {
+      for (let idx = 0; idx < cantiereData.verbali_consegna.length; idx++) {
+        const verbaleUrl = cantiereData.verbali_consegna[idx];
+        if (!verbaleUrl || verbaleUrl.trim() === '') continue;
+
+        try {
+          console.log(`[creaDocumentiDaFileCantiere] Tentativo creazione verbale consegna ${idx + 1}`);
+          const result = await backendClient.entities.Documento.create({
+            nome_documento: `Verbale Consegna ${idx + 1} - ${cantiereData.denominazione || ''}`,
+            tipo_documento: 'cantiere_verbale_consegna',
+            categoria_principale: 'tecnici',
+            file_uri: verbaleUrl.startsWith('http') ? null : verbaleUrl,
+            cloud_file_url: verbaleUrl.startsWith('http') ? verbaleUrl : null,
+            entita_collegate: [
+              { entita_tipo: 'cantiere', entita_id: cantiereId }
+            ],
+            descrizione: `Verbale di consegna ${idx + 1}`,
+            note: `Generato automaticamente il ${new Date().toLocaleDateString('it-IT')}`
+          });
+          console.log(`[creaDocumentiDaFileCantiere] Verbale ${idx + 1} CREATO! ID:`, result?.id);
+          createdCount++;
+        } catch (error) {
+          console.error(`[creaDocumentiDaFileCantiere] ERRORE creazione verbale ${idx + 1}:`, error);
+          console.error(`[creaDocumentiDaFileCantiere] Error.message:`, error?.message);
+          errorCount++;
+        }
+      }
+    }
+
+    console.log('[creaDocumentiDaFileCantiere] RESULT: creati=', createdCount, 'saltati=', skippedCount, 'errori=', errorCount);
+  };
+
   const handleSubmit = useCallback(async (cantiereData) => {
     setIsSaving(true);
     try {
-      console.log('[Cantieri.handleSubmit] Cantiere data:', cantiereData);
+      console.log('[Cantieri.handleSubmit] START - Cantiere data:', cantiereData);
+      let cantiereResult;
+
       if (editingCantiere) {
         console.log('[Cantieri.handleSubmit] Updating cantiere ID:', editingCantiere.id);
-        const result = await backendClient.entities.Cantiere.update(editingCantiere.id, cantiereData);
-        console.log('[Cantieri.handleSubmit] Update result:', result);
+        cantiereResult = await backendClient.entities.Cantiere.update(editingCantiere.id, cantiereData);
+        console.log('[Cantieri.handleSubmit] Update result:', cantiereResult);
       } else {
         const maxNumero = cantieri.reduce((max, c) => Math.max(max, c.numero_cantiere || 0), 0);
-        const result = await backendClient.entities.Cantiere.create({
+        cantiereResult = await backendClient.entities.Cantiere.create({
           ...cantiereData,
           numero_cantiere: maxNumero + 1
         });
-        console.log('[Cantieri.handleSubmit] Create result:', result);
+        console.log('[Cantieri.handleSubmit] Create result:', cantiereResult);
       }
+
+      // Crea documenti automatici per i file caricati
+      const cantiereId = cantiereResult?.id || editingCantiere?.id;
+      console.log('[Cantieri.handleSubmit] cantiereId per documenti:', cantiereId);
+      console.log('[Cantieri.handleSubmit] cantiereData campi file:', {
+        contratto_file_url: cantiereData.contratto_file_url,
+        polizza_definitiva_url: cantiereData.polizza_definitiva_url,
+        polizza_car_url: cantiereData.polizza_car_url,
+        polizza_anticipazione_url: cantiereData.polizza_anticipazione_url,
+        verbali_consegna: cantiereData.verbali_consegna
+      });
+      if (cantiereId) {
+        alert('CREO DOCUMENTI per cantiere: ' + cantiereId);
+        await creaDocumentiDaFileCantiere(cantiereId, cantiereData, editingCantiere);
+        alert('DOCUMENTI CREATI COMPLETATO');
+        console.log('[Cantieri.handleSubmit] creaDocumentiDaFileCantiere COMPLETATO');
+      }
+
       toast({ title: editingCantiere ? "Cantiere aggiornato" : "Cantiere creato", description: cantiereData.denominazione });
       setShowForm(false);
       setFormIsDirty(false);

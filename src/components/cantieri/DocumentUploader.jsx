@@ -11,11 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export default function DocumentUploader({ 
-  label, 
-  value, 
+export default function DocumentUploader({
+  label,
+  value,
   onChange,
-  compact = false
+  compact = false,
+  cantiereId = null
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -33,8 +34,8 @@ export default function DocumentUploader({
     setIsUploading(true);
     try {
       toast.info("Caricamento file in corso...");
-      const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
-      
+      const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload, cantiereId });
+
       onChange(file_uri);
       setShowUploadDialog(false);
       setFileToUpload(null);

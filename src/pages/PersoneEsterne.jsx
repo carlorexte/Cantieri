@@ -114,7 +114,7 @@ export default function PersoneEsterne() {
   };
 
   return (
-    <PermissionGuard module="persone" action="view">
+    <PermissionGuard module="persone" action="view" pageLevelGuard={true}>
       <div className="min-h-screen bg-slate-50">
         <div className="p-8">
           <div className="max-w-7xl mx-auto">

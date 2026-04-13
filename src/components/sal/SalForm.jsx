@@ -73,7 +73,7 @@ export default function SalForm({ sal, cantiereId, onSubmit, onCancel }) {
       // Upload file se presente
       if (fileToUpload) {
         toast.info("Caricamento documento in corso...");
-        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
+        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload, cantiereId: formData.cantiere_id || cantiereId });
         finalData.file_uri = file_uri;
         toast.success("Documento caricato con successo!");
       }

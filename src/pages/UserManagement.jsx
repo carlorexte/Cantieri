@@ -188,7 +188,7 @@ export default function UserManagementPage() {
       });
 
       let result = {};
-      try { result = await response.json(); } catch {}
+      try { result = await response.json(); } catch (_error) { result = {}; }
       if (!response.ok) throw new Error(result.error || `Errore HTTP ${response.status}`);
 
       const roleName = inviteRoleId ? (ruoli.find(r => r.id === inviteRoleId)?.nome || '') : 'member (default)';

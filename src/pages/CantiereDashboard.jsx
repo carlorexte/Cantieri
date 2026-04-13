@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, Tag, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Building2, Handshake, Briefcase, PlusCircle, BarChart3, Calendar, CheckCircle2, Clock, FileText, Download, ExternalLink, X, Edit, Users, Euro, Shield, ClipboardList, User, Tag, AlertTriangle, Boxes, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -40,6 +40,7 @@ import QuickNotes from '../components/cantiere-dashboard/QuickNotes';
 import SALAlerts from '@/components/sal/SALAlerts';
 import SegnalazioneForm from '@/components/cantieri/SegnalazioneForm';
 import SegnalazioniList from '@/components/cantieri/SegnalazioniList';
+import ImportComputoMetrico from '@/components/computo/ImportComputoMetrico';
 import { supabaseDB } from '@/lib/supabaseClient';
 
 const DetailField = React.memo(({ label, value }) => (
@@ -57,10 +58,14 @@ export default function CantiereDashboardPage() {
   const [imprese, setImprese] = useState([]);
   const [salList, setSalList] = useState([]);
   const [attivita, setAttivita] = useState([]);
+  const [vociComputo, setVociComputo] = useState([]);
+  const [linksComputo, setLinksComputo] = useState([]);
   const [permissions, setPermissions] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDocumentoForm, setShowDocumentoForm] = useState(false);
   const [showCantiereForm, setShowCantiereForm] = useState(false);
+  const [showSegnalazioneForm, setShowSegnalazioneForm] = useState(false);
+  const [showImportComputo, setShowImportComputo] = useState(false);
   const { user: currentUser, hasPermission, hasCantiereObjectPermission } = usePermissions();
   
   // Document Viewer State
@@ -71,68 +76,85 @@ export default function CantiereDashboardPage() {
   const [direttoreLavori, setDirettoreLavori] = useState(null);
   const [responsabileUnico, setResponsabileUnico] = useState(null);
   const [segnalazioni, setSegnalazioni] = useState([]);
-  const [showSegnalazioneForm, setShowSegnalazioneForm] = useState(false);
 
   // loadUser removed in favor of usePermissions
 
   const loadData = useCallback(async (cantiereId) => {
     setIsLoading(true);
     try {
+      console.log("Loading dashboard data for:", cantiereId);
       // Use backend function to bypass RLS issues and ensure consistent visibility rules
       const response = await backendClient.functions.invoke('getCantiereDashboardData', { cantiere_id: cantiereId });
       
-      if (response.data && !response.data.error) {
-        const { cantiere: cantiereData, subappalti, documenti, imprese, sal, attivita, permissions: perms } = response.data;
-        
+      if (response && response.data && !response.data.error) {
+        const {
+          cantiere: cantiereData,
+          subappalti = [],
+          documenti = [],
+          imprese = [],
+          sal = [],
+          attivita = [],
+          vociComputo: vociData = [],
+          linksComputo: linksData = [],
+          permissions: perms = {}
+        } = response.data;
+
+        console.log('[CantiereDashboard.loadData] Documenti ricevuti:', documenti.length);
+        console.log('[CantiereDashboard.loadData] Documenti:', documenti.map(d => ({ id: d.id, nome: d.nome_documento, tipo: d.tipo_documento })));
+
         setCantiere(cantiereData);
-        setSubappalti(subappalti || []);
-        setDocumenti(documenti || []);
-        setImprese(imprese || []);
-        setSalList(sal || []);
-        setAttivita(attivita || []);
+        setSubappalti(subappalti);
+        setDocumenti(documenti);
+        setImprese(imprese);
+        setSalList(sal);
+        setAttivita(attivita);
+        setVociComputo(vociData);
+        setLinksComputo(linksData);
         setPermissions(perms);
 
-        // Load PersoneEsterne (can still be client-side as they are generally visible to all users or have simple RLS)
-        // Or we could move this to backend function too, but for now let's keep it here to reduce backend function complexity
+        // Load PersoneEsterne
         if (cantiereData) {
           const personaPromises = [];
           
           if (cantiereData.responsabile_sicurezza_id) {
             personaPromises.push(
-              backendClient.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_sicurezza_id })
-                .then(persone => persone.length > 0 && setResponsabileSicurezza(persone[0]))
-                .catch(err => console.error("Errore caricamento responsabile sicurezza:", err))
+              backendClient.entities.PersonaEsterna.get(cantiereData.responsabile_sicurezza_id)
+                .then(setResponsabileSicurezza)
+                .catch(err => console.error("Errore responsabile sicurezza:", err))
             );
           }
           
           if (cantiereData.direttore_lavori_id) {
             personaPromises.push(
-              backendClient.entities.PersonaEsterna.filter({ id: cantiereData.direttore_lavori_id })
-                .then(persone => persone.length > 0 && setDirettoreLavori(persone[0]))
-                .catch(err => console.error("Errore caricamento direttore lavori:", err))
+              backendClient.entities.PersonaEsterna.get(cantiereData.direttore_lavori_id)
+                .then(setDirettoreLavori)
+                .catch(err => console.error("Errore direttore lavori:", err))
             );
           }
           
           if (cantiereData.responsabile_unico_procedimento_id) {
             personaPromises.push(
-              backendClient.entities.PersonaEsterna.filter({ id: cantiereData.responsabile_unico_procedimento_id })
-                .then(persone => persone.length > 0 && setResponsabileUnico(persone[0]))
-                .catch(err => console.error("Errore caricamento RUP:", err))
+              backendClient.entities.PersonaEsterna.get(cantiereData.responsabile_unico_procedimento_id)
+                .then(setResponsabileUnico)
+                .catch(err => console.error("Errore RUP:", err))
             );
           }
           
-          await Promise.all(personaPromises);
+          await Promise.allSettled(personaPromises);
         }
       } else {
-        console.error("Errore caricamento dati cantiere:", response.data?.error || "Unknown error");
-        toast.error("Errore caricamento dati cantiere: " + (response.data?.error || ""));
-        setCantiere(null); // Ensure not found state triggers
+        const errorMsg = response?.data?.error || "Errore sconosciuto dal server";
+        console.error("Errore caricamento dati cantiere:", errorMsg);
+        toast.error("Errore caricamento dati: " + errorMsg);
+        setCantiere(null); 
       }
     } catch (error) {
       console.error("Errore nel caricamento dei dati del cantiere:", error);
-      toast.error("Errore di connessione");
+      toast.error("Errore di connessione al server API. Verifica che la connessione sia attiva.");
+      setCantiere(null);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [setCantiere, setSubappalti, setDocumenti, setImprese, setSalList, setResponsabileSicurezza, setDirettoreLavori, setResponsabileUnico]);
 
   const loadSegnalazioni = useCallback(async (cantiereId) => {
@@ -165,6 +187,7 @@ export default function CantiereDashboardPage() {
       }
       await backendClient.entities.Documento.create({
         ...formData,
+        entita_collegate: [{ entita_tipo: 'cantiere', entita_id: cantiere.id }],
         entita_collegata_id: cantiere.id,
         entita_collegata_tipo: 'cantiere',
       });
@@ -227,6 +250,71 @@ export default function CantiereDashboardPage() {
     if (percentuale < 100) return { text: 'In corso', color: 'text-blue-600', icon: Calendar };
     return { text: 'Completato', color: 'text-green-600', icon: CheckCircle2 };
   }, [calcolaPercentualeCompletamento]);
+
+  const salProgressStats = useMemo(() => {
+    const tasks = attivita.filter(item => item.tipo_attivita === 'task' && item.data_inizio && item.data_fine_prevista);
+    if (!tasks.length) return null;
+
+    const allStarts = tasks.map(i => new Date(i.data_inizio));
+    const allEnds = tasks.map(i => new Date(i.data_fine_prevista));
+    const projectStart = new Date(Math.min(...allStarts));
+    const projectEnd = new Date(Math.max(...allEnds));
+    const durataGiorni = Math.max(1, differenceInDays(projectEnd, projectStart) + 1);
+
+    const today = new Date();
+    const giorniTrascorsi = Math.max(0, Math.min(differenceInDays(today, projectStart), durataGiorni));
+    const percTemporale = durataGiorni > 0 ? Math.round((giorniTrascorsi / durataGiorni) * 100) : 0;
+
+    const valoreContratto =
+      (parseFloat(cantiere?.importo_lavori_netto_ribasso) || 0) +
+      (parseFloat(cantiere?.importo_progettazione) || 0) +
+      (parseFloat(cantiere?.oneri_sicurezza_importo) || 0);
+    const valoreAtteso = valoreContratto * percTemporale / 100;
+
+    let totalDurata = 0;
+    let sommaPct = 0;
+    tasks.forEach(item => {
+      const d = Math.max(1, differenceInDays(new Date(item.data_fine_prevista), new Date(item.data_inizio)) + 1);
+      totalDurata += d;
+      sommaPct += (item.percentuale_completamento || 0) * d;
+    });
+    const percReale = totalDurata > 0 ? Math.round(sommaPct / totalDurata) : 0;
+
+    return { durataGiorni, giorniTrascorsi, percTemporale, valoreContratto, valoreAtteso, percReale, projectStart, projectEnd };
+  }, [attivita, cantiere]);
+
+  const salCurveData = useMemo(() => {
+    if (!salProgressStats?.valoreContratto || salProgressStats.valoreContratto <= 0) return null;
+    const { valoreContratto, durataGiorni, projectStart, projectEnd } = salProgressStats;
+
+    const sortedSals = [...(salList || [])]
+      .filter(s => s.data_sal)
+      .sort((a, b) => new Date(a.data_sal) - new Date(b.data_sal));
+
+    let cumulative = 0;
+    const salThresholds = sortedSals
+      .map(sal => {
+        cumulative += parseFloat(sal.imponibile) || 0;
+        return { id: sal.id, cumulativeAmount: cumulative, label: sal.descrizione || `SAL ${sal.numero_sal || ''}` };
+      })
+      .filter(t => t.cumulativeAmount > 0 && t.cumulativeAmount <= valoreContratto);
+
+    const today = new Date();
+    const startD = (projectStart instanceof Date) ? projectStart : new Date(projectStart || today);
+    const dRate = Number(valoreContratto) / Math.max(1, Number(durataGiorni));
+    const vContratto = Number(valoreContratto) || 0;
+    const dDays = Number(durataGiorni) || 1;
+    
+    // Explicitly calculate to avoid lint errors
+    const elapsed = differenceInDays(today, startD);
+    const daysElapsed = Number(Math.max(0, elapsed));
+    const todayAccrued = Number(Math.min(dRate * daysElapsed, vContratto));
+    
+    const nextSal = salThresholds.find(t => Number(t.cumulativeAmount) > todayAccrued);
+    const toNextSal = nextSal ? (Number(nextSal.cumulativeAmount) - todayAccrued) : 0;
+
+    return { valoreContratto: vContratto, durataGiorni: dDays, dailyRate: dRate, projectStart: startD, projectEnd, salThresholds, todayAccrued, nextSal, toNextSal };
+  }, [salProgressStats, salList]);
 
   const findImpresaId = useCallback((ragioneSociale) => {
     return imprese.find(i => 
@@ -311,6 +399,37 @@ export default function CantiereDashboardPage() {
       });
     }
   }, []);
+
+  const handleDeleteDocument = useCallback(async (documento) => {
+    if (!cantiere?.id) return;
+
+    const confirmed = window.confirm(`Eliminare "${documento.nome_documento}"?`);
+    if (!confirmed) return;
+
+    try {
+      if (documento.source === 'cantiere_field' && documento.source_field) {
+        const updates = {};
+
+        if (documento.source_field === 'verbali_consegna') {
+          const currentVerbali = Array.isArray(cantiere.verbali_consegna) ? [...cantiere.verbali_consegna] : [];
+          const nextVerbali = currentVerbali.filter((_, index) => index !== documento.source_index);
+          updates.verbali_consegna = nextVerbali;
+        } else {
+          updates[documento.source_field] = null;
+        }
+
+        await backendClient.entities.Cantiere.update(cantiere.id, updates);
+      } else {
+        await backendClient.entities.Documento.delete(documento.id);
+      }
+
+      await loadData(cantiere.id);
+      toast.success("Documento eliminato con successo.");
+    } catch (error) {
+      console.error("Errore eliminazione documento:", error);
+      toast.error("Impossibile eliminare il documento.");
+    }
+  }, [cantiere, loadData]);
 
   const renderDate = useCallback((dateString) => {
     if (!dateString) return "N/D";
@@ -444,15 +563,21 @@ export default function CantiereDashboardPage() {
             </Button>
           </Link>
           
-          {(currentUser?.role === 'admin' || hasCantiereObjectPermission(cantiere, 'cantieri', 'edit')) && (
-            <Button 
-              onClick={() => setShowCantiereForm(true)}
-              className=""
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Modifica Cantiere
+          <div className="flex gap-2">
+            {(currentUser?.role === 'admin' || hasCantiereObjectPermission(cantiere, 'cantieri', 'edit')) && (
+              <Button 
+                onClick={() => setShowCantiereForm(true)}
+                className=""
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Modifica Cantiere
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setShowImportComputo(true)}>
+              <FileText className="w-4 h-4 mr-2" />
+              Importa Computo
             </Button>
-          )}
+          </div>
         </div>
 
         {/* Main Card - Header sempre visibile */}
@@ -474,25 +599,288 @@ export default function CantiereDashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Avanzamento Temporale */}
-            <div className="mb-6 pb-6 border-b">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-slate-900">Avanzamento Temporale</h3>
-              <div className={`flex items-center gap-2 ${statoAvanzamento.color}`}>
-                <StatoIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">{statoAvanzamento.text}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 mb-2">
-              <Progress value={calcolaPercentualeCompletamento} className="h-3 flex-1" />
-              <span className="text-lg font-bold text-slate-700 min-w-[60px] text-right">
-                {calcolaPercentualeCompletamento}%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm text-slate-500">
-              <span>Inizio: {renderDate(cantiere.data_inizio)}</span>
-              <span>Fine: {renderDate(cantiere.data_fine_prevista)}</span>
-            </div>
+            {/* AVANZAMENTO CANTIERE (CALCOLO ESPRESSO) */}
+            <div className="mb-8 pb-6 border-b">
+              {(() => {
+                // Calcolo Dati Generali
+                const inizio = cantiere?.data_inizio ? new Date(cantiere.data_inizio) : null;
+                const fine = cantiere?.data_fine_prevista ? new Date(cantiere.data_fine_prevista) : null;
+                const oggi = new Date();
+                
+                const ggTotali = (inizio && fine) 
+                  ? Math.max(1, differenceInDays(fine, inizio)) 
+                  : (cantiere?.giorni_previsti || 1);
+                
+                let ggPassati = 0;
+                if (inizio) {
+                  ggPassati = Math.max(0, Math.min(differenceInDays(oggi, inizio), ggTotali));
+                }
+
+                const valoreAppalto = 
+                  (parseFloat(cantiere?.importo_lavori_netto_ribasso) || 0) +
+                  (parseFloat(cantiere?.importo_progettazione) || 0) +
+                  (parseFloat(cantiere?.oneri_sicurezza_importo) || 0);
+
+                const dailyRate = ggTotali > 0 ? valoreAppalto / ggTotali : 0;
+                const valoreAttesoOggi = dailyRate * ggPassati;
+                
+                const percTemporale = ggTotali > 0 ? (ggPassati / ggTotali) * 100 : 0;
+
+                // Calcolo Avanzamento Reale (Gantt + BIM 5D)
+                let percReale = 0;
+                
+                // Se abbiamo dati BIM (voci di computo collegate), usiamo il peso finanziario reale
+                if (linksComputo && linksComputo.length > 0 && vociComputo && vociComputo.length > 0) {
+                  let totalBimValue = 0;
+                  let earnedBimValue = 0;
+                  
+                  // Mappa prezzi per voce
+                  const priceMap = vociComputo.reduce((acc, v) => {
+                    if (v && v.id) acc[v.id] = v.prezzo_unitario || 0;
+                    return acc;
+                  }, {});
+
+                  (attivita || []).forEach(att => {
+                    const links = linksComputo.filter(l => l.attivita_id === att.id);
+                    const attBimValue = links.reduce((sum, l) => sum + (l.quantita_allocata * (priceMap[l.voce_computo_id] || 0)), 0);
+                    
+                    totalBimValue += attBimValue;
+                    earnedBimValue += attBimValue * ((att.percentuale_completamento || 0) / 100);
+                  });
+
+                  if (totalBimValue > 0) {
+                    percReale = Math.round((earnedBimValue / totalBimValue) * 100);
+                  }
+                } else {
+                  // Fallback: Peso temporale (durata task)
+                  let totalTaskDuration = 0;
+                  let weightedCompletion = 0;
+                  const tasks = (attivita || []).filter(item => item && item.tipo_attivita === 'task' && item.data_inizio && item.data_fine);
+                  
+                  if (tasks.length > 0) {
+                    tasks.forEach(task => {
+                      const d = Math.max(1, differenceInDays(new Date(task.data_fine), new Date(task.data_inizio)) + 1);
+                      totalTaskDuration += d;
+                      weightedCompletion += (task.percentuale_completamento || 0) * d;
+                    });
+                  }
+                  percReale = totalTaskDuration > 0 ? Math.round(weightedCompletion / totalTaskDuration) : 0;
+                }
+                
+                // Calcolo Ritardo
+                // Il ritardo (in giorni) è la differenza tra i giorni passati e i giorni "guadagnati" col lavoro reale.
+                const giorniGuadagnati = (percReale / 100) * ggTotali;
+                const delayDays = ggPassati - giorniGuadagnati;
+                
+                // Colorazione Barra
+                let barColor = "bg-slate-300"; // fallback
+                let textColor = "text-slate-700";
+                let statusText = "Non Iniziato";
+                
+                if (ggPassati > 0 || percReale > 0) {
+                  if (delayDays >= 40) {
+                    barColor = "bg-red-500";
+                    textColor = "text-red-700";
+                    statusText = `Critico (> 40 gg di ritardo)`;
+                  } else if (delayDays >= 20) {
+                    barColor = "bg-orange-500";
+                    textColor = "text-orange-700";
+                    statusText = `Serio (> 20 gg di ritardo)`;
+                  } else if (delayDays >= 10) {
+                    barColor = "bg-amber-400";
+                    textColor = "text-amber-700";
+                    statusText = `Attenzione (> 10 gg di ritardo)`;
+                  } else {
+                    barColor = "bg-emerald-500";
+                    textColor = "text-emerald-700";
+                    statusText = `In Linea`;
+                  }
+                }
+                if (percReale >= 100) {
+                   barColor = "bg-emerald-500";
+                   statusText = "Lavori Conclusi";
+                }
+
+                const formatC = (n) => `€ ${Math.round(n).toLocaleString('it-IT')}`;
+
+                return (
+                  <div>
+                    <div className="flex items-start justify-between mb-8">
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                          <BarChart3 className="w-5 h-5 text-indigo-600" />
+                          Progressione Cantiere
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                          Appalto di {formatC(valoreAppalto)} ÷ {ggTotali} gg previsti = {formatC(dailyRate)} al giorno
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${barColor.replace('bg-', 'bg-').replace('500', '100').replace('400', '100')} ${barColor.replace('bg-', 'border-')} ${textColor}`}>
+                          <div className={`w-2 h-2 rounded-full ${barColor}`}></div>
+                          Stato: {statusText}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timeline Visiva Multicolore */}
+                    <div className="mt-8 mb-6 relative">
+                      {/* Traccia di Sfondo */}
+                      <div className="h-6 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative shadow-inner">
+                        {/* Area Lavoro Reale Eseguito (Sempre Verde) */}
+                        <div 
+                          className="absolute top-0 bottom-0 left-0 bg-emerald-500 transition-all duration-700 ease-out z-10"
+                          style={{ width: `${Math.min(100, Math.max(0, percReale))}%` }}
+                        ></div>
+                        
+                        {/* Area Ritardo (Gap tra temporale e reale) - Colore da giallo a rosso */}
+                        {ggPassati > 0 && percTemporale > percReale && (
+                          <div
+                            className={`absolute top-0 bottom-0 ${delayDays >= 40 ? 'bg-red-500' : delayDays >= 20 ? 'bg-orange-500' : 'bg-amber-400'} transition-all duration-700 ease-out z-0`}
+                            style={{ 
+                              left: `${percReale}%`, 
+                              width: `${Math.min(100 - percReale, percTemporale - percReale)}%`,
+                            }}
+                          ></div>
+                        )}
+
+                        {/* Linee Step SAL */}
+                        {(() => {
+                           let sogliaRaw = cantiere?.soglia_sal;
+                           if (!sogliaRaw && typeof window !== 'undefined' && cantiere?.id) {
+                             sogliaRaw = window.localStorage.getItem(`soglia_sal_${cantiere.id}`);
+                           }
+                           const soglia = parseFloat(sogliaRaw);
+                           if (soglia && soglia > 0 && valoreAppalto > 0) {
+                             const stepsCount = Math.floor(valoreAppalto / soglia);
+                             const markers = [];
+                             for (let i = 1; i <= stepsCount; i++) {
+                               const posXPct = ( (i * soglia) / valoreAppalto ) * 100;
+                               if (posXPct < 100) {
+                                 markers.push(
+                                   <div key={`sal-${i}`} className="absolute top-0 bottom-0 w-[2px] bg-slate-800/20 z-20" style={{ left: `${posXPct}%` }}>
+                                     <div className="absolute top-[28px] transform -translate-x-1/2 text-[10px] text-slate-500 font-bold whitespace-nowrap">
+                                        SAL {i} ({formatC(soglia * i)})
+                                     </div>
+                                   </div>
+                                 );
+                               }
+                             }
+                             return markers;
+                           }
+                           return null;
+                        })()}
+                      </div>
+
+                      {/* Linee di demarcazione & Testi Principali */}
+                      <div className="absolute top-[-30px] right-0 text-xs font-bold text-slate-700">
+                        {formatC(valoreAppalto)} ({ggTotali} gg)
+                      </div>
+                      <div className="absolute top-[-30px] left-0 text-xs font-bold text-slate-700">
+                        0
+                      </div>
+
+                      {/* Marker "Oggi" */}
+                      {inizio && ggPassati > 0 && (
+                        <div 
+                          className="absolute pointer-events-none mt-2 flex flex-col items-center transform -translate-x-1/2 transition-all duration-700 z-30"
+                          style={{ left: `${Math.min(100, Math.max(0, percTemporale))}%`, top: '-40px' }}
+                        >
+                          <div className="bg-slate-800 text-white text-[11px] font-bold py-1 px-2 rounded whitespace-nowrap shadow-md flex flex-col items-center">
+                            <span>Oggi: {ggPassati}° gg</span>
+                            <span className="text-emerald-400">Atteso: {formatC(valoreAttesoOggi)}</span>
+                          </div>
+                          <div className="w-[2px] h-[36px] bg-slate-800 mt-[2px]"></div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-4 border-t border-slate-100">
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold uppercase">Giorni Passati</p>
+                        <p className="text-xl font-bold text-slate-800">{ggPassati} <span className="text-sm font-normal text-slate-500">su {ggTotali}</span></p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold uppercase">Valore Lavoro Atteso</p>
+                        <p className="text-xl font-bold text-blue-700">{Math.round(percTemporale)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold uppercase">Avanzamento Reale</p>
+                        <p className={`text-xl font-bold ${percReale >= percTemporale - 5 ? 'text-emerald-600' : 'text-orange-600'}`}>
+                          {percReale}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold uppercase">Ritardo Giorno/Lavoro</p>
+                        <p className="text-xl font-bold text-slate-800">
+                          {delayDays > 0 ? (
+                            <span className="text-red-500">+{Math.round(delayDays)} gg</span>
+                          ) : (
+                            <span className="text-emerald-500">{Math.round(delayDays)} gg</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {vociComputo && vociComputo.length > 0 && (
+                      <div className="mt-8 pt-6 border-t border-slate-100">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                            <Boxes className="w-4 h-4 text-indigo-500" />
+                            Sintesi Economica BIM 5D
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Totale Computo Metrico</p>
+                            <p className="text-xl font-black text-slate-900">
+                              {renderImporto(vociComputo.reduce((s, v) => s + (parseFloat(v?.importo_totale) || 0), 0))}
+                            </p>
+                            <p className="text-[10px] text-slate-500 mt-1">Copertura appalto: {Math.round((vociComputo.reduce((s, v) => s + (parseFloat(v?.importo_totale) || 0), 0) / (valoreAppalto || 1)) * 100)}%</p>
+                          </div>
+                          
+                          <div className="bg-indigo-50/30 rounded-xl p-4 border border-indigo-100/50">
+                            <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Valore Produzione Reale</p>
+                            <p className="text-xl font-black text-indigo-700">
+                              {renderImporto(vociComputo.reduce((acc, v) => {
+                                const links = (linksComputo || []).filter(l => l.voce_computo_id === v.id);
+                                const totalAllocated = links.reduce((s, l) => s + (parseFloat(l.quantita_allocata) || 0), 0);
+                                const avgComp = links.length > 0 
+                                  ? links.reduce((s, l) => {
+                                      const att = attivita.find(a => a.id === l.attivita_id);
+                                      return s + (parseFloat(att?.percentuale_completamento) || 0);
+                                    }, 0) / links.length
+                                  : 0;
+                                return acc + (totalAllocated * (parseFloat(v.prezzo_unitario) || 0) * (avgComp / 100));
+                              }, 0))}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <div className="h-1 flex-1 bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500" style={{ width: `${percReale}%` }}></div>
+                              </div>
+                              <span className="text-[10px] font-bold text-indigo-600">{percReale}%</span>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Disponibilità Prossimo SAL</p>
+                            {cantiere?.soglia_sal > 0 ? (
+                              <>
+                                <p className="text-xl font-black text-slate-900">
+                                  {renderImporto(Math.max(0, cantiere.soglia_sal - (totaleCertificatoSAL % cantiere.soglia_sal)))}
+                                </p>
+                                <p className="text-[10px] text-slate-500 mt-1">Al raggiungimento della soglia di {renderImporto(cantiere.soglia_sal)}</p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-slate-400 italic">Soglia SAL non impostata</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Avanzamento SAL - NEW BLOCK */}
@@ -503,15 +891,34 @@ export default function CantiereDashboardPage() {
                   <div className="flex items-center gap-2 text-indigo-600">
                     <BarChart3 className="w-4 h-4" />
                     <span className="text-sm font-medium">
-                      {renderImporto(totaleCertificatoSAL)} / {renderImporto(cantiere.importo_contrattuale_oltre_iva)}
+                      {renderImporto(totaleCertificatoSAL)} / {renderImporto(cantiere?.importo_contrattuale_oltre_iva)}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <Progress value={calcolaAvanzamentoSAL} className="h-3 flex-1" />
-                  <span className="text-lg font-bold text-indigo-700 min-w-[60px] text-right">
-                    {calcolaAvanzamentoSAL}%
-                  </span>
+                  {(() => {
+                    let indicatorColor = "bg-indigo-600";
+                    if (salProgressStats) {
+                      const delayDays = salProgressStats.giorniTrascorsi - (salProgressStats.percReale / 100 * salProgressStats.durataGiorni);
+                      if (delayDays >= 40) {
+                        indicatorColor = "bg-red-500";
+                      } else if (delayDays >= 20) {
+                        indicatorColor = "bg-orange-500";
+                      } else if (delayDays >= 10) {
+                        indicatorColor = "bg-amber-400";
+                      } else {
+                        indicatorColor = "bg-emerald-500";
+                      }
+                    }
+                    return (
+                      <>
+                        <Progress value={calcolaAvanzamentoSAL} className="h-3 flex-1" indicatorClassName={indicatorColor} />
+                        <span className="text-lg font-bold text-indigo-700 min-w-[60px] text-right">
+                          {calcolaAvanzamentoSAL}%
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1138,10 +1545,10 @@ export default function CantiereDashboardPage() {
 
         {/* Widgets: Grafici e Note */}
         <div className="grid lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 h-80">
+          <div className="lg:col-span-2">
             <ProgressChart cantiere={cantiere} salList={salList} />
           </div>
-          <div className="h-80">
+          <div>
             <QuickNotes cantiere={cantiere} onUpdate={() => loadData(cantiere.id)} />
           </div>
         </div>
@@ -1231,6 +1638,17 @@ export default function CantiereDashboardPage() {
                               </Button>
                             </>
                           )}
+                          {(currentUser?.role === 'admin' || hasCantiereObjectPermission(cantiere, 'documenti', 'delete')) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteDocument(doc)}
+                              title="Elimina documento"
+                              className="hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1290,6 +1708,15 @@ export default function CantiereDashboardPage() {
                     Vai a Cronoprogramma
                   </Button>
                 </Link>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  onClick={() => setShowImportComputo(true)}
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Importa Computo Metrico
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -1358,7 +1785,12 @@ export default function CantiereDashboardPage() {
             />
           </DialogContent>
         </Dialog>
-
+        <ImportComputoMetrico 
+          isOpen={showImportComputo} 
+          onOpenChange={setShowImportComputo}
+          cantiereId={cantiere?.id}
+          onSuccess={() => loadData(cantiere?.id)}
+        />
 
       </div>
     </div>

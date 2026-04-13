@@ -196,8 +196,11 @@ export default function Dashboard() {
         let relatedEntityName = null;
         let link = createPageUrl('Documenti');
 
-        if (d.entita_collegate) {
-          d.entita_collegate.forEach(linkRel => {
+        let ecList = d.entita_collegate;
+        if (typeof ecList === 'string') { try { ecList = JSON.parse(ecList); } catch { ecList = []; } }
+        if (!Array.isArray(ecList)) ecList = [];
+        if (ecList.length > 0) {
+          ecList.forEach(linkRel => {
             if (linkRel.entita_tipo === 'cantiere') {
               const c = data.cantieri.find(x => x.id === linkRel.entita_id);
               if (c) {

@@ -64,6 +64,15 @@ export const DataProvider = ({ children }) => {
           profile = { id: authUser.id, email: authUser.email, role: 'member', full_name: authUser.email };
         } else {
           profile = profileBasic;
+          // Prova a caricare il ruolo separatamente se il join era fallito
+          if (profile.ruolo_id) {
+            const { data: ruoloData } = await supabase
+              .from('ruoli')
+              .select('id, nome, descrizione, permessi, is_system')
+              .eq('id', profile.ruolo_id)
+              .single();
+            if (ruoloData) profile = { ...profile, ruolo: ruoloData };
+          }
         }
         profileError = null;
       }

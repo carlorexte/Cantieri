@@ -12,10 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export default function PolizzaUploader({ 
-  label, 
-  value, 
-  onChange, 
+export default function PolizzaUploader({
+  label,
+  value,
+  onChange,
   numeroPolizza,
   onNumeroChange,
   dataScadenza,
@@ -23,7 +23,8 @@ export default function PolizzaUploader({
   durata,
   onDurataChange,
   agenzia,
-  onAgenziaChange
+  onAgenziaChange,
+  cantiereId = null
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -41,8 +42,8 @@ export default function PolizzaUploader({
     setIsUploading(true);
     try {
       toast.info("Caricamento file in corso...");
-      const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
-      
+      const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload, cantiereId });
+
       onChange(file_uri);
       setShowUploadDialog(false);
       setFileToUpload(null);

@@ -73,29 +73,36 @@ function CategorieSOASelector({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Ensure value is always an array of objects
-  const safeValue = Array.isArray(value) ? value.map(v => 
-    typeof v === 'string' ? { categoria: v, classifica: "" } : v
-  ) : [];
+  // Normalize value to always be an array of objects with consistent keys
+  // Accept both { category, classification } and { categoria, classifica } formats
+  const safeValue = Array.isArray(value) ? value.map(v => {
+    if (typeof v === 'string') {
+      return { category: v, classification: "" };
+    }
+    return {
+      category: v.category || v.categoria || "",
+      classification: v.classification || v.classifica || ""
+    };
+  }) : [];
 
   const handleCheckboxChange = (categoryValue) => {
-    const exists = safeValue.find(v => v.categoria === categoryValue);
+    const exists = safeValue.find(v => v.category === categoryValue);
     if (exists) {
-      onChange(safeValue.filter((v) => v.categoria !== categoryValue));
+      onChange(safeValue.filter((v) => v.category !== categoryValue));
     } else {
-      onChange([...safeValue, { categoria: categoryValue, classifica: "" }]);
+      onChange([...safeValue, { category: categoryValue, classification: "" }]);
     }
   };
 
   const handleClassificaChange = (categoryValue, classifica) => {
-    const updated = safeValue.map(v => 
-      v.categoria === categoryValue ? { ...v, classifica } : v
+    const updated = safeValue.map(v =>
+      v.category === categoryValue ? { ...v, classification: classifica } : v
     );
     onChange(updated);
   };
 
   const handleRemoveSelected = (categoryValue) => {
-    onChange(safeValue.filter((v) => v.categoria !== categoryValue));
+    onChange(safeValue.filter((v) => v.category !== categoryValue));
   };
 
   const filteredCategories = soaCategories.filter(category =>
@@ -141,7 +148,7 @@ function CategorieSOASelector({ value, onChange }) {
               <div key={category.value} className="pl-1 pr-3 py-1.5 flex items-center">
                 <Checkbox
                   id={`soa-${category.value}`}
-                  checked={safeValue.some(v => v.categoria === category.value)}
+                  checked={safeValue.some(v => v.category === category.value)}
                   onCheckedChange={() => handleCheckboxChange(category.value)}
                 />
                 <Label htmlFor={`soa-${category.value}`} className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -157,16 +164,16 @@ function CategorieSOASelector({ value, onChange }) {
       {safeValue.length > 0 && (
         <div className="flex flex-col gap-2 mt-2 p-3 border rounded-md bg-slate-50/50 max-h-64 overflow-y-auto">
           {safeValue.map((item) => {
-            const category = soaCategories.find(cat => cat.value === item.categoria);
+            const category = soaCategories.find(cat => cat.value === item.category);
             return category ? (
-              <div key={item.categoria} className="flex items-center gap-2 p-2 bg-white rounded border">
+              <div key={item.category} className="flex items-center gap-2 p-2 bg-white rounded border">
                 <div className="flex-1 text-sm">{category.label}</div>
-                <Select 
-                  value={item.classifica} 
-                  onValueChange={(classifica) => handleClassificaChange(item.categoria, classifica)}
+                <Select
+                  value={item.classification}
+                  onValueChange={(classifica) => handleClassificaChange(item.category, classifica)}
                 >
                   <SelectTrigger className="w-32 h-8 text-xs">
-                    <SelectValue>{item.classifica || "Classifica..."}</SelectValue>
+                    <SelectValue>{item.classification || "Classifica..."}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {classificheSOA.map(cl => (
@@ -179,7 +186,7 @@ function CategorieSOASelector({ value, onChange }) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 rounded-full hover:bg-red-50 hover:text-red-600"
-                  onClick={() => handleRemoveSelected(item.categoria)}
+                  onClick={() => handleRemoveSelected(item.category)}
                 >
                   <X className="h-4 w-4" />
                 </Button>

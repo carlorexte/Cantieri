@@ -116,7 +116,7 @@ export default function ProfiloAziendaPage() {
   const canEdit = isAdmin || hasPermission('profilo_azienda', 'edit');
 
   return (
-    <PermissionGuard module="profilo_azienda" action="view">
+    <PermissionGuard module="profilo_azienda" action="view" pageLevelGuard={true}>
       <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
         <div className="max-w-7xl mx-auto space-y-8">
           <h1 className="text-3xl font-bold text-slate-900">Profilo Azienda</h1>

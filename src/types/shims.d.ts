@@ -13,6 +13,11 @@ declare module '@/lib/*' {
   export = mod;
 }
 
+declare module '*.png' {
+  const src: string;
+  export default src;
+}
+
 interface ImportMetaEnv {
   readonly DEV?: boolean;
   readonly VITE_SUPABASE_URL?: string;

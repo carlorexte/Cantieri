@@ -137,7 +137,7 @@ export default function OrdiniMateriali() {
   }, [filteredOrdini, cantieri]);
 
   return (
-    <PermissionGuard module="ordini_materiale" action="view">
+    <PermissionGuard module="ordini_materiale" action="view" pageLevelGuard={true}>
       <div className="p-6 bg-slate-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">

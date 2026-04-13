@@ -1,0 +1,2 @@
+ALTER TABLE public.cantieri
+ADD COLUMN IF NOT EXISTS soglia_sal NUMERIC;

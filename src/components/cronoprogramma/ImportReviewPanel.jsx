@@ -12,7 +12,7 @@ export default function ImportReviewPanel({
   importPackage,
   onSelectCandidate,
   onActivityChange,
-  onMacroAreaChange,
+  onMacroAreaChange = undefined,
   showSummary = true,
   showActivityTable = true
 }) {

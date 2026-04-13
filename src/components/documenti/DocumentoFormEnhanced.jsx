@@ -88,9 +88,11 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
     loadEntities();
 
     // Inizializza entità selezionate
-    if (documento?.entita_collegate?.length > 0) {
+    let docEc = documento?.entita_collegate;
+    if (typeof docEc === 'string') { try { docEc = JSON.parse(docEc); } catch { docEc = []; } }
+    if (Array.isArray(docEc) && docEc.length > 0) {
       const initialSelected = new Set(
-        documento.entita_collegate.map(e => `${e.entita_tipo}:${e.entita_id}`)
+        docEc.map(e => `${e.entita_tipo}:${e.entita_id}`)
       );
       setSelectedEntities(initialSelected);
     } else if (initialEntity?.id && initialEntity?.type) {
@@ -225,7 +227,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       // Handling New Version Upload
       if (newVersionFile) {
         toast.info("Caricamento nuova versione...", { duration: 3000 });
-        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: newVersionFile });
+        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: newVersionFile, cantiereId: formData.cantiere_id || null });
 
         // Push old version to history
         const oldVersion = {
@@ -253,7 +255,7 @@ export default function DocumentoFormEnhanced({ documento, onSubmit, onCancel, i
       } else if (fileToUpload) {
         // Standard initial upload or replacement without versioning (if needed, but prefer versioning for updates)
         toast.info("Caricamento del file...", { duration: 3000 });
-        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload });
+        const { file_uri } = await backendClient.integrations.Core.UploadPrivateFile({ file: fileToUpload, cantiereId: formData.cantiere_id || null });
         finalDocumentData.file_uri = file_uri;
 
         // Estrai testo automaticamente dopo upload

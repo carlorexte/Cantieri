@@ -10,10 +10,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Trash2, Plus, Loader2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "@/components/shared/DataContext";
+import { Label } from "@/components/ui/label";
 
 export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
   const { cantieri } = useData();
-  const [users, setUsers] = useState([]);
+  const [approvers, setApprovers] = useState([]);
+  const [imprese, setImprese] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
@@ -27,6 +29,7 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
       priorita: "media",
       stato: "bozza",
       responsabile_id: "",
+      societa_intestataria_id: "",
       societa_intestataria_ragione_sociale: "",
       societa_intestataria_partita_iva: "",
       societa_intestataria_codice_fiscale: "",
@@ -43,19 +46,52 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
   });
 
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       setLoadingUsers(true);
       try {
-        const profiles = await supabaseDB.rbac.getAllProfiles();
-        setUsers(profiles);
+        const [profiles, impreseList] = await Promise.all([
+          supabaseDB.rbac.getAllProfiles(),
+          supabaseDB.imprese.getAll()
+        ]);
+        const filteredApprovers = profiles.filter(p =>
+          p.role === 'admin' ||
+          p.ruolo?.nome?.toLowerCase().includes('ammin')
+        );
+        setApprovers(filteredApprovers);
+        setImprese(impreseList);
       } catch (e) {
-        console.error("Errore caricamento utenti", e);
+        console.error("Errore caricamento dati form", e);
       } finally {
         setLoadingUsers(false);
       }
     };
-    loadUsers();
+    loadData();
   }, []);
+
+  const handleCantiereSelect = async (cantiereId) => {
+    form.setValue("cantiere_id", cantiereId);
+    if (!cantiereId) return;
+    try {
+      const cantiere = await supabaseDB.cantieri.getById(cantiereId);
+      if (cantiere?.responsabile_amministrativo_id) {
+        form.setValue("responsabile_id", cantiere.responsabile_amministrativo_id);
+      }
+    } catch (e) {
+      console.error("Errore caricamento cantiere", e);
+    }
+  };
+
+  const handleImpresaSelect = (impresaId) => {
+    const impresa = imprese.find(i => i.id === impresaId);
+    if (!impresa) return;
+    form.setValue("societa_intestataria_id", impresaId);
+    form.setValue("societa_intestataria_ragione_sociale", impresa.ragione_sociale || "");
+    form.setValue("societa_intestataria_partita_iva", impresa.partita_iva || "");
+    form.setValue("societa_intestataria_codice_fiscale", impresa.codice_fiscale || "");
+    form.setValue("societa_intestataria_indirizzo", impresa.indirizzo_legale || "");
+    form.setValue("societa_intestataria_email", impresa.email || "");
+    form.setValue("societa_intestataria_pec", impresa.pec || "");
+  };
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -106,7 +142,7 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cantiere</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!ordine}>
+                <Select onValueChange={handleCantiereSelect} defaultValue={field.value} disabled={!!ordine}>
                   <FormControl>
                     <SelectTrigger><SelectValue placeholder="Seleziona cantiere" /></SelectTrigger>
                   </FormControl>
@@ -134,8 +170,11 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {users.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                    {approvers.map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.full_name || u.email}
+                        {u.ruolo?.nome && <span className="text-slate-400 ml-1">— {u.ruolo.nome}</span>}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -148,32 +187,42 @@ export default function OrdineMaterialeForm({ ordine, onSubmit, onCancel }) {
         {/* Società Intestataria */}
         <div className="border rounded-lg p-4 bg-slate-50 space-y-3">
           <h4 className="text-sm font-semibold text-slate-700">Società Intestataria Ordine</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField control={form.control} name="societa_intestataria_ragione_sociale" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Ragione Sociale</FormLabel>
-                <FormControl><Input {...field} placeholder="Es. Rossi Costruzioni Srl" /></FormControl>
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="societa_intestataria_partita_iva" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Partita IVA</FormLabel>
-                <FormControl><Input {...field} placeholder="IT12345678901" /></FormControl>
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="societa_intestataria_email" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Email</FormLabel>
-                <FormControl><Input {...field} type="email" /></FormControl>
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="societa_intestataria_pec" render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">PEC</FormLabel>
-                <FormControl><Input {...field} type="email" /></FormControl>
-              </FormItem>
-            )} />
+          <div className="space-y-2">
+            <Label className="text-xs">Seleziona Impresa</Label>
+            <Select
+              onValueChange={handleImpresaSelect}
+              defaultValue={form.getValues("societa_intestataria_id") || ""}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona impresa intestataria..." />
+              </SelectTrigger>
+              <SelectContent>
+                {imprese.map(i => (
+                  <SelectItem key={i.id} value={i.id}>{i.ragione_sociale}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          {form.watch("societa_intestataria_ragione_sociale") && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500">Ragione Sociale</Label>
+                <p className="text-sm text-slate-700">{form.watch("societa_intestataria_ragione_sociale")}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500">Partita IVA</Label>
+                <p className="text-sm text-slate-700">{form.watch("societa_intestataria_partita_iva") || "—"}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500">Email</Label>
+                <p className="text-sm text-slate-700">{form.watch("societa_intestataria_email") || "—"}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500">PEC</Label>
+                <p className="text-sm text-slate-700">{form.watch("societa_intestataria_pec") || "—"}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <FormField

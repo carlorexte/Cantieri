@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChevronDown, ChevronRight as ChevronRightIcon, Layers, Plus, FileDown, Maximize2, Minimize2, AlertTriangle, CalendarClock, GripVertical } from 'lucide-react';
 import logoOpen from '@/assets/logo-open.png';
 import logoCollapsed from '@/assets/logo-collapsed.png';
@@ -20,9 +23,12 @@ import {
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { Boxes } from 'lucide-react';
 import { GanttDndProvider } from './GanttDndProvider';
 import { ActivityBar } from './ActivityBar';
 import { useCPM } from '@/hooks/useCPM';
+import BIMLinker from '@/components/computo/BIMLinker';
+import { backendClient } from '@/api/backendClient';
 
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 60;
@@ -66,11 +72,14 @@ export default function PrimusGantt({
   onAddAttivita,
   onEditAttivita,
   onAttivitaUpdate,
+  onProgressUpdate,
   isSectionFullView = false,
   onToggleSectionFullView = () => {}
 }) {
   const [timeRange, setTimeRange] = useState({ start: new Date(), end: new Date() });
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [progressEditActivity, setProgressEditActivity] = useState(null);
+  const [progressValue, setProgressValue] = useState(0);
   const [isCompactWbsView, setIsCompactWbsView] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
@@ -81,6 +90,11 @@ export default function PrimusGantt({
   const [draggedSidebarActivityId, setDraggedSidebarActivityId] = useState(null);
   const [sidebarDropMacroAreaId, setSidebarDropMacroAreaId] = useState(null);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(1200);
+  const [vociComputo, setVociComputo] = useState([]);
+  const [linksComputo, setLinksComputo] = useState([]);
+  const [isLoadingBim, setIsLoadingBim] = useState(false);
+  const [bimLinkerActivity, setBimLinkerActivity] = useState(null);
+
   const scrollContainerRef = useRef(null);
   const sidebarRef = useRef(null);
   const resizeHandleRef = useRef(null);
@@ -93,6 +107,37 @@ export default function PrimusGantt({
   }, [attivita, cantiere?.data_inizio]);
 
   const { cpmResult, rescheduleActivity } = useCPM(attivita, projectStartForCPM);
+
+  const loadBimData = useCallback(async () => {
+    if (!cantiere?.id) return;
+    setIsLoadingBim(true);
+    try {
+      const [voci, links] = await Promise.all([
+        backendClient.entities.VoceComputo.filter({ cantiere_id: cantiere.id }),
+        backendClient.entities.AttivitaVoceComputo.getByCantiere(cantiere.id)
+      ]);
+      setVociComputo(voci || []);
+      setLinksComputo(links || []);
+    } catch (err) {
+      console.error("BIM loading error:", err);
+    } finally {
+      setIsLoadingBim(false);
+    }
+  }, [cantiere?.id]);
+
+  useEffect(() => {
+    loadBimData();
+  }, [loadBimData]);
+
+  // Mappa link per attività per accesso rapido
+  const linksMap = useMemo(() => {
+    const map = {};
+    linksComputo.forEach(link => {
+      if (!map[link.attivita_id]) map[link.attivita_id] = [];
+      map[link.attivita_id].push(link);
+    });
+    return map;
+  }, [linksComputo]);
 
   const config = useMemo(() => {
     switch (viewMode) {
@@ -123,6 +168,8 @@ export default function PrimusGantt({
       _endDate: item.data_fine ? parseISO(item.data_fine) : null,
       _duration: item.durata_giorni || 1,
       _amount: item.importo_previsto || 0,
+      _bimAmount: (linksMap[item.id] || []).reduce((sum, link) => sum + (link.quantita_allocata * (link.voci_computo?.prezzo_unitario || 0)), 0),
+      _hasBim: !!linksMap[item.id]?.length,
       _cpmDetails: cpmResult?.results?.find((row) => row.activity.id === item.id) || null
     }));
 
@@ -142,25 +189,29 @@ export default function PrimusGantt({
         return {
           start: node._startDate,
           end: node._endDate,
-          amount: node._amount
+          amount: node._amount,
+          bimAmount: node._bimAmount || 0
         };
       }
 
       let minStart = null;
       let maxEnd = null;
       let totalAmount = 0;
+      let totalBimAmount = 0;
 
       node.children.forEach((child) => {
         const childTotals = calculateTotals(child);
         if (childTotals.start && (!minStart || childTotals.start < minStart)) minStart = childTotals.start;
         if (childTotals.end && (!maxEnd || childTotals.end > maxEnd)) maxEnd = childTotals.end;
         totalAmount += childTotals.amount || 0;
+        totalBimAmount += childTotals.bimAmount || 0;
       });
 
       if (node.tipo_attivita === 'raggruppamento') {
         node._startDate = minStart;
         node._endDate = maxEnd;
         node._amount = totalAmount;
+        node._bimAmount = totalBimAmount;
         if (minStart && maxEnd) {
           node._duration = differenceInDays(maxEnd, minStart) + 1;
         }
@@ -169,7 +220,8 @@ export default function PrimusGantt({
       return {
         start: node._startDate,
         end: node._endDate,
-        amount: node._amount || 0
+        amount: node._amount || 0,
+        bimAmount: node._bimAmount || 0
       };
     };
 
@@ -297,6 +349,73 @@ export default function PrimusGantt({
       salToInvoice
     };
   }, [processedData, sals]);
+
+  const salProgressStats = useMemo(() => {
+    const tasks = processedData.filter(item => item.tipo_attivita === 'task' && item._startDate && item._endDate);
+    if (!tasks.length) return null;
+
+    const allStarts = tasks.map(i => i._startDate);
+    const allEnds = tasks.map(i => i._endDate);
+    const projectStart = new Date(Math.min(...allStarts));
+    const projectEnd = new Date(Math.max(...allEnds));
+    const durataGiorni = differenceInDays(projectEnd, projectStart) + 1;
+
+    const today = new Date();
+    const giorniTrascorsi = Math.max(0, Math.min(differenceInDays(today, projectStart), durataGiorni));
+    const percTemporale = durataGiorni > 0 ? Math.round((giorniTrascorsi / durataGiorni) * 100) : 0;
+
+    const valoreContratto =
+      (parseFloat(cantiere?.importo_lavori_netto_ribasso) || 0) +
+      (parseFloat(cantiere?.importo_progettazione) || 0) +
+      (parseFloat(cantiere?.oneri_sicurezza_importo) || 0);
+    const valoreAtteso = valoreContratto * percTemporale / 100;
+
+    let totalDurata = 0;
+    let sommaPct = 0;
+    tasks.forEach(item => {
+      const d = item._duration || 1;
+      totalDurata += d;
+      sommaPct += (item.percentuale_completamento || 0) * d;
+    });
+    const percReale = totalDurata > 0 ? Math.round(sommaPct / totalDurata) : 0;
+
+    return { durataGiorni, giorniTrascorsi, percTemporale, valoreContratto, valoreAtteso, percReale, projectStart, projectEnd };
+  }, [processedData, cantiere]);
+
+  const salCurveData = useMemo(() => {
+    if (!salProgressStats?.valoreContratto || salProgressStats.valoreContratto <= 0) return null;
+    const { valoreContratto, durataGiorni, projectStart, projectEnd } = salProgressStats;
+    if (!projectStart || !projectEnd) return null;
+
+    const dailyRate = valoreContratto / Math.max(1, durataGiorni);
+
+    const sortedSals = [...(sals || [])]
+      .filter(s => s.data_sal && isValid(parseISO(s.data_sal)))
+      .sort((a, b) => new Date(a.data_sal).getTime() - new Date(b.data_sal).getTime());
+
+    let cumulative = 0;
+    const salThresholds = sortedSals
+      .map(sal => {
+        cumulative += parseFloat(sal.imponibile) || 0;
+        return { id: sal.id, cumulativeAmount: cumulative, label: sal.descrizione || `SAL ${sal.numero_sal || ''}` };
+      })
+      .filter(t => t.cumulativeAmount > 0 && t.cumulativeAmount <= valoreContratto);
+
+    const today = new Date();
+    const startD = (projectStart instanceof Date) ? projectStart : new Date(projectStart || today);
+    const dRate = Number(dailyRate) || 0;
+    const vContratto = Number(valoreContratto) || 0;
+    
+    // Explicitly calculate to avoid lint errors
+    const elapsed = differenceInDays(today, startD);
+    const daysElapsed = Number(Math.max(0, elapsed));
+    const todayAccrued = Number(Math.min(dRate * daysElapsed, vContratto));
+    
+    const nextSal = salThresholds.find(t => Number(t.cumulativeAmount) > todayAccrued);
+    const toNextSal = nextSal ? (Number(nextSal.cumulativeAmount) - todayAccrued) : 0;
+
+    return { valoreContratto: vContratto, durataGiorni, dailyRate: dRate, projectStart: startD, projectEnd, salThresholds, todayAccrued, nextSal, toNextSal };
+  }, [salProgressStats, sals]);
 
   const handleScroll = (event) => {
     if (sidebarRef.current) {
@@ -628,6 +747,16 @@ export default function PrimusGantt({
     toast.success(`Durata attività aggiornata a ${nextDuration} giorni`);
   }, [onAttivitaUpdate, processedData]);
 
+  const handleProgressSave = useCallback(async () => {
+    if (!progressEditActivity || !onProgressUpdate) return;
+    try {
+      await onProgressUpdate(progressEditActivity.id, progressValue);
+      setProgressEditActivity(null);
+    } catch {
+      toast.error('Errore aggiornamento avanzamento');
+    }
+  }, [progressEditActivity, progressValue, onProgressUpdate]);
+
   return (
     <div className={`flex flex-col h-full bg-white border border-slate-200 shadow-sm overflow-hidden ${isSectionFullView ? 'rounded-none' : 'rounded-lg'}`}>
       <div className="border-b border-slate-200 px-4 py-3 bg-white">
@@ -717,6 +846,8 @@ export default function PrimusGantt({
         </div>
       </div>
 
+
+
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar */}
         <div
@@ -770,6 +901,18 @@ export default function PrimusGantt({
                 </div>
                 <div className="flex-1 border-r border-slate-200 flex items-center overflow-hidden px-3">
                   <div style={{ paddingLeft: `${item.level * 16}px` }} className="flex items-center gap-1 truncate w-full">
+                    <div className="flex-shrink-0" title={item._hasBim ? 'Modifica collegamenti BIM 5D' : 'Collega a voci di computo (BIM 5D)'}>
+                      <button
+                        type="button"
+                        className={`p-1 rounded hover:bg-indigo-100 transition-colors ${item._hasBim ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBimLinkerActivity(item);
+                        }}
+                      >
+                        <Boxes className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     {item.children?.length > 0 && (
                       <button
                         type="button"
@@ -789,6 +932,11 @@ export default function PrimusGantt({
                     }`} title={item.descrizione}>
                       {item.descrizione}
                     </span>
+                    <div className="flex-shrink-0" title="Collegato a Computo Metrico (BIM 5D)">
+                      {item._hasBim && (
+                        <Boxes className="w-3 h-3 text-indigo-500" />
+                      )}
+                    </div>
                     {item.tipo_attivita === 'raggruppamento' && (
                       <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                         isExplicitMacroArea(item)
@@ -800,8 +948,16 @@ export default function PrimusGantt({
                     )}
                   </div>
                 </div>
-                <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-xs px-2">
-                  {item._amount > 0 ? `${item._amount.toLocaleString('it-IT', { maximumFractionDigits: 0 })} €` : '-'}
+                <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-[11px] px-2">
+                  <div className="text-right">
+                    {item._bimAmount > 0 ? (
+                      <div className="text-indigo-600 font-bold leading-tight" title="Importo da Computo Metrico (BIM 5D)">
+                        {item._bimAmount.toLocaleString('it-IT', { maximumFractionDigits: 0 })} €
+                      </div>
+                    ) : (
+                      item._amount > 0 && <div className="text-slate-400">{item._amount.toLocaleString('it-IT', { maximumFractionDigits: 0 })} €</div>
+                    )}
+                  </div>
                 </div>
                 <div className="w-16 flex items-center justify-center text-xs text-slate-500 gap-1">
                   {item._duration}
@@ -824,14 +980,26 @@ export default function PrimusGantt({
               </div>
             ))}
 
-            <div className="border-t-2 border-slate-300 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-4" style={{ height: 72 }}>
-              <div className="flex items-center justify-between mb-2">
+            <div className="border-t-2 border-slate-300 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-2.5" style={{ height: 100 }}>
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-bold text-orange-800 uppercase tracking-wider">📋 Scadenze SAL</span>
                 <span className="text-[10px] text-orange-600 font-medium">{salMarkers.length} SAL</span>
               </div>
+              {salCurveData && (
+                <div className="text-[10px] mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                  <span className="text-blue-700 font-semibold">
+                    +{Math.round(salCurveData.dailyRate).toLocaleString('it-IT')} €/gg
+                  </span>
+                  {salCurveData.nextSal && (
+                    <span className="text-orange-700">
+                      prossimo SAL: mancano {Math.round(salCurveData.toNextSal / 1000)}k€
+                    </span>
+                  )}
+                </div>
+              )}
               {salMarkers.length > 0 ? (
                 <div className="flex flex-wrap gap-1">
-                  {salMarkers.slice(0, 6).map((sal) => (
+                  {salMarkers.slice(0, 5).map((sal) => (
                     <div
                       key={sal.id}
                       className="inline-flex items-center gap-1 bg-orange-100 border border-orange-300 text-orange-800 text-[9px] px-1.5 py-0.5 rounded font-medium"
@@ -840,9 +1008,9 @@ export default function PrimusGantt({
                       <span>{format(sal.date, 'dd/MM')}</span>
                     </div>
                   ))}
-                  {salMarkers.length > 6 && (
+                  {salMarkers.length > 5 && (
                     <div className="inline-flex items-center bg-orange-200 text-orange-700 text-[9px] px-1.5 py-0.5 rounded font-medium">
-                      +{salMarkers.length - 6}
+                      +{salMarkers.length - 5}
                     </div>
                   )}
                 </div>
@@ -937,7 +1105,7 @@ export default function PrimusGantt({
                   return (
                     <div
                       key={item.id}
-                      className={`relative border-b border-slate-100 transition-colors ${hoveredRow === item.id ? 'bg-orange-50/40' : ''}`}
+                      className={`relative border-b border-slate-100 transition-colors ${hoveredRow === item.id ? 'bg-orange-50/40' : ''} ${item.tipo_attivita === 'task' && onProgressUpdate ? 'cursor-pointer' : ''}`}
                       style={{ height: ROW_HEIGHT }}
                       onMouseEnter={() => setHoveredRow(item.id)}
                       onMouseLeave={() => setHoveredRow(null)}
@@ -965,6 +1133,10 @@ export default function PrimusGantt({
                             barLeft={pos.left}
                             barWidth={pos.width}
                             onResizeCommit={handleActivityResize}
+                            onProgressClick={onProgressUpdate ? (activity) => {
+                              setProgressEditActivity(activity);
+                              setProgressValue(activity.percentuale_completamento || 0);
+                            } : undefined}
                           />
                         )
                       )}
@@ -972,12 +1144,73 @@ export default function PrimusGantt({
                   );
                 })}
 
-                <div className="border-t-2 border-slate-300 bg-slate-50 relative" style={{ height: 72 }}>
+                <div className="border-t-2 border-slate-300 bg-slate-50 relative" style={{ height: 100 }}>
                   <div className="absolute inset-0 flex pointer-events-none">
                     {timeColumns.map((_, index) => (
                       <div key={index} className="border-r border-slate-100 h-full" style={{ width: config.colWidth }} />
                     ))}
                   </div>
+
+                  {/* Curva avanzamento economico */}
+                  {salCurveData && timeRange.start && (() => {
+                    const pxPerDay = config.colWidth / config.daysPerCol;
+                    const chartH = 100;
+                    const padTop = 10;
+                    const padBottom = 16;
+                    const usableH = chartH - padTop - padBottom;
+                    const toX = (date) => differenceInDays(date, timeRange.start) * pxPerDay;
+                    const toY = (amount) => chartH - padBottom - (Math.min(Math.max(amount, 0), salCurveData.valoreContratto) / salCurveData.valoreContratto) * usableH;
+                    const x0 = toX(salCurveData.projectStart);
+                    const x1 = toX(salCurveData.projectEnd);
+                    const y0 = toY(0);
+                    const y1 = toY(salCurveData.valoreContratto);
+                    const totalW = timeColumns.length * config.colWidth;
+                    const today = new Date();
+                    const xToday = toX(today);
+                    const yToday = toY(salCurveData.todayAccrued);
+                    const fmtAmount = (v) => v >= 1000000
+                      ? `${(v / 1000000).toFixed(2)}M€`
+                      : `${Math.round(v / 1000)}k€`;
+
+                    return (
+                      <svg
+                        className="absolute inset-0 pointer-events-none"
+                        width={totalW}
+                        height={chartH}
+                        style={{ zIndex: 5 }}
+                      >
+                        {/* Area sotto la curva */}
+                        <path d={`M${x0},${y0} L${x1},${y1} L${x1},${y0} Z`} fill="rgba(59,130,246,0.08)" />
+                        {/* Linea di avanzamento lineare */}
+                        <line x1={x0} y1={y0} x2={x1} y2={y1} stroke="#3b82f6" strokeWidth="1.5" opacity="0.8" />
+
+                        {/* Soglie SAL cumulative */}
+                        {salCurveData.salThresholds.map((t) => {
+                          const y = toY(t.cumulativeAmount);
+                          const xCross = x0 + (t.cumulativeAmount / salCurveData.valoreContratto) * (x1 - x0);
+                          const labelX = Math.max(2, xCross - 50);
+                          return (
+                            <g key={t.id}>
+                              <line x1={labelX} y1={y} x2={xCross} y2={y} stroke="#f97316" strokeWidth="1" strokeDasharray="3,2" opacity="0.9" />
+                              <line x1={xCross} y1={y} x2={xCross} y2={y0} stroke="#f97316" strokeWidth="1" strokeDasharray="2,3" opacity="0.35" />
+                              <text x={labelX} y={y - 2} fill="#c2410c" fontSize="8" fontFamily="monospace">{fmtAmount(t.cumulativeAmount)}</text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Marker oggi con importo atteso */}
+                        {xToday > x0 && xToday < x1 && (
+                          <g>
+                            <line x1={xToday} y1={padTop} x2={xToday} y2={y0} stroke="#10b981" strokeWidth="1.5" opacity="0.85" />
+                            <circle cx={xToday} cy={yToday} r={3} fill="#10b981" />
+                            <text x={xToday + 4} y={yToday - 2} fill="#065f46" fontSize="8" fontWeight="bold" fontFamily="monospace">
+                              {fmtAmount(salCurveData.todayAccrued)}
+                            </text>
+                          </g>
+                        )}
+                      </svg>
+                    );
+                  })()}
 
                   {salMarkers.map((sal) => {
                     const pxPerDay = config.colWidth / config.daysPerCol;
@@ -1006,6 +1239,10 @@ export default function PrimusGantt({
             Trascina l'handle sulla macro area per spostare l'attività
           </span>
           <span className="inline-flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+            Curva avanzamento economico (€/gg)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
             Marker SAL — verifica fatturazione
           </span>
@@ -1019,6 +1256,66 @@ export default function PrimusGantt({
           </span>
         </div>
       </div>
+
+      {/* Dialog avanzamento attività */}
+      <Dialog open={!!progressEditActivity} onOpenChange={(open) => { if (!open) setProgressEditActivity(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Avanzamento attività</DialogTitle>
+          </DialogHeader>
+          {progressEditActivity && (
+            <div className="space-y-4 py-1">
+              <p className="text-sm text-slate-600 truncate" title={progressEditActivity.descrizione}>
+                {progressEditActivity.descrizione}
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Percentuale completamento</Label>
+                  <span className="text-2xl font-bold text-indigo-700">{progressValue}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={progressValue}
+                  onChange={e => setProgressValue(Number(e.target.value))}
+                  className="w-full accent-indigo-600 h-2"
+                />
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={progressValue}
+                    onChange={e => setProgressValue(Math.min(100, Math.max(0, Number(e.target.value))))}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-slate-500">%</span>
+                  <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${progressValue === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                      style={{ width: `${progressValue}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" onClick={() => setProgressEditActivity(null)}>Annulla</Button>
+                <Button onClick={handleProgressSave}>Salva</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <BIMLinker
+        isOpen={!!bimLinkerActivity}
+        onOpenChange={(open) => !open && setBimLinkerActivity(null)}
+        activity={bimLinkerActivity}
+        vociComputo={vociComputo}
+        existingLinks={bimLinkerActivity ? linksMap[bimLinkerActivity.id] || [] : []}
+        onLinksUpdated={() => loadBimData()}
+      />
     </div>
   );
 }

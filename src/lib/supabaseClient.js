@@ -58,7 +58,10 @@ const UUID_FIELD_NAMES = new Set([
   'sub_user_id',
   'societa_intestataria_id',
   'attivita_collegata_id',
-  'parent_id'
+  'parent_id',
+  'responsabile_amministrativo_id',
+  'direttore_lavori_id',
+  'responsabile_unico_procedimento_id'
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -201,6 +204,13 @@ export const supabaseDB = {
         sanitized[key] = value;
       });
 
+      if ('soglia_sal' in sanitized) {
+        if (typeof window !== 'undefined' && sanitized.soglia_sal) {
+          window.localStorage.setItem(`soglia_sal_new`, sanitized.soglia_sal);
+        }
+        delete sanitized.soglia_sal;
+      }
+
       const { data, error } = await supabase
         .from('cantieri')
         .insert([sanitized])
@@ -208,6 +218,7 @@ export const supabaseDB = {
         .single();
 
       if (error) throw error;
+      if (typeof window !== 'undefined') window.localStorage.removeItem(`soglia_sal_new`);
       return data;
     },
 
@@ -230,6 +241,13 @@ export const supabaseDB = {
         }
         sanitized[key] = value;
       });
+
+      if ('soglia_sal' in sanitized) {
+        if (typeof window !== 'undefined' && sanitized.soglia_sal) {
+          window.localStorage.setItem(`soglia_sal_${id}`, sanitized.soglia_sal);
+        }
+        delete sanitized.soglia_sal;
+      }
 
       const { data, error } = await supabase
         .from('cantieri')
@@ -744,6 +762,82 @@ export const supabaseDB = {
     }
   },
 
+  // ==================== COMPUTO METRICO ====================
+  vociComputo: {
+    getAll: async () => {
+      const { data, error } = await supabase.from('voci_computo').select('*').order('codice_elenco_prezzi', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    getByCantiere: async (cantiereId) => {
+      const { data, error } = await supabase.from('voci_computo').select('*').eq('cantiere_id', cantiereId).order('codice_elenco_prezzi', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    createBatch: async (items) => {
+      const { data, error } = await supabase.from('voci_computo').insert(items).select();
+      if (error) throw error;
+      return data || [];
+    },
+    update: async (id, updates) => {
+      const { data, error } = await supabase.from('voci_computo').update({ ...updates, updated_date: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    delete: async (id) => {
+      const { error } = await supabase.from('voci_computo').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    filter: async (filters) => {
+      let q = supabase.from('voci_computo').select('*');
+      if (filters) Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); });
+      const { data, error } = await q.order('codice_elenco_prezzi', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    }
+  },
+
+  // ==================== COLLEGAMENTO GANTT-COMPUTO ====================
+  attivitaVociComputo: {
+    getByAttivita: async (attivitaId) => {
+      const { data, error } = await supabase.from('attivita_voci_computo').select('*, voci_computo(*)').eq('attivita_id', attivitaId);
+      if (error) throw error;
+      return data || [];
+    },
+    getByCantiere: async (cantiereId) => {
+      // Nota: richiede join o filtro complesso se non c'è cantiere_id in attivita_voci_computo.
+      // Per semplicità passiamo per attivita
+      const { data, error } = await supabase.from('attivita_voci_computo').select('*, attivita!inner(cantiere_id)').eq('attivita.cantiere_id', cantiereId);
+      if (error) throw error;
+      return data || [];
+    },
+    link: async (attivitaId, voceComputoId, quantitaAllocata) => {
+      const { data, error } = await supabase.from('attivita_voci_computo').insert([{ attivita_id: attivitaId, voce_computo_id: voceComputoId, quantita_allocata: quantitaAllocata }]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    unlink: async (id) => {
+      const { error } = await supabase.from('attivita_voci_computo').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    }
+  },
+
+  // ==================== LIBRETTO MISURE ====================
+  librettoMisure: {
+    getByCantiere: async (cantiereId) => {
+      const { data, error } = await supabase.from('libretto_misure').select('*, voci_computo(*)').eq('cantiere_id', cantiereId).order('data_rilevazione', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    create: async (misura) => {
+      const { data, error } = await supabase.from('libretto_misure').insert([{ ...misura, created_date: new Date().toISOString(), updated_date: new Date().toISOString() }]).select().single();
+      if (error) throw error;
+      return data;
+    }
+  },
+
   // ==================== IMPORT CRONOPROGRAMMA ====================
 
   // Funzione helper per validare date delle attività
@@ -1135,6 +1229,79 @@ export const supabaseDB = {
       if (error) throw error;
       return true;
     },
+  },
+
+  // ==================== UPLOAD DOCUMENTI ====================
+  uploadDocumenti: {
+    uploadFile: async (file, { cantiereId = null, bucket = 'documenti-cantiere' } = {}) => {
+      const ext = file.name.split('.').pop();
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).slice(2);
+      const folder = cantiereId || 'generale';
+      const fileName = `${folder}/${timestamp}_${randomSuffix}.${ext}`;
+
+      console.log('[uploadDocumenti.uploadFile] Tentativo upload:', { bucket, fileName, fileSize: file.size, fileType: file.type });
+
+      // Prova prima con il bucket specificato
+      let { error: uploadError, data } = await supabase.storage.from(bucket).upload(fileName, file);
+
+      // Se il bucket non esiste, prova con bucket alternativi
+      if (uploadError && (uploadError.message?.includes('not found') || uploadError.message?.includes('Bucket not found'))) {
+        console.warn('[uploadDocumenti.uploadFile] Bucket principale non trovato, provo fallback...');
+        const fallbackBuckets = ['ordini-allegati', 'segnalazioni'];
+        for (const fb of fallbackBuckets) {
+          console.log('[uploadDocumenti.uploadFile] Tentativo fallback bucket:', fb);
+          ({ error: uploadError, data } = await supabase.storage.from(fb).upload(fileName, file));
+          if (!uploadError) {
+            bucket = fb;
+            console.log('[uploadDocumenti.uploadFile] Upload riuscito con fallback bucket:', fb);
+            break;
+          }
+          console.warn('[uploadDocumenti.uploadFile] Fallback fallito:', fb, uploadError.message);
+        }
+      }
+
+      if (uploadError) {
+        console.error('[uploadDocumenti.uploadFile] ERRORE UPLOAD:', uploadError);
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      console.log('[uploadDocumenti.uploadFile] Upload completato:', { file_uri: fileName, file_url: publicUrl });
+      return { file_uri: fileName, file_url: publicUrl, file_name: file.name, bucket };
+    },
+
+    getFileUrl: async (file_uri, { bucket = 'documenti-cantiere', expiresIn = 3600 } = {}) => {
+      console.log('[uploadDocumenti.getFileUrl] Generazione signed URL:', { file_uri, bucket });
+
+      // Prova prima con il bucket specificato
+      let { data, error } = await supabase.storage.from(bucket).createSignedUrl(file_uri, expiresIn);
+
+      // Se fallisce, prova con bucket alternativi
+      if (error) {
+        const fallbackBuckets = ['ordini-allegati', 'segnalazioni'];
+        for (const fb of fallbackBuckets) {
+          console.log('[uploadDocumenti.getFileUrl] Tentativo fallback bucket:', fb);
+          ({ data, error } = await supabase.storage.from(fb).createSignedUrl(file_uri, expiresIn));
+          if (!error) {
+            bucket = fb;
+            break;
+          }
+        }
+      }
+
+      if (error) {
+        console.error('[uploadDocumenti.getFileUrl] ERRORE:', error);
+        throw error;
+      }
+      return { signed_url: data.signedUrl, bucket };
+    },
+
+    deleteFile: async (file_uri, { bucket = 'documenti-cantiere' } = {}) => {
+      const { error } = await supabase.storage.from(bucket).remove([file_uri]);
+      if (error) throw error;
+      return true;
+    }
   }
 };
 

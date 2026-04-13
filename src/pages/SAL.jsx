@@ -215,7 +215,7 @@ export default function SalPage() {
   }, [currentUser, selectedCantiereId, hasCantierePermission]);
 
   return (
-    <PermissionGuard module="sal" action="view">
+    <PermissionGuard module="sal" action="view" pageLevelGuard={true}>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">

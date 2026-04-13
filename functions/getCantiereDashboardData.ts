@@ -97,12 +97,20 @@ Deno.serve(async (req) => {
         }
 
         if (permissions.documenti.view) {
-            promises.push(base44.asServiceRole.entities.Documento.filter({
-                "$or": [
-                    { "entita_collegata_id": cantiere_id },
-                    { "entita_collegate.entita_id": cantiere_id }
-                ]
-            }, "-created_date", 50));
+            // Fetch tutti i documenti e filtra lato client per evitare problemi con query JSONB
+            const allDocs = await base44.asServiceRole.entities.Documento.filter({}, "-created_date", 200);
+            const cantiereDocs = (allDocs || []).filter((doc: any) => {
+                // Check entita_collegata_id (legacy field)
+                if (doc.entita_collegata_id === cantiere_id) return true;
+                // Check entita_collegate (JSONB array)
+                if (Array.isArray(doc.entita_collegate)) {
+                    return doc.entita_collegate.some(
+                        (e: any) => e.entita_tipo === 'cantiere' && e.entita_id === cantiere_id
+                    );
+                }
+                return false;
+            });
+            promises.push(Promise.resolve(cantiereDocs));
         } else {
             promises.push(Promise.resolve([]));
         }

@@ -172,7 +172,7 @@ export default function SubappaltiPage() {
   };
 
   return (
-    <PermissionGuard module="subappalti" action="view">
+    <PermissionGuard module="subappalti" action="view" pageLevelGuard={true}>
     <div className="min-h-screen bg-slate-50">
       <div className="p-8">
         <div className="max-w-7xl mx-auto">

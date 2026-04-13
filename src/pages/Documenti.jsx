@@ -232,8 +232,13 @@ export default function DocumentiPage() {
       }
     };
 
-    if (documento.entita_collegate?.length > 0) {
-      documento.entita_collegate.forEach(e => addEntita(e.entita_tipo, e.entita_id));
+    let entitaCollegate = documento.entita_collegate;
+    // Gestisce il caso in cui entita_collegate sia stata salvata come stringa JSON (bug noto)
+    if (typeof entitaCollegate === 'string' && entitaCollegate.length > 0) {
+      try { entitaCollegate = JSON.parse(entitaCollegate); } catch { entitaCollegate = []; }
+    }
+    if (Array.isArray(entitaCollegate) && entitaCollegate.length > 0) {
+      entitaCollegate.forEach(e => addEntita(e.entita_tipo, e.entita_id));
     }
 
     // Legacy/Fallback check
@@ -245,7 +250,7 @@ export default function DocumentiPage() {
   }, [cantieri, imprese]);
 
   return (
-    <PermissionGuard module="documenti" action="view">
+    <PermissionGuard module="documenti" action="view" pageLevelGuard={true}>
       <div className="min-h-screen bg-slate-50">
         <div className="p-8">
           <div className="max-w-7xl mx-auto">

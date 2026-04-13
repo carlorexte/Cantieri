@@ -23,7 +23,8 @@ export function ActivityBar({
   dayWidth = 40, // Nuova prop: pixel per giorno
   barLeft = null,
   barWidth = null,
-  onResizeCommit
+  onResizeCommit = undefined,
+  onProgressClick = undefined
 }) {
   const {
     attributes,
@@ -172,6 +173,7 @@ export function ActivityBar({
   const effectiveLeft = resizePreview?.left ?? left;
   const effectiveWidth = resizePreview?.width ?? widthPx;
   const effectiveDuration = resizePreview?.duration ?? duration;
+  const pct = Math.min(100, Math.max(0, activity.percentuale_completamento || 0));
 
   return (
     <div
@@ -193,6 +195,7 @@ export function ActivityBar({
         width: `${effectiveWidth}px`,
         transform: CSS.Translate.toString(transform)
       }}
+      onClick={() => onProgressClick?.(activity)}
     >
       {canResize && (
         <button
@@ -203,19 +206,29 @@ export function ActivityBar({
         />
       )}
 
+      {/* Fill avanzamento */}
+      {pct > 0 && (
+        <div
+          className="absolute inset-y-0 left-0 bg-lime-400/55 pointer-events-none rounded-l-md"
+          style={{ width: `${pct}%` }}
+        >
+          <div className="absolute right-0 inset-y-0 w-0.5 bg-lime-300" />
+        </div>
+      )}
+
       {/* Icona per attività critiche */}
       {isCritical && (
         <Flag className="w-3 h-3 text-white flex-shrink-0" />
       )}
-      
+
       {/* Testo troncato */}
       <span className="text-xs font-medium text-white truncate flex-1 min-w-0">
         {activity.descrizione}
       </span>
-      
-      {/* Durata */}
-      <Badge variant="secondary" className="text-xs px-1 py-0 h-auto">
-        {effectiveDuration}g
+
+      {/* Avanzamento o durata */}
+      <Badge variant="secondary" className="text-xs px-1 py-0 h-auto shrink-0">
+        {pct > 0 ? `${pct}%` : `${effectiveDuration}g`}
       </Badge>
 
       {/* Icona drag (solo hover) */}

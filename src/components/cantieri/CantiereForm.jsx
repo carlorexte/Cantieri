@@ -76,6 +76,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
     importo_lavori_netto_ribasso: cantiere?.importo_lavori_netto_ribasso || "",
     importo_progettazione: cantiere?.importo_progettazione || "",
     oneri_sicurezza_importo: cantiere?.oneri_sicurezza_importo || "",
+    soglia_sal: cantiere?.soglia_sal || (typeof window !== 'undefined' && cantiere?.id ? window.localStorage.getItem(`soglia_sal_${cantiere.id}`) : "") || "",
     percentuale_iva: cantiere?.percentuale_iva ?? 10,
     percentuale_ribasso: cantiere?.percentuale_ribasso || "",
     contratto_data_firma: cantiere?.contratto_data_firma || "",
@@ -101,8 +102,8 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
           return { category: item, classification: '' };
         }
         return {
-          category: item?.category || '',
-          classification: item?.classification || ''
+          category: item?.category || item?.categoria || '',
+          classification: item?.classification || item?.classifica || ''
         };
       })
       : [],
@@ -148,6 +149,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
       : [],
     direttore_lavori_id: cantiere?.direttore_lavori_id || "", // Changed to ID
     responsabile_unico_procedimento_id: cantiere?.responsabile_unico_procedimento_id || "", // Changed to ID
+    responsabile_amministrativo_id: cantiere?.responsabile_amministrativo_id || "",
     stato: cantiere?.stato || "attivo",
     note: cantiere?.note || "",
     team_assegnati: cantiere?.team_assegnati || []
@@ -155,6 +157,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
 
   const [initialData, setInitialData] = useState("");
   const [teams, setTeams] = useState([]);
+  const [approvers, setApprovers] = useState([]);
   const [errors, setErrors] = useState({});
 
   // State for Subappalti and Subaffidamenti
@@ -198,6 +201,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
       importo_progettazione: cantiere?.importo_progettazione || "",
       oneri_sicurezza_importo: cantiere?.oneri_sicurezza_importo || "",
       importo_contrattuale_oltre_iva: calculateImportoContrattualeFromCantiere(cantiere), // Derived value for initial comparison
+      soglia_sal: cantiere?.soglia_sal || (typeof window !== 'undefined' && cantiere?.id ? window.localStorage.getItem(`soglia_sal_${cantiere.id}`) : "") || "",
       percentuale_iva: cantiere?.percentuale_iva ?? 10,
       percentuale_ribasso: cantiere?.percentuale_ribasso || "",
       contratto_data_firma: cantiere?.contratto_data_firma || "",
@@ -270,6 +274,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
         : [],
       direttore_lavori_id: cantiere?.direttore_lavori_id || "", // Changed to ID
       responsabile_unico_procedimento_id: cantiere?.responsabile_unico_procedimento_id || "", // Changed to ID
+      responsabile_amministrativo_id: cantiere?.responsabile_amministrativo_id || "",
       stato: cantiere?.stato || "attivo",
       note: cantiere?.note || "",
       team_assegnati: cantiere?.team_assegnati || []
@@ -310,6 +315,20 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
       }
     };
     loadTeams();
+
+    // Load approvers (admin o ruolo amministrativo)
+    const loadApprovers = async () => {
+      try {
+        const profiles = await supabaseDB.rbac.getAllProfiles();
+        setApprovers(profiles.filter(p =>
+          p.role === 'admin' ||
+          p.ruolo?.nome?.toLowerCase().includes('ammin')
+        ));
+      } catch (error) {
+        console.error("Errore caricamento responsabili:", error);
+      }
+    };
+    loadApprovers();
   }, [cantiere?.id, loadSubappaltiSubaffidamenti]);
 
 
@@ -482,7 +501,9 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
       data_inizio_sospensione: sanitizeValue(form.data_inizio_sospensione),
       data_fine_sospensione: sanitizeValue(form.data_fine_sospensione),
       contratto_data_firma: sanitizeValue(form.contratto_data_firma),
+      contratto_file_url: sanitizeValue(form.contratto_file_url),
       contratto_principale_data: sanitizeValue(form.contratto_principale_data),
+      verbale_inizio_lavori_url: sanitizeValue(form.verbale_inizio_lavori_url),
       
       // Numeri
       importo_lavori_netto_ribasso: parseFloat(form.importo_lavori_netto_ribasso) || null,
@@ -493,11 +514,13 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
       percentuale_iva: parseFloat(form.percentuale_iva) || null,
       percentuale_ribasso: parseFloat(form.percentuale_ribasso) || null,
       giorni_previsti: parseInt(form.giorni_previsti, 10) || null,
+      soglia_sal: parseFloat(form.soglia_sal) || null,
       
       // UUID
       responsabile_sicurezza_id: sanitizeValue(form.responsabile_sicurezza_id),
       direttore_lavori_id: sanitizeValue(form.direttore_lavori_id),
       responsabile_unico_procedimento_id: sanitizeValue(form.responsabile_unico_procedimento_id),
+      responsabile_amministrativo_id: sanitizeValue(form.responsabile_amministrativo_id),
       
       // Polizze
       polizza_definitiva_numero: sanitizeValue(form.polizza_definitiva_numero),
@@ -553,7 +576,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
       categorie_soa: form.categorie_soa || [],
       partner_consorziati: form.partner_consorziati || [],
     };
-    
+
     console.log('[CantiereForm.handleSubmit] Data da inviare:', dataToSubmit);
     onSubmit(dataToSubmit);
   }, [form, onSubmit, getImportoContrattuale]);
@@ -735,6 +758,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                         }
                       }}
                       compact={true}
+                      cantiereId={cantiere?.id || null}
                     />
                   </div>
                 </div>
@@ -967,6 +991,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                         value={form.contratto_file_url}
                         onChange={(value) => updateField("contratto_file_url", value)}
                         compact={true}
+                        cantiereId={cantiere?.id || null}
                       />
                     </div>
                   </div>
@@ -1030,6 +1055,16 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                       className="bg-slate-100 font-semibold" />
                   </div>
                   <div>
+                    <Label>Soglia SAL (€)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="es. 500000"
+                      value={form.soglia_sal}
+                      onChange={(e) => updateField("soglia_sal", e.target.value)} />
+                    <p className="text-xs text-slate-500 mt-1">Importo al quale scatta un certificato SAL</p>
+                  </div>
+                  <div>
                     <Label>IVA (%)</Label>
                     <Input
                       type="number"
@@ -1067,6 +1102,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                   onDurataChange={(value) => updateField("polizza_definitiva_durata", value)}
                   agenzia={form.polizza_definitiva_agenzia}
                   onAgenziaChange={(value) => updateField("polizza_definitiva_agenzia", value)}
+                  cantiereId={cantiere?.id || null}
                 />
 
                 <PolizzaUploader
@@ -1081,6 +1117,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                   onDurataChange={(value) => updateField("polizza_car_durata", value)}
                   agenzia={form.polizza_car_agenzia}
                   onAgenziaChange={(value) => updateField("polizza_car_agenzia", value)}
+                  cantiereId={cantiere?.id || null}
                 />
 
                 <PolizzaUploader
@@ -1095,6 +1132,7 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                   onDurataChange={(value) => updateField("polizza_anticipazione_durata", value)}
                   agenzia={form.polizza_anticipazione_agenzia}
                   onAgenziaChange={(value) => updateField("polizza_anticipazione_agenzia", value)}
+                  cantiereId={cantiere?.id || null}
                 />
               </CardContent>
             </Card>
@@ -1403,6 +1441,44 @@ export default function CantiereForm({ cantiere, onSubmit, onCancel, onDirtyChan
                   />
                   <p className="text-xs text-slate-500 mt-2">
                     Seleziona una persona dall'anagrafica collaboratori esterni
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Sezione 8b: Responsabile Amministrativo */}
+        <AccordionItem value="responsabile-amministrativo">
+          <AccordionTrigger className="text-lg font-semibold">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Responsabile Amministrativo
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <Label>Responsabile Amministrativo (approvazione ordini)</Label>
+                  <Select
+                    value={form.responsabile_amministrativo_id || ""}
+                    onValueChange={(val) => updateField("responsabile_amministrativo_id", val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona responsabile..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {approvers.map(u => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.full_name || u.email}
+                          {u.ruolo?.nome && <span className="text-slate-400 ml-1">— {u.ruolo.nome}</span>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">
+                    Questo utente sarà il responsabile predefinito per l'approvazione degli ordini materiale del cantiere.
                   </p>
                 </div>
               </CardContent>

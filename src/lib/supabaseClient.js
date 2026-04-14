@@ -653,7 +653,9 @@ export const supabaseDB = {
       return data || [];
     },
     create: async (sub) => {
-      const { data, error } = await supabase.from('subappalto').insert([{ ...sub, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }]).select().single();
+      const { id_cantiere: _legacy, ...rest } = sub;
+      const payload = { ...rest, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      const { data, error } = await supabase.from('subappalto').insert([payload]).select().single();
       if (error) throw error;
       return data;
     },

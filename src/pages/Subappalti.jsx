@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PermissionGuard, usePermissions } from "@/components/shared/PermissionGuard";
+import { useToast } from "@/components/ui/use-toast";
 
 import SubappaltoForm from "../components/subappalti/SubappaltoForm";
 import SubappaltoDetail from "../components/subappalti/SubappaltoDetail";
@@ -55,6 +56,7 @@ export default function SubappaltiPage() {
   const [currentUser, setCurrentUser] = useState(null);
 
   const { hasPermission } = usePermissions();
+  const { toast } = useToast();
 
   useEffect(() => {
     loadData();
@@ -109,17 +111,47 @@ export default function SubappaltiPage() {
   };
 
   const handleSubmit = async (formData) => {
+    const { _documentiDaAllegare, ...datiSubappalto } = formData;
     try {
+      let subappaltoId;
       if (editingSubappalto) {
-        await backendClient.entities.Subappalto.update(editingSubappalto.id, formData);
+        await backendClient.entities.Subappalto.update(editingSubappalto.id, datiSubappalto);
+        subappaltoId = editingSubappalto.id;
       } else {
-        await backendClient.entities.Subappalto.create(formData);
+        const created = await backendClient.entities.Subappalto.create(datiSubappalto);
+        subappaltoId = created?.id;
       }
+
+      if (_documentiDaAllegare?.length && subappaltoId) {
+        for (const doc of _documentiDaAllegare) {
+          try {
+            const result = await backendClient.uploadDocumenti.uploadFile(doc.file, { cantiereId: datiSubappalto.cantiere_id });
+            await backendClient.entities.Documento.create({
+              titolo: doc.titolo || doc.file.name,
+              categoria: doc.categoria,
+              entita_collegate: JSON.stringify([{ entita_tipo: 'subappalto', entita_id: subappaltoId }]),
+              file_uri: result.file_uri,
+              file_url: result.file_url,
+              entita_collegata_tipo: 'subappalto',
+              entita_collegata_id: subappaltoId
+            });
+          } catch (err) {
+            console.error("Errore upload documento:", err);
+          }
+        }
+      }
+
+      toast({ title: editingSubappalto ? "Aggiornato" : "Salvato", description: "Operazione completata con successo." });
       setShowForm(false);
       setEditingSubappalto(null);
       loadData();
     } catch (error) {
       console.error("Errore salvataggio subappalto:", error);
+      toast({
+        title: "Errore salvataggio",
+        description: error?.message || "Si è verificato un errore. Controlla tutti i campi obbligatori.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -431,6 +463,7 @@ export default function SubappaltiPage() {
               <SubappaltoForm
                 subappalto={editingSubappalto}
                 cantieri={cantieri}
+                cantiereId={editingSubappalto?.cantiere_id}
                 imprese={imprese}
                 tipoRelazione={nuovoTipoRelazione}
                 onSubmit={handleSubmit}

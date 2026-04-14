@@ -1,11 +1,19 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Euro, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, FileText, Upload, Eye, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -16,9 +24,15 @@ import {
 } from "@/components/ui/table";
 
 export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
+  const [documenti, setDocumenti] = useState([]);
   const [salList, setSalList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingRow, setEditingRow] = useState(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadMeta, setUploadMeta] = useState({ titolo: "", categoria: "contratti" });
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [newSal, setNewSal] = useState({
     numero_sal: 1,
     tipo_sal: "sal_progressivo",
@@ -46,7 +60,79 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
 
   useEffect(() => {
     loadSAL();
-  }, [loadSAL]); // Now depends on loadSAL itself
+  }, [loadSAL]);
+
+  const loadDocumenti = useCallback(async () => {
+    try {
+      const allDocs = await backendClient.entities.Documento.list();
+      const filtered = allDocs.filter(doc => {
+        let entitaCollegate = doc.entita_collegate;
+        if (typeof entitaCollegate === 'string' && entitaCollegate?.length > 0) {
+          try { entitaCollegate = JSON.parse(entitaCollegate); } catch { entitaCollegate = []; }
+        }
+        if (Array.isArray(entitaCollegate)) {
+          return entitaCollegate.some(e => e.entita_tipo === 'subappalto' && e.entita_id === subappalto.id);
+        }
+        return false;
+      });
+      setDocumenti(filtered);
+    } catch (error) {
+      console.error("Errore caricamento documenti:", error);
+    }
+  }, [subappalto.id]);
+
+  useEffect(() => {
+    loadDocumenti();
+  }, [loadDocumenti]);
+
+  const handleViewDocument = (doc) => {
+    if (doc.file_uri || doc.cloud_file_url) {
+      window.open(doc.file_uri || doc.cloud_file_url, '_blank');
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm("Eliminare questo documento?")) return;
+    try {
+      await backendClient.entities.Documento.delete(docId);
+      loadDocumenti();
+    } catch (error) {
+      console.error("Errore eliminazione documento:", error);
+    }
+  };
+
+  const handleFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadFile(file);
+    setUploadMeta({ titolo: file.name.replace(/\.[^.]+$/, ''), categoria: "contratti" });
+    setShowUploadDialog(true);
+    e.target.value = "";
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!uploadFile) return;
+    setIsUploading(true);
+    try {
+      const result = await backendClient.uploadDocumenti.uploadFile(uploadFile, { cantiereId: subappalto.cantiere_id });
+      const docData = {
+        titolo: uploadMeta.titolo || uploadFile.name,
+        categoria: uploadMeta.categoria,
+        entita_collegate: JSON.stringify([{ entita_tipo: 'subappalto', entita_id: subappalto.id }]),
+        file_uri: result.file_uri,
+        file_url: result.file_url,
+        entita_collegata_tipo: 'subappalto',
+        entita_collegata_id: subappalto.id
+      };
+      await backendClient.entities.Documento.create(docData);
+      loadDocumenti();
+      setShowUploadDialog(false);
+      setUploadFile(null);
+    } catch (error) {
+      console.error("Errore upload:", error);
+    }
+    setIsUploading(false);
+  };
 
   const handleSaveSAL = async (salData) => {
     try {
@@ -146,6 +232,115 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Documenti */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Documenti Allegati
+            </CardTitle>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                onChange={handleFileSelected}
+                className="hidden"
+              />
+              <Button onClick={() => fileInputRef.current?.click()} className="bg-green-600 hover:bg-green-700">
+                <Upload className="w-4 h-4 mr-2" />
+                Carica Documento
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {documenti.length === 0 ? (
+            <p className="text-slate-500 text-center py-4">Nessun documento allegato</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50">
+                  <TableHead className="font-semibold">Titolo</TableHead>
+                  <TableHead className="font-semibold">Categoria</TableHead>
+                  <TableHead className="font-semibold">Data</TableHead>
+                  <TableHead className="text-right font-semibold">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documenti.map(doc => (
+                  <TableRow key={doc.id}>
+                    <TableCell className="font-medium">{doc.titolo}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{doc.categoria}</Badge>
+                    </TableCell>
+                    <TableCell>{doc.created_at ? new Date(doc.created_at).toLocaleDateString('it-IT') : '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleViewDocument(doc)}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="hover:bg-red-50 hover:text-red-600" onClick={() => handleDeleteDocument(doc.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog Upload Documento */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Carica Documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>File selezionato</Label>
+              <p className="text-sm text-slate-600 mt-1">{uploadFile?.name}</p>
+            </div>
+            <div>
+              <Label>Titolo documento *</Label>
+              <Input
+                value={uploadMeta.titolo}
+                onChange={(e) => setUploadMeta(prev => ({ ...prev, titolo: e.target.value }))}
+                placeholder="Titolo documento"
+              />
+            </div>
+            <div>
+              <Label>Categoria</Label>
+              <Select value={uploadMeta.categoria} onValueChange={(v) => setUploadMeta(prev => ({ ...prev, categoria: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contratti">Contratti</SelectItem>
+                  <SelectItem value="visure">Visure</SelectItem>
+                  <SelectItem value="durc">DURC</SelectItem>
+                  <SelectItem value="certificazioni">Certificazioni</SelectItem>
+                  <SelectItem value="polizze">Polizze</SelectItem>
+                  <SelectItem value="fatture">Fatture</SelectItem>
+                  <SelectItem value="verbali">Verbali</SelectItem>
+                  <SelectItem value="altro">Altro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => { setShowUploadDialog(false); setUploadFile(null); }}>Annulla</Button>
+            <Button onClick={handleConfirmUpload} disabled={isUploading} className="bg-green-600 hover:bg-green-700">
+              {isUploading ? "Caricamento..." : "Carica"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabella SAL */}
       <Card className="border-0 shadow-lg">

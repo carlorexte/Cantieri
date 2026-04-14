@@ -69,6 +69,8 @@ const soaCategories = [
 
 const classificheSOA = ["I", "II", "III", "III-bis", "IV", "IV-bis", "V", "VI", "VII", "VIII"];
 
+export { soaCategories, classificheSOA };
+
 function CategorieSOASelector({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");

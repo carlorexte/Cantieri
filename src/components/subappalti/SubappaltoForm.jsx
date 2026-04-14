@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, X } from "lucide-react";
+import { Save, X, Upload, FileText, Trash2 } from "lucide-react";
+import { soaCategories } from "@/components/cantieri/CategorieSOASelector";
 
 import ImpresaSelector from "./ImpresaSelector";
 
-export default function SubappaltoForm({ subappalto, cantiereId, tipoRelazione = "subappalto", onSubmit, onCancel }) {
+export default function SubappaltoForm({ subappalto, cantiereId, cantieri = [], tipoRelazione = "subappalto", onSubmit, onCancel }) {
+  const [documentiDaAllegare, setDocumentiDaAllegare] = useState([]);
+  const fileInputRef = useRef(null);
+
   const [form, setForm] = useState({
     cantiere_id: cantiereId || subappalto?.cantiere_id || "",
     tipo_relazione: tipoRelazione || subappalto?.tipo_relazione || "subappalto",
@@ -71,6 +74,32 @@ export default function SubappaltoForm({ subappalto, cantiereId, tipoRelazione =
     }
   };
 
+  const cantiereSelezionato = cantieri.find(c => c.id === form.cantiere_id);
+  const categorieSoaCantiere = Array.isArray(cantiereSelezionato?.categorie_soa)
+    ? cantiereSelezionato.categorie_soa.map(v =>
+        typeof v === 'string' ? { category: v, classification: '' } : { category: v.category || v.categoria || '', classification: v.classification || v.classifica || '' }
+      ).filter(v => v.category)
+    : [];
+
+  const handleFileSelected = (e) => {
+    const files = Array.from(e.target.files || []);
+    const nuovi = files.map(f => ({
+      file: f,
+      titolo: f.name.replace(/\.[^.]+$/, ''),
+      categoria: 'contratti'
+    }));
+    setDocumentiDaAllegare(prev => [...prev, ...nuovi]);
+    e.target.value = "";
+  };
+
+  const updateDocMeta = (index, field, value) => {
+    setDocumentiDaAllegare(prev => prev.map((d, i) => i === index ? { ...d, [field]: value } : d));
+  };
+
+  const removeDoc = (index) => {
+    setDocumentiDaAllegare(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const dataToSubmit = {
@@ -78,7 +107,8 @@ export default function SubappaltoForm({ subappalto, cantiereId, tipoRelazione =
       importo_contratto: parseFloat(form.importo_contratto) || null,
       oneri_sicurezza: parseFloat(form.oneri_sicurezza) || null,
       importo_contrattuale: parseFloat(form.importo_contrattuale) || null,
-      ribasso_percentuale: parseFloat(form.ribasso_percentuale) || null
+      ribasso_percentuale: parseFloat(form.ribasso_percentuale) || null,
+      _documentiDaAllegare: documentiDaAllegare
     };
     onSubmit(dataToSubmit);
   };
@@ -86,6 +116,24 @@ export default function SubappaltoForm({ subappalto, cantiereId, tipoRelazione =
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
+        <div>
+          <Label>Cantiere *</Label>
+          <Select 
+            value={form.cantiere_id} 
+            onValueChange={(value) => updateField("cantiere_id", value)} 
+            required
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona cantiere..." />
+            </SelectTrigger>
+            <SelectContent>
+              {cantieri?.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.denominazione}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div>
           <Label>Tipo Relazione *</Label>
           <Select value={form.tipo_relazione} onValueChange={(value) => updateField("tipo_relazione", value)} disabled={!!tipoRelazione}>
@@ -237,19 +285,32 @@ export default function SubappaltoForm({ subappalto, cantiereId, tipoRelazione =
         </div>
 
         <div>
-          <Label>Categoria Lavori *</Label>
+          <Label>Categoria Lavori (SOA) *</Label>
+          {categorieSoaCantiere.length > 0 && (
+            <p className="text-xs text-blue-600 mb-1">★ = presenti nel cantiere selezionato</p>
+          )}
           <Select value={form.categoria_lavori} onValueChange={(value) => updateField("categoria_lavori", value)}>
             <SelectTrigger>
-              <SelectValue placeholder="Seleziona categoria..." />
+              <SelectValue placeholder="Seleziona categoria SOA..." />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="impianti_elettrici">Impianti Elettrici</SelectItem>
-              <SelectItem value="impianti_idraulici">Impianti Idraulici</SelectItem>
-              <SelectItem value="strutture">Strutture</SelectItem>
-              <SelectItem value="finiture">Finiture</SelectItem>
-              <SelectItem value="serramenti">Serramenti</SelectItem>
-              <SelectItem value="pavimenti">Pavimenti</SelectItem>
-              <SelectItem value="altro">Altro</SelectItem>
+            <SelectContent className="max-h-64">
+              {categorieSoaCantiere.length > 0 && (
+                <>
+                  {categorieSoaCantiere.map(cat => {
+                    const soa = soaCategories.find(s => s.value === cat.category);
+                    return (
+                      <SelectItem key={`soa-${cat.category}`} value={cat.category}>
+                        ★ {soa?.label || cat.category}{cat.classification ? ` — Cl. ${cat.classification}` : ''}
+                      </SelectItem>
+                    );
+                  })}
+                  <SelectItem value="__sep__" disabled>──────────────────</SelectItem>
+                </>
+              )}
+              {soaCategories.map(s => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+              <SelectItem value="altro">Altro (non SOA)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -315,6 +376,66 @@ export default function SubappaltoForm({ subappalto, cantiereId, tipoRelazione =
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {/* Sezione documenti */}
+      <div className="border rounded-lg p-4 space-y-3 bg-slate-50">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Documenti da allegare
+          </Label>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />
+              Aggiungi file
+            </Button>
+          </div>
+        </div>
+
+        {documentiDaAllegare.length === 0 ? (
+          <p className="text-xs text-slate-400 text-center py-2">Nessun documento in coda</p>
+        ) : (
+          <div className="space-y-2">
+            {documentiDaAllegare.map((doc, i) => (
+              <div key={i} className="flex items-center gap-2 bg-white border rounded p-2">
+                <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                <Input
+                  value={doc.titolo}
+                  onChange={(e) => updateDocMeta(i, 'titolo', e.target.value)}
+                  placeholder="Titolo"
+                  className="h-8 text-sm flex-1"
+                />
+                <Select value={doc.categoria} onValueChange={(v) => updateDocMeta(i, 'categoria', v)}>
+                  <SelectTrigger className="h-8 w-36 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contratti">Contratti</SelectItem>
+                    <SelectItem value="visure">Visure</SelectItem>
+                    <SelectItem value="durc">DURC</SelectItem>
+                    <SelectItem value="certificazioni">Certificazioni</SelectItem>
+                    <SelectItem value="polizze">Polizze</SelectItem>
+                    <SelectItem value="fatture">Fatture</SelectItem>
+                    <SelectItem value="verbali">Verbali</SelectItem>
+                    <SelectItem value="altro">Altro</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-50 hover:text-red-600 shrink-0" onClick={() => removeDoc(i)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">

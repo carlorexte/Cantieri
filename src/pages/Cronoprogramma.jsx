@@ -186,14 +186,16 @@ export default function CronoprogrammaPage() {
 
       let savedActivity;
       if (editingAttivita?.id) {
+        const { id: _dropId2, ...dbPayloadSenzaId2 } = dbPayload;
         savedActivity = await supabaseDB.attivita.update(editingAttivita.id, {
-          ...dbPayload,
+          ...dbPayloadSenzaId2,
           cantiere_id: selectedCantiereId,
           updated_date: new Date().toISOString()
         });
       } else {
+        const { id: _dropId, ...dbPayloadSenzaId } = dbPayload;
         savedActivity = await supabaseDB.attivita.create({
-          ...dbPayload,
+          ...dbPayloadSenzaId,
           cantiere_id: selectedCantiereId,
           created_date: new Date().toISOString(),
           updated_date: new Date().toISOString()
@@ -216,8 +218,8 @@ export default function CronoprogrammaPage() {
       setEditingAttivita(null);
       toast.success(editingAttivita?.id ? "Attivita aggiornata." : "Attivita creata.");
     } catch (error) {
-      console.error("Errore salvataggio attivita:", error);
-      toast.error("Errore durante il salvataggio dell'attivita.");
+      console.error("Errore salvataggio attivita:", error?.message, error?.code, error?.details, error?.hint, error);
+      toast.error(`Errore salvataggio: ${error?.message || error?.code || 'controlla console'}`);
     }
   }, [selectedCantiereId, editingAttivita]);
 
@@ -301,6 +303,14 @@ export default function CronoprogrammaPage() {
             ...update
           };
         });
+        const hasWbsUpdate = updates.some(u => 'wbs' in u);
+        if (hasWbsUpdate) {
+          nextForCantiere.sort((a, b) => {
+            const wbsA = a.wbs || '';
+            const wbsB = b.wbs || '';
+            return wbsA.localeCompare(wbsB, 'it', { numeric: true });
+          });
+        }
         return {
           ...prev,
           [selectedCantiereId]: nextForCantiere

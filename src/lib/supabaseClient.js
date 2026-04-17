@@ -26,7 +26,9 @@ const OPTIONAL_ATTIVITA_COLUMNS = [
   'assegnatario_id',
   'percentuale_completamento',
   'importo_eseguito',
-  'wbs_code'
+  'wbs_code',
+  'updated_date',
+  'created_date'
 ];
 
 // Colonne OBBLIGATORIE per attivita (queste devono esistere SEMPRE)
@@ -40,9 +42,7 @@ const REQUIRED_ATTIVITA_COLUMNS = [
   'data_fine',
   'durata_giorni',
   'importo_previsto',
-  'stato',
-  'created_date',
-  'updated_date'
+  'stato'
 ];
 
 const UUID_FIELD_NAMES = new Set([
@@ -128,8 +128,16 @@ async function retryWithoutOptionalAttivitaColumns(operation, payload) {
   try {
     return await operation(payload);
   } catch (error) {
+    console.warn('[attivita] 1° tentativo fallito:', error?.code, error?.message, '| payload keys:', Object.keys(payload || {}));
     if (!isMissingColumnError(error)) throw error;
-    return operation(stripUnsupportedAttivitaColumns(payload));
+    const stripped = stripUnsupportedAttivitaColumns(payload);
+    console.warn('[attivita] Retry senza colonne opzionali. Keys rimanenti:', Object.keys(stripped));
+    try {
+      return await operation(stripped);
+    } catch (error2) {
+      console.error('[attivita] 2° tentativo fallito:', error2?.code, error2?.message, '| payload keys:', Object.keys(stripped));
+      throw error2;
+    }
   }
 }
 

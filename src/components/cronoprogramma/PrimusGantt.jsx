@@ -24,7 +24,6 @@ import {
 import { it } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Boxes } from 'lucide-react';
-import { GanttDndProvider } from './GanttDndProvider';
 import { ActivityBar } from './ActivityBar';
 import { useCPM } from '@/hooks/useCPM';
 import BIMLinker from '@/components/computo/BIMLinker';
@@ -86,19 +85,25 @@ export default function PrimusGantt({
   const [isResizing, setIsResizing] = useState(false);
   const [viewMode, setViewMode] = useState('week');
   const [hoveredRow, setHoveredRow] = useState(null);
-  const [draggingActivity, setDraggingActivity] = useState(null);
   const [draggedSidebarActivityId, setDraggedSidebarActivityId] = useState(null);
   const [sidebarDropMacroAreaId, setSidebarDropMacroAreaId] = useState(null);
+  const [reorderDropTargetId, setReorderDropTargetId] = useState(null);
+  const [localOrder, setLocalOrder] = useState(null);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(1200);
   const [vociComputo, setVociComputo] = useState([]);
   const [linksComputo, setLinksComputo] = useState([]);
   const [isLoadingBim, setIsLoadingBim] = useState(false);
   const [bimLinkerActivity, setBimLinkerActivity] = useState(null);
+  const [dropTargetRowId, setDropTargetRowId] = useState(null);
 
   const scrollContainerRef = useRef(null);
   const sidebarRef = useRef(null);
   const resizeHandleRef = useRef(null);
   const fullViewAutoFitAppliedRef = useRef(false);
+
+  useEffect(() => {
+    setLocalOrder(null);
+  }, [attivita]);
 
   const projectStartForCPM = useMemo(() => {
     if (cantiere?.data_inizio) return cantiere.data_inizio;
@@ -109,21 +114,10 @@ export default function PrimusGantt({
   const { cpmResult, rescheduleActivity } = useCPM(attivita, projectStartForCPM);
 
   const loadBimData = useCallback(async () => {
-    if (!cantiere?.id) return;
-    setIsLoadingBim(true);
-    try {
-      const [voci, links] = await Promise.all([
-        backendClient.entities.VoceComputo.filter({ cantiere_id: cantiere.id }),
-        backendClient.entities.AttivitaVoceComputo.getByCantiere(cantiere.id)
-      ]);
-      setVociComputo(voci || []);
-      setLinksComputo(links || []);
-    } catch (err) {
-      console.error("BIM loading error:", err);
-    } finally {
-      setIsLoadingBim(false);
-    }
-  }, [cantiere?.id]);
+    // BIM in standby
+    setVociComputo([]);
+    setLinksComputo([]);
+  }, []);
 
   useEffect(() => {
     loadBimData();
@@ -229,6 +223,18 @@ export default function PrimusGantt({
     roots.forEach((root) => calculateTotals(root));
     nodes.forEach((node) => node.children.sort(compareRows));
 
+    if (localOrder) {
+      const orderMap = new Map(localOrder.map((id, index) => [id, index]));
+      roots.sort((a, b) => {
+        const aOrder = orderMap.get(a.id);
+        const bOrder = orderMap.get(b.id);
+        if (aOrder === undefined && bOrder === undefined) return 0;
+        if (aOrder === undefined) return 1;
+        if (bOrder === undefined) return -1;
+        return aOrder - bOrder;
+      });
+    }
+
     const flat = [];
     const walk = (node, level, prefix) => {
       node.level = level;
@@ -242,7 +248,7 @@ export default function PrimusGantt({
 
     roots.forEach((root, index) => walk(root, 0, `${index + 1}`));
     return flat;
-  }, [attivita, cpmResult, expandedGroups]);
+  }, [attivita, cpmResult, expandedGroups, localOrder]);
 
   const macroAreaRows = useMemo(
     () => processedData.filter((item) => item.tipo_attivita === 'raggruppamento'),
@@ -566,6 +572,50 @@ export default function PrimusGantt({
     await handleSidebarMoveToMacroArea(droppedActivityId, macroAreaId);
   }, [draggedSidebarActivityId, handleSidebarMoveToMacroArea]);
 
+  const handleSidebarReorderDragOver = useCallback((e, item) => {
+    if (!draggedSidebarActivityId) return;
+    if (item.tipo_attivita === 'raggruppamento') return;
+    if (item.id === draggedSidebarActivityId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setReorderDropTargetId(item.id);
+  }, [draggedSidebarActivityId]);
+
+  const handleSidebarReorderDrop = useCallback((e, targetItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const draggedId = draggedSidebarActivityId;
+    if (!draggedId || draggedId === targetItem.id) {
+      setDraggedSidebarActivityId(null);
+      setReorderDropTargetId(null);
+      return;
+    }
+    if (targetItem.tipo_attivita === 'raggruppamento') {
+      setDraggedSidebarActivityId(null);
+      setReorderDropTargetId(null);
+      return;
+    }
+
+    const sourceIndex = processedData.findIndex(item => item.id === draggedId);
+    const targetIndex = processedData.findIndex(item => item.id === targetItem.id);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setDraggedSidebarActivityId(null);
+      setReorderDropTargetId(null);
+      return;
+    }
+
+    const reorderedActivities = [...processedData];
+    const [removed] = reorderedActivities.splice(sourceIndex, 1);
+    reorderedActivities.splice(targetIndex, 0, removed);
+
+    const newOrder = reorderedActivities.map(item => item.id);
+    setLocalOrder(newOrder);
+
+    setDraggedSidebarActivityId(null);
+    setReorderDropTargetId(null);
+    toast.success('Attività riordinata');
+  }, [draggedSidebarActivityId, processedData]);
+
   const handleFitToProject = useCallback(() => {
     const dates = processedData
       .flatMap((item) => [item._startDate, item._endDate])
@@ -714,6 +764,61 @@ export default function PrimusGantt({
 
     toast.success(`Attivita spostata di ${deltaDays > 0 ? '+' : ''}${deltaDays} giorni`);
   }, [cpmResult, onAttivitaUpdate, processedData, rescheduleActivity]);
+
+  const handleRowDragEnd = useCallback(() => {
+    setDropTargetRowId(null);
+  }, []);
+
+  const handleRowDragOver = useCallback((e, item) => {
+    if (item.tipo_attivita === 'raggruppamento') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetRowId(item.id);
+  }, []);
+
+  const handleRowDrop = useCallback(async (e, targetItem) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData('text/plain');
+    if (!draggedId || draggedId === targetItem.id) {
+      handleRowDragEnd();
+      return;
+    }
+    if (targetItem.tipo_attivita === 'raggruppamento') {
+      handleRowDragEnd();
+      return;
+    }
+
+    const sourceItem = processedData.find(item => item.id === draggedId);
+    if (!sourceItem || !onAttivitaUpdate) {
+      handleRowDragEnd();
+      return;
+    }
+
+    const sourceIndex = processedData.findIndex(item => item.id === draggedId);
+    const targetIndex = processedData.findIndex(item => item.id === targetItem.id);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      handleRowDragEnd();
+      return;
+    }
+
+    const reorderedActivities = [...processedData];
+    const [removed] = reorderedActivities.splice(sourceIndex, 1);
+    reorderedActivities.splice(targetIndex, 0, removed);
+
+    const updates = reorderedActivities.map((item, index) => ({
+      id: item.id,
+      ordinamento: index
+    }));
+
+    try {
+      await onAttivitaUpdate(updates.map(u => u.id), { directUpdates: updates });
+      toast.success('Attività riordinata');
+    } catch (err) {
+      toast.error('Errore riordinamento');
+    }
+
+    handleRowDragEnd();
+  }, [processedData, onAttivitaUpdate, handleRowDragEnd]);
 
   const handleActivityResize = useCallback(async (activityId, resizeData) => {
     if (!onAttivitaUpdate || !resizeData) return;
@@ -867,34 +972,52 @@ export default function PrimusGantt({
             {processedData.map((item) => (
               <div
                 key={item.id}
-                className={`flex border-b border-slate-100 text-sm hover:bg-orange-50/60 transition-colors cursor-pointer ${
+                className={`flex border-b border-slate-100 text-sm hover:bg-orange-50/60 transition-colors ${
                   hoveredRow === item.id ? 'bg-orange-50/60' : ''
                 } ${
                   item.tipo_attivita === 'raggruppamento'
                     ? (isExplicitMacroArea(item)
-                      ? 'bg-sky-50/90'
+                      ? 'bg-sky-50/90 cursor-pointer'
                       : 'bg-slate-50')
                     : ''
                 } ${
+                  item.tipo_attivita !== 'raggruppamento' ? 'cursor-pointer' : ''
+                } ${
                   sidebarDropMacroAreaId === item.id && item.tipo_attivita === 'raggruppamento' ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-300' : ''
+                } ${
+                  reorderDropTargetId === item.id ? 'bg-indigo-100 border-t-2 border-t-indigo-500' : ''
                 }`}
                 style={{ height: ROW_HEIGHT }}
                 onMouseEnter={() => setHoveredRow(item.id)}
                 onMouseLeave={() => setHoveredRow(null)}
                 onClick={() => onEditAttivita(item)}
                 onDragOver={(event) => {
-                  if (item.tipo_attivita !== 'raggruppamento' || !draggedSidebarActivityId) return;
-                  event.preventDefault();
-                  if (sidebarDropMacroAreaId !== item.id) {
-                    setSidebarDropMacroAreaId(item.id);
+                  if (draggedSidebarActivityId && item.id !== draggedSidebarActivityId) {
+                    if (item.tipo_attivita === 'raggruppamento') {
+                      if (sidebarDropMacroAreaId !== item.id) {
+                        setSidebarDropMacroAreaId(item.id);
+                      }
+                    } else {
+                      handleSidebarReorderDragOver(event, item);
+                      return;
+                    }
                   }
                 }}
                 onDragLeave={() => {
                   if (sidebarDropMacroAreaId === item.id) {
                     setSidebarDropMacroAreaId(null);
                   }
+                  if (reorderDropTargetId === item.id) {
+                    setReorderDropTargetId(null);
+                  }
                 }}
-                onDrop={(event) => handleSidebarMacroAreaDrop(event, item.id)}
+                onDrop={(event) => {
+                  if (reorderDropTargetId === item.id) {
+                    handleSidebarReorderDrop(event, item);
+                  } else {
+                    handleSidebarMacroAreaDrop(event, item.id);
+                  }
+                }}
               >
                 <div className="w-16 border-r border-slate-200 flex items-center justify-center font-mono text-slate-500 text-xs truncate">
                   {item.wbs}
@@ -1035,12 +1158,6 @@ export default function PrimusGantt({
           </div>
         )}
 
-        <GanttDndProvider
-          onActivityDrop={(activityId, deltaDays) => handleActivityDateChange(activityId, deltaDays)}
-          onDragStateChange={setDraggingActivity}
-          draggingActivity={draggingActivity}
-          dayWidth={config.colWidth / config.daysPerCol}
-        >
           <div className="flex-1 overflow-auto bg-white" ref={scrollContainerRef} onScroll={handleScroll}>
             <div style={{ width: timeColumns.length * config.colWidth }}>
               <div className="sticky top-0 z-10 bg-white" style={{ height: HEADER_HEIGHT }}>
@@ -1102,10 +1219,19 @@ export default function PrimusGantt({
                 {processedData.map((item) => {
                   const pos = getBarPosition(item._startDate, item._endDate);
                   const isCritical = Boolean(item._cpmDetails?.isCritical);
+                  const isDropTarget = dropTargetRowId === item.id;
+                  const canDragRow = item.tipo_attivita === 'task';
                   return (
                     <div
                       key={item.id}
-                      className={`relative border-b border-slate-100 transition-colors ${hoveredRow === item.id ? 'bg-orange-50/40' : ''} ${item.tipo_attivita === 'task' && onProgressUpdate ? 'cursor-pointer' : ''}`}
+                      onDragOver={canDragRow ? (e) => handleRowDragOver(e, item) : undefined}
+                      onDrop={canDragRow ? (e) => handleRowDrop(e, item) : undefined}
+                      onDragLeave={() => setDropTargetRowId(null)}
+                      className={`
+                        relative border-b border-slate-100 transition-all
+                        ${hoveredRow === item.id ? 'bg-orange-50/40' : ''}
+                        ${isDropTarget ? 'bg-emerald-100 border-t-2 border-emerald-500' : ''}
+                      `}
                       style={{ height: ROW_HEIGHT }}
                       onMouseEnter={() => setHoveredRow(item.id)}
                       onMouseLeave={() => setHoveredRow(null)}
@@ -1122,13 +1248,9 @@ export default function PrimusGantt({
                         ) : (
                           <ActivityBar
                             activity={item}
-                            startDate={item._startDate instanceof Date ? item._startDate.toISOString().split('T')[0] : item.data_inizio}
                             duration={item._duration || 1}
                             isCritical={isCritical}
-                            canDrag={item.tipo_attivita === 'task'}
                             canResize={item.tipo_attivita === 'task'}
-                            viewMode={viewMode}
-                            timelineStart={format(timeRange.start, 'yyyy-MM-dd')}
                             dayWidth={config.colWidth / config.daysPerCol}
                             barLeft={pos.left}
                             barWidth={pos.width}
@@ -1229,7 +1351,6 @@ export default function PrimusGantt({
               </div>
             </div>
           </div>
-        </GanttDndProvider>
       </div>
 
       <div className="border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] text-slate-400">

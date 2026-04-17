@@ -3,9 +3,10 @@ import { backendClient } from "@/api/backendClient";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, Building2 } from "lucide-react";
+import { Check, ChevronsUpDown, Building2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { Link } from "react-router-dom";
 
 export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagrafica", onImpresaSelect }) {
   const [open, setOpen] = useState(false);
@@ -78,7 +79,22 @@ export default function ImpresaSelector({ label = "Seleziona Impresa dall'Anagra
             <Command>
               <CommandInput placeholder="Cerca impresa..." />
               <CommandEmpty>
-                {isLoading ? "Caricamento..." : "Nessuna impresa trovata."}
+                <div className="py-2 px-3 text-sm text-slate-500">
+                  {isLoading ? "Caricamento..." : (
+                    <span>
+                      Nessuna impresa trovata.{" "}
+                      <Link
+                        to="/Imprese"
+                        target="_blank"
+                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        onClick={() => setOpen(false)}
+                      >
+                        Aggiungila in anagrafica
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </span>
+                  )}
+                </div>
               </CommandEmpty>
               <CommandGroup className="max-h-64 overflow-auto">
                 {imprese.map((impresa) => (

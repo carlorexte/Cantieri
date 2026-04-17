@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { backendClient } from "@/api/backendClient";
+import { supabaseDB } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -113,6 +114,25 @@ export default function SubappaltiPage() {
   const handleSubmit = async (formData) => {
     const { _documentiDaAllegare, ...datiSubappalto } = formData;
     try {
+      // Se ragione sociale compilata manualmente senza impresa_id, crea l'impresa in anagrafica
+      if (!datiSubappalto.impresa_id && datiSubappalto.ragione_sociale) {
+        try {
+          const nuovaImpresa = await supabaseDB.imprese.create({
+            ragione_sociale: datiSubappalto.ragione_sociale,
+            partita_iva: datiSubappalto.partita_iva || null,
+            codice_fiscale: datiSubappalto.codice_fiscale || null,
+            telefono: datiSubappalto.telefono || null,
+            email: datiSubappalto.email || null,
+            indirizzo_legale: datiSubappalto.indirizzo || null,
+            cap_legale: datiSubappalto.cap || null,
+            citta_legale: datiSubappalto.citta || null,
+          });
+          datiSubappalto.impresa_id = nuovaImpresa.id;
+        } catch (err) {
+          console.warn("Impresa non salvata in anagrafica:", err?.message);
+        }
+      }
+
       let subappaltoId;
       if (editingSubappalto) {
         await backendClient.entities.Subappalto.update(editingSubappalto.id, datiSubappalto);
@@ -125,13 +145,14 @@ export default function SubappaltiPage() {
       if (_documentiDaAllegare?.length && subappaltoId) {
         for (const doc of _documentiDaAllegare) {
           try {
-            const result = await backendClient.uploadDocumenti.uploadFile(doc.file, { cantiereId: datiSubappalto.cantiere_id });
-            await backendClient.entities.Documento.create({
-              titolo: doc.titolo || doc.file.name,
-              categoria: doc.categoria,
-              entita_collegate: JSON.stringify([{ entita_tipo: 'subappalto', entita_id: subappaltoId }]),
+            const result = await supabaseDB.uploadDocumenti.uploadFile(doc.file, { cantiereId: datiSubappalto.cantiere_id });
+            await supabaseDB.documenti.create({
+              nome_documento: doc.titolo || doc.file.name,
+              categoria_principale: doc.categoria,
+              tipo_documento: doc.categoria,
+              entita_collegate: [{ entita_tipo: 'subappalto', entita_id: subappaltoId }],
               file_uri: result.file_uri,
-              file_url: result.file_url,
+              cloud_file_url: result.file_url,
               entita_collegata_tipo: 'subappalto',
               entita_collegata_id: subappaltoId
             });
@@ -141,7 +162,13 @@ export default function SubappaltiPage() {
         }
       }
 
-      toast({ title: editingSubappalto ? "Aggiornato" : "Salvato", description: "Operazione completata con successo." });
+      const impresaCreata = !formData.impresa_id && formData.ragione_sociale && datiSubappalto.impresa_id;
+      toast({
+        title: editingSubappalto ? "Aggiornato" : "Salvato",
+        description: impresaCreata
+          ? "Operazione completata. Impresa salvata anche in anagrafica."
+          : "Operazione completata con successo."
+      });
       setShowForm(false);
       setEditingSubappalto(null);
       loadData();

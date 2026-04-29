@@ -87,21 +87,22 @@ export default function ImpresaForm({ impresa, onSubmit, onCancel, isSaving = fa
 
   const cleanPayload = () => {
     const payload = normalizeFormData(formData);
+    const finalPayload = {};
+
+    // Includi solo i campi definiti nel defaultForm
+    Object.keys(defaultForm).forEach((key) => {
+      finalPayload[key] = payload[key];
+    });
 
     // Sanitizzazione aggressiva: converti ogni stringa vuota in null
     // PostgreSQL rifiuta "" per i tipi UUID e altri tipi strutturati
-    Object.keys(payload).forEach((key) => {
-      if (payload[key] === "") {
-        payload[key] = null;
+    Object.keys(finalPayload).forEach((key) => {
+      if (finalPayload[key] === "") {
+        finalPayload[key] = null;
       }
     });
 
-    // Rimuovi ID se vuoto/null per nuovi inserimenti
-    if (!payload.id) {
-      delete payload.id;
-    }
-
-    return payload;
+    return finalPayload;
   };
 
   const handleSubmit = (e) => {

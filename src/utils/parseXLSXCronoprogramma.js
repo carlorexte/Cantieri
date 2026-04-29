@@ -38,7 +38,7 @@ const COLUMN_MAPPINGS = {
   data_inizio: [
     'data inizio', 'inizio', 'start', 'dal', 'from', 'data inizio prevista',
     'start date', 'planned start', 'early start', 'data inizio early',
-    'data inzio', 'data i', 'inizio lavori', 'cominciato', 'al'
+    'data inzio', 'data i', 'inizio lavori', 'cominciato'
   ],
   data_fine: [
     'data fine', 'fine', 'end', 'al', 'to', 'data fine prevista',
@@ -85,7 +85,9 @@ const TIPO_DIPENDENZA_MAP = {
 // ============================================================================
 
 /**
- * Trova la colonna corrispondente in una riga di intestazioni
+ * Trova la colonna corrispondente in una riga di intestazioni.
+ * Priorità: match esatto → match parziale (solo per nomi >= 3 char,
+ * evita falsi positivi su termini corti come "al", "g", "n"...)
  */
 function findColumnIndex(headers, possibleNames) {
   if (!headers || !Array.isArray(headers)) return -1;
@@ -95,10 +97,18 @@ function findColumnIndex(headers, possibleNames) {
     return String(h).toLowerCase().trim();
   });
 
+  // Prima passata: match esatto
   for (const name of possibleNames) {
+    const index = headersLower.findIndex(h => h === name);
+    if (index !== -1) return index;
+  }
+
+  // Seconda passata: match parziale — solo per termini di almeno 3 caratteri
+  for (const name of possibleNames) {
+    if (name.length < 3) continue;
     const index = headersLower.findIndex(h => {
-      if (!h) return false;
-      return h === name || h.includes(name) || name.includes(h);
+      if (!h || h.length < 2) return false;
+      return h.includes(name) || (h.length >= 3 && name.includes(h));
     });
     if (index !== -1) return index;
   }
@@ -324,9 +334,11 @@ function parseHorizontalGantt(rawData, headerRowIndex, dateColumns, dataInizioDe
       const h = String(headers[i] || '').toLowerCase().trim();
       if (!h) continue;
       
-      // Controlla se l'intestazione corrisponde a uno dei nomi possibili
+      // Controlla se l'intestazione corrisponde a uno dei nomi possibili (match preciso)
       for (const name of possibleNames) {
-        if (h === name || h.includes(name) || name.includes(h)) {
+        const exactMatch = h === name;
+        const partialMatch = name.length >= 3 && h.length >= 2 && (h.includes(name) || (h.length >= 3 && name.includes(h)));
+        if (exactMatch || partialMatch) {
           if (!columnMap[key]) {
             columnMap[key] = i;
             logs.push(`✓ ${key}: colonna ${i + 1} ("${headers[i]}")`);
@@ -441,9 +453,8 @@ function parseHorizontalGantt(rawData, headerRowIndex, dateColumns, dataInizioDe
       continue;
     }
     
-    // Determina tipo di attività in base alla durata
+    // Determina tipo di attività
     let tipoAttivita = 'task';
-    if (durata >= 100) tipoAttivita = 'raggruppamento';
     if (durata === 1 || durata === 0) tipoAttivita = 'milestone';
     
     attivita.push({
@@ -644,7 +655,10 @@ export function parseXLSXCronoprogramma(fileBuffer, options = {}) {
       const predecessori = parsePredecessors(row[columnMap.predecessori]);
       const wbs = row[columnMap.wbs] ? String(row[columnMap.wbs]).trim() : '';
       const livello = parseInt(row[columnMap.livello], 10) || 0;
-      const tipoAttivita = normalizeTipoAttivita(row[columnMap.tipo], livello === 0);
+      // isSummary solo se c'è una colonna livello esplicita nel file E il livello è 0;
+      // senza colonna livello tutte le righe sarebbero 0 → tutte diventerebbero raggruppamento
+      const hasLevelColumn = columnMap.livello !== undefined;
+      const tipoAttivita = normalizeTipoAttivita(row[columnMap.tipo], hasLevelColumn && livello === 0);
       const completamento = parseFloat(row[columnMap.completamento]) || 0;
       const importo = parseFloat(row[columnMap.importo]) || 0;
       

@@ -1,76 +1,32 @@
 /**
- * ActivityBar con Drag & Drop per Gantt
+ * ActivityBar con Resize per Gantt
  *
- * Permette di spostare le attività con drag & drop
- * e aggiornare automaticamente le date
+ * Le barre possono essere ridimensionate (allungate/accorciate)
+ * ma NON spostate orizzontalmente. Per riordinare usare la sidebar.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
-import { Flag, Move } from 'lucide-react';
+import { Flag } from 'lucide-react';
 
 export function ActivityBar({
   activity,
-  startDate,
   duration,
   isCritical,
-  canDrag = true,
   canResize = true,
-  viewMode,
-  timelineStart, // Nuova prop: data inizio timeline
-  dayWidth = 40, // Nuova prop: pixel per giorno
+  dayWidth = 40,
   barLeft = null,
   barWidth = null,
   onResizeCommit = undefined,
   onProgressClick = undefined
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging: isBeingDragged
-  } = useDraggable({
-    id: `activity-${activity.id}`,
-    disabled: !canDrag,
-    data: {
-      activity,
-      type: 'activity'
-    }
-  });
+  const barRef = useRef(null);
   const resizeStateRef = useRef(null);
   const [resizePreview, setResizePreview] = useState(null);
 
-  // Calcola larghezza
   const width = duration * dayWidth;
-
-  // Posizionamento: usa coordinate già calcolate dal Gantt se disponibili
   let left = typeof barLeft === 'number' ? barLeft : 0;
   let widthPx = Math.max(typeof barWidth === 'number' ? barWidth : width, 4);
-
-  if (barLeft === null && timelineStart && startDate) {
-    try {
-      // Converte startDate in stringa se è oggetto Date
-      const startStr = startDate instanceof Date 
-        ? startDate.toISOString().split('T')[0] 
-        : startDate;
-      
-      const start = new Date(timelineStart + 'T12:00:00');
-      const activityStart = new Date(startStr + 'T12:00:00');
-      
-      if (!isNaN(start.getTime()) && !isNaN(activityStart.getTime())) {
-        const diffTime = activityStart.getTime() - start.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        left = diffDays * dayWidth;
-      } else {
-        left = 0;
-      }
-    } catch (error) {
-      left = 0;
-    }
-  }
 
   useEffect(() => () => {
     resizeStateRef.current = null;
@@ -115,8 +71,8 @@ export function ActivityBar({
     });
   }, [dayWidth]);
 
-  const handleResizeEnd = useCallback((event) => {
-    const snapshot = getResizeSnapshot(event.clientX);
+  const handleResizeEnd = useCallback(() => {
+    const snapshot = getResizeSnapshot(resizeStateRef.current?.startX || 0);
     window.removeEventListener('mousemove', handleResizeMove);
     window.removeEventListener('mouseup', handleResizeEnd);
 
@@ -157,7 +113,6 @@ export function ActivityBar({
     window.addEventListener('mouseup', handleResizeEnd);
   }, [canResize, duration, handleResizeEnd, handleResizeMove, left, widthPx]);
 
-  // Colore in base allo stato
   const getStatusColor = () => {
     if (isCritical) return 'bg-red-500 border-red-700 hover:bg-red-600';
     
@@ -177,23 +132,18 @@ export function ActivityBar({
 
   return (
     <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
+      ref={barRef}
       className={`
         absolute h-8 rounded-md border shadow-sm
         flex items-center px-2 gap-2
-        ${canDrag ? 'cursor-move' : 'cursor-default'}
-        select-none group
+        cursor-default select-none group
         transition-all duration-150
         ${getStatusColor()}
-        ${isBeingDragged ? 'opacity-50 scale-105 shadow-xl z-50' : 'opacity-100'}
         hover:shadow-md
       `}
       style={{
         left: `${effectiveLeft}px`,
-        width: `${effectiveWidth}px`,
-        transform: CSS.Translate.toString(transform)
+        width: `${effectiveWidth}px`
       }}
       onClick={() => onProgressClick?.(activity)}
     >
@@ -206,7 +156,6 @@ export function ActivityBar({
         />
       )}
 
-      {/* Fill avanzamento */}
       {pct > 0 && (
         <div
           className="absolute inset-y-0 left-0 bg-lime-400/55 pointer-events-none rounded-l-md"
@@ -216,27 +165,17 @@ export function ActivityBar({
         </div>
       )}
 
-      {/* Icona per attività critiche */}
       {isCritical && (
         <Flag className="w-3 h-3 text-white flex-shrink-0" />
       )}
 
-      {/* Testo troncato */}
       <span className="text-xs font-medium text-white truncate flex-1 min-w-0">
         {activity.descrizione}
       </span>
 
-      {/* Avanzamento o durata */}
       <Badge variant="secondary" className="text-xs px-1 py-0 h-auto shrink-0">
         {pct > 0 ? `${pct}%` : `${effectiveDuration}g`}
       </Badge>
-
-      {/* Icona drag (solo hover) */}
-      {canDrag && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <Move className="w-3 h-3 text-white" />
-        </div>
-      )}
 
       {canResize && (
         <button

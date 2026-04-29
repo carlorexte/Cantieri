@@ -14,9 +14,11 @@ import {
     SidebarGroupLabel,
     SidebarGroupContent,
     SidebarSeparator,
-    SidebarTrigger
+    SidebarTrigger,
+    useSidebar
 } from '@/components/ui/sidebar';
 import { createPageUrl } from '@/utils';
+import { Menu, X } from 'lucide-react';
 import {
     LayoutDashboard,
     Sparkles,
@@ -50,6 +52,7 @@ import logoCollapsed from '@/assets/logo-collapsed.png';
 function LayoutContent({ children }) {
     const location = useLocation();
     const { user, hasPermission, isAdmin, isLoading, ruolo } = usePermissions();
+    const { isMobile, toggleSidebar, openMobile, setOpenMobile } = useSidebar();
 
     const handleLogout = async () => {
         try {
@@ -143,7 +146,7 @@ function LayoutContent({ children }) {
                                             tooltip={item.title}
                                             className="hover:bg-orange-50 hover:text-orange-600 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-600 data-[active=true]:font-semibold rounded-lg mx-1 px-3 py-2.5 transition-all"
                                         >
-                                            <Link to={createPageUrl(item.url)} className="flex items-center gap-3">
+                                            <Link to={createPageUrl(item.url)} onClick={() => isMobile && setOpenMobile(false)} className="flex items-center gap-3">
                                                 <item.icon className="w-5 h-5" />
                                                 <span className="font-medium text-sm">{item.title}</span>
                                             </Link>
@@ -168,7 +171,7 @@ function LayoutContent({ children }) {
                                             tooltip={item.title}
                                             className="hover:bg-orange-50 hover:text-orange-600 data-[active=true]:bg-orange-50 data-[active=true]:text-orange-600 data-[active=true]:font-semibold rounded-lg mx-1 px-3 py-2.5 transition-all"
                                         >
-                                            <Link to={createPageUrl(item.url)} className="flex items-center gap-3">
+                                            <Link to={createPageUrl(item.url)} onClick={() => isMobile && setOpenMobile(false)} className="flex items-center gap-3">
                                                 <item.icon className="w-5 h-5" />
                                                 <span className="font-medium text-sm">{item.title}</span>
                                             </Link>
@@ -218,9 +221,27 @@ function LayoutContent({ children }) {
                 <SidebarRail />
             </Sidebar>
 
-            <main className="flex-1 overflow-auto bg-slate-50">
-                {children}
-            </main>
+            <div className="flex flex-1 flex-col min-w-0">
+                {/* Mobile Header */}
+                <header className="md:hidden sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-slate-200 bg-white px-4">
+                    <button
+                        onClick={toggleSidebar}
+                        className="flex items-center justify-center h-10 w-10 rounded-md hover:bg-slate-100 text-slate-600"
+                        aria-label="Apri menu"
+                    >
+                        {openMobile ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                    </button>
+                    <img
+                        src={logoOpen}
+                        alt="RCS Logo"
+                        className="h-7 w-auto object-contain"
+                    />
+                </header>
+
+                <main className="flex-1 overflow-auto bg-slate-50">
+                    {children}
+                </main>
+            </div>
         </div>
     );
 }

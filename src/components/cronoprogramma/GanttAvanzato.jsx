@@ -115,8 +115,6 @@ export default function GanttAvanzato({
   const [draggedRowId, setDraggedRowId] = useState(null);
   const [rowDropTargetId, setRowDropTargetId] = useState(null);
 
-  // Drag state
-  const [draggingActivity, setDraggingActivity] = useState(null);
   const projectStartForCPM = useMemo(() => {
     if (cantiere?.data_inizio) return cantiere.data_inizio;
     if (!attivita || attivita.length === 0) return null;
@@ -632,6 +630,30 @@ export default function GanttAvanzato({
     });
   }, [processedData, handleActivityDateChange]);
 
+  const handleResizeCommit = useCallback(async (activityId, changes) => {
+    const { edge, deltaDays, durationDays } = changes;
+    const row = processedData.find(item => item.id === activityId);
+    if (!row || !row._startDate) return;
+
+    let newStart = row._startDate;
+    let newEnd;
+
+    if (edge === 'left') {
+      newStart = addDays(row._startDate, deltaDays);
+      newEnd = row._endDate;
+    } else {
+      newStart = row._startDate;
+      newEnd = addDays(row._endDate, deltaDays);
+    }
+
+    const newDuration = Math.max(1, differenceInDays(newEnd, newStart) + 1);
+
+    await handleActivityDateChange(activityId, {
+      data_inizio: newStart,
+      deltaDays: edge === 'left' ? deltaDays : 0
+    });
+  }, [processedData, handleActivityDateChange]);
+
   // Cash Flow Mensile
   const cashFlow = useMemo(() => {
     const months = {};
@@ -1072,12 +1094,6 @@ export default function GanttAvanzato({
         </div>
 
         {/* Right Content (Gantt Chart) */}
-        <GanttDndProvider
-          onActivityDrop={handleActivityDrop}
-          onDragStateChange={setDraggingActivity}
-          draggingActivity={draggingActivity}
-          dayWidth={config.colWidth / config.daysPerCol}
-        >
         <div
           className="flex-1 overflow-auto bg-white"
           ref={scrollContainerRef}
@@ -1221,7 +1237,6 @@ export default function GanttAvanzato({
                   : null;
                 const varianceDays = getBaselineVarianceDays(item);
                 const isCritical = item._cpmDetails?.isCritical;
-                const canDrag = !isCritical && item.tipo_attivita === 'task';
                 const hasValidDates = item._startDate && item._endDate && isValid(item._startDate) && isValid(item._endDate);
 
                 return (
@@ -1274,18 +1289,16 @@ export default function GanttAvanzato({
                           <div className="absolute -right-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                         </div>
                       ) : (
-                        /* Barra attività con Drag & Drop */
+                        /* Barra attività - solo resize */
                         <ActivityBar
                           activity={item}
-                          startDate={item._startDate instanceof Date ? item._startDate.toISOString().split('T')[0] : item._startDate}
                           duration={item._duration || 1}
                           isCritical={isCritical}
-                          canDrag={canDrag}
-                          viewMode={viewMode}
-                          timelineStart={format(timeRange.start, 'yyyy-MM-dd')}
+                          canResize={!isCritical}
                           dayWidth={config.colWidth / config.daysPerCol}
                           barLeft={pos.left}
                           barWidth={pos.width}
+                          onResizeCommit={handleResizeCommit}
                         />
                       )
                     ) : (
@@ -1329,7 +1342,6 @@ export default function GanttAvanzato({
             </div>
           </div>
         </div>
-        </GanttDndProvider>
       </div>
 
       {/* Activity Details Panel */}

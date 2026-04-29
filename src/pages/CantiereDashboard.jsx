@@ -55,6 +55,7 @@ export default function CantiereDashboardPage() {
   const [cantiere, setCantiere] = useState(null);
   const [subappalti, setSubappalti] = useState([]);
   const [documenti, setDocumenti] = useState([]);
+  const [documentiSubappalti, setDocumentiSubappalti] = useState([]);
   const [imprese, setImprese] = useState([]);
   const [salList, setSalList] = useState([]);
   const [attivita, setAttivita] = useState([]);
@@ -105,6 +106,15 @@ export default function CantiereDashboardPage() {
         setCantiere(cantiereData);
         setSubappalti(subappalti);
         setDocumenti(documenti);
+
+        // Carica documenti dei subappalti
+        if (subappalti.length > 0) {
+          supabaseDB.documenti.getBySubappaltiIds(subappalti.map(s => s.id))
+            .then(docs => setDocumentiSubappalti(docs))
+            .catch(err => console.error("Errore caricamento documenti subappalti:", err));
+        } else {
+          setDocumentiSubappalti([]);
+        }
         setImprese(imprese);
         setSalList(sal);
         setAttivita(attivita);
@@ -1596,7 +1606,7 @@ export default function CantiereDashboardPage() {
                   </div>
                 )}
                 
-                {documenti.length > 0 ? (
+                {(documenti.length > 0 || documentiSubappalti.length > 0) ? (
                   <div className="space-y-2">
                     {documenti.map(doc => (
                       <div key={doc.id} className="p-3 border rounded-md hover:bg-slate-50 flex items-center justify-between">
@@ -1652,6 +1662,37 @@ export default function CantiereDashboardPage() {
                         </div>
                       </div>
                     ))}
+                    {documentiSubappalti.map(doc => {
+                      const sub = subappalti.find(s => s.id === doc.entita_collegata_id);
+                      return (
+                        <div key={doc.id} className="p-3 border border-orange-200 rounded-md hover:bg-orange-50 flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <p className="font-medium text-slate-900 truncate">{doc.nome_documento}</p>
+                              <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-300 shrink-0">
+                                Subappalto{sub ? ` • ${sub.ragione_sociale}` : ''}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-500">
+                              {tipoDocumentoLabels[doc.categoria_principale] || doc.categoria_principale}
+                              {doc.data_scadenza && ` • Scad: ${format(new Date(doc.data_scadenza), 'dd/MM/yyyy')}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            {(doc.file_uri || doc.cloud_file_url) && (
+                              <>
+                                <Button variant="ghost" size="icon" onClick={() => handleViewDocument(doc)} title="Visualizza documento">
+                                  <ExternalLink className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDownloadDocument(doc)} title="Scarica documento">
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   !cantiere.verbale_inizio_lavori_url && <p className="text-slate-500">Nessun documento caricato.</p>

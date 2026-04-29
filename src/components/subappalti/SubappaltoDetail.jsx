@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { backendClient } from "@/api/backendClient";
+import { supabaseDB } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,18 +65,11 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
 
   const loadDocumenti = useCallback(async () => {
     try {
-      const allDocs = await backendClient.entities.Documento.list();
-      const filtered = allDocs.filter(doc => {
-        let entitaCollegate = doc.entita_collegate;
-        if (typeof entitaCollegate === 'string' && entitaCollegate?.length > 0) {
-          try { entitaCollegate = JSON.parse(entitaCollegate); } catch { entitaCollegate = []; }
-        }
-        if (Array.isArray(entitaCollegate)) {
-          return entitaCollegate.some(e => e.entita_tipo === 'subappalto' && e.entita_id === subappalto.id);
-        }
-        return false;
+      const docs = await supabaseDB.documenti.filter({
+        entita_collegata_id: subappalto.id,
+        entita_collegata_tipo: 'subappalto'
       });
-      setDocumenti(filtered);
+      setDocumenti(docs);
     } catch (error) {
       console.error("Errore caricamento documenti:", error);
     }
@@ -114,17 +108,18 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
     if (!uploadFile) return;
     setIsUploading(true);
     try {
-      const result = await backendClient.uploadDocumenti.uploadFile(uploadFile, { cantiereId: subappalto.cantiere_id });
+      const result = await supabaseDB.uploadDocumenti.uploadFile(uploadFile, { cantiereId: subappalto.cantiere_id });
       const docData = {
-        titolo: uploadMeta.titolo || uploadFile.name,
-        categoria: uploadMeta.categoria,
-        entita_collegate: JSON.stringify([{ entita_tipo: 'subappalto', entita_id: subappalto.id }]),
+        nome_documento: uploadMeta.titolo || uploadFile.name,
+        categoria_principale: uploadMeta.categoria,
+        tipo_documento: uploadMeta.categoria,
+        entita_collegate: [{ entita_tipo: 'subappalto', entita_id: subappalto.id }],
         file_uri: result.file_uri,
-        file_url: result.file_url,
+        cloud_file_url: result.file_url,
         entita_collegata_tipo: 'subappalto',
         entita_collegata_id: subappalto.id
       };
-      await backendClient.entities.Documento.create(docData);
+      await supabaseDB.documenti.create(docData);
       loadDocumenti();
       setShowUploadDialog(false);
       setUploadFile(null);
@@ -272,11 +267,11 @@ export default function SubappaltoDetail({ subappalto, cantiere, onClose }) {
               <TableBody>
                 {documenti.map(doc => (
                   <TableRow key={doc.id}>
-                    <TableCell className="font-medium">{doc.titolo}</TableCell>
+                    <TableCell className="font-medium">{doc.nome_documento}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{doc.categoria}</Badge>
+                      <Badge variant="secondary">{doc.categoria_principale}</Badge>
                     </TableCell>
-                    <TableCell>{doc.created_at ? new Date(doc.created_at).toLocaleDateString('it-IT') : '-'}</TableCell>
+                    <TableCell>{doc.created_date ? new Date(doc.created_date).toLocaleDateString('it-IT') : '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleViewDocument(doc)}>

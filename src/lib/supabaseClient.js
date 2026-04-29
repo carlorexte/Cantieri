@@ -556,6 +556,17 @@ export const supabaseDB = {
       const { data, error } = await q.order('created_date', { ascending: false });
       if (error) throw error;
       return data || [];
+    },
+    getBySubappaltiIds: async (subappaltoIds) => {
+      if (!subappaltoIds || subappaltoIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('documenti')
+        .select('*')
+        .eq('entita_collegata_tipo', 'subappalto')
+        .in('entita_collegata_id', subappaltoIds)
+        .order('created_date', { ascending: false });
+      if (error) throw error;
+      return data || [];
     }
   },
 

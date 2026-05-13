@@ -123,7 +123,8 @@ export default async function (req, res) {
       }],
       generationConfig: {
         temperature: 0,
-        maxOutputTokens: 32000
+        maxOutputTokens: 8192,
+        thinkingConfig: { thinkingBudget: 0 }
       }
     };
 

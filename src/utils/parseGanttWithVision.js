@@ -6,7 +6,7 @@
  */
 
 // Configuration
-const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_MB = 15;
 const API_TIMEOUT_MS = 60000;
 
 // Prompt per Claude Vision
@@ -87,8 +87,10 @@ async function convertFileToBase64(file) {
  * Chiamata API Gemini Vision tramite Serverless Function
  */
 async function callGeminiVision(base64Image, mimeType) {
-  // Usa sempre il path relativo: in dev passa dal proxy Vite verso localhost:3000
-  const apiUrl = '/api/analyze-gantt';
+  // In dev punta direttamente alla produzione (nessun Express locale necessario)
+  const apiUrl = import.meta.env.DEV
+    ? 'https://rcs.cantieri.pro/api/analyze-gantt'
+    : '/api/analyze-gantt';
 
   console.log('[callGeminiVision] Chiamata Serverless Function...');
   console.log('[callGeminiVision] URL:', apiUrl);
@@ -235,7 +237,7 @@ function validateAndTransformResponse(responseText) {
     const descrizioneAttivita = att.task_name || att.descrizione || '';
     const sezione = att.macro_area || att.section || '';
 
-    // Se esiste una sezione e non l'abbiamo ancora aggiunta come raggruppamento
+    // Fallback legacy: se il modello restituisce macro_area/section come campo separato
     if (sezione && !sezioniViste.has(sezione)) {
       sezioniViste.add(sezione);
       finalAttivita.push({
@@ -246,6 +248,7 @@ function validateAndTransformResponse(responseText) {
         durata_giorni: 1,
         tipo_attivita: 'raggruppamento',
         livello: 0,
+        parent_id: null,
         isSection: true
       });
       currentIndex++;
@@ -258,8 +261,9 @@ function validateAndTransformResponse(responseText) {
         data_inizio: att.start_date || att.data_inizio || null,
         data_fine: att.end_date || att.data_fine || null,
         durata_giorni: att.duration_days || att.durata_giorni || null,
-        livello: sezione ? 1 : 0,
-        tipo_attivita: 'task'
+        livello: att.livello !== undefined ? att.livello : (sezione ? 1 : 0),
+        tipo_attivita: att.tipo_attivita || 'task',
+        parent_id: att.parent_id || null
       });
       currentIndex++;
     }
@@ -299,7 +303,7 @@ function validateAndTransformResponse(responseText) {
       data_inizio: dInizio,
       data_fine: dFine,
       livello: att.livello !== undefined ? att.livello : 1,
-      parent_id: null,
+      parent_id: att.parent_id || null,
       predecessori: att.predecessori || [],
       colore: att.colore || '#3b82f6',
       percentuale_completamento: 0,

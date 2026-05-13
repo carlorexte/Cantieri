@@ -12,7 +12,9 @@ import { createPageUrl } from "@/utils";
 import PlanningGantt from "../components/cronoprogramma/PlanningGantt";
 import ImportCronoprogrammaForm from "../components/cronoprogramma/ImportCronoprogrammaForm";
 import AttivitaForm from "../components/cronoprogramma/AttivitaForm";
+import GanttImporter from "../components/cronoprogramma/GanttImporter";
 import { createPlanningActivity, dbActivitiesToPlanning, planningActivitiesToDb } from "@/utils/planningModel";
+import { toProjectDbFormat } from "@/types/gantt";
 
 const statoStats = {
   pianificata: { icon: Building2, color: "bg-slate-100 text-slate-600", label: "Pianificate", accent: "text-slate-700" },
@@ -324,6 +326,34 @@ export default function CronoprogrammaPage() {
     }
   }, [selectedCantiereId]);
 
+  const handleGanttImport = useCallback(async (tasks) => {
+    if (!selectedCantiereId) {
+      toast.error('Seleziona un cantiere prima di importare.');
+      return;
+    }
+    try {
+      const dbActivities = toProjectDbFormat(tasks);
+      const saved = [];
+      for (const activity of dbActivities) {
+        const result = await supabaseDB.attivita.create({
+          ...activity,
+          cantiere_id: selectedCantiereId,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+        });
+        saved.push(result);
+      }
+      setCantieriAttivita((prev) => ({
+        ...prev,
+        [selectedCantiereId]: [...(prev[selectedCantiereId] || []), ...saved],
+      }));
+      toast.success(`${saved.length} attività importate nel cronoprogramma`);
+    } catch (error) {
+      console.error('[handleGanttImport] Errore:', error);
+      toast.error(`Errore durante il salvataggio: ${error?.message || 'controlla console'}`);
+    }
+  }, [selectedCantiereId]);
+
   const handleProgressUpdate = useCallback(async (attivitaId, percentuale) => {
     if (!selectedCantiereId) return;
     try {
@@ -629,7 +659,14 @@ export default function CronoprogrammaPage() {
               })}
             </div>
           ) : (
-            <div style={{ height: 'calc(100vh - 14rem)' }}>
+            <div className="space-y-4">
+              {selectedCantiereId && (
+                <GanttImporter
+                  onImport={handleGanttImport}
+                  disabled={!selectedCantiereId}
+                />
+              )}
+            <div style={{ height: 'calc(100vh - 18rem)' }}>
               {selectedCantiereId && currentCantiere ? (
                 <PlanningGantt
                   planningActivities={selectedPlanningActivities}
@@ -653,6 +690,7 @@ export default function CronoprogrammaPage() {
                   </CardContent>
                 </Card>
               )}
+            </div>
             </div>
           )}
         </div>

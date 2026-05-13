@@ -1,4 +1,4 @@
-const VISION_PROMPT = `Analizza questo Gantt chart ed estrai le attività principali.
+const VISION_PROMPT = `Analizza questo Gantt chart ed estrai TUTTE le righe presenti, rispettando la gerarchia esatta.
 
 IMPORTANTE: Devi rispondere SOLO con JSON valido. NIENTE altro testo.
 
@@ -6,23 +6,36 @@ Struttura JSON richiesta:
 {
   "attivita": [
     {
-      "descrizione": "Nome attività",
-      "data_inizio": "2026-01-15",
-      "data_fine": "2026-01-30",
-      "durata_giorni": 16,
+      "id": "1",
+      "wbs": "1",
+      "parent_id": null,
+      "descrizione": "ALLESTIMENTO DEL CANTIERE",
+      "tipo_attivita": "raggruppamento",
+      "data_inizio": "2026-01-13",
+      "data_fine": "2026-02-11",
+      "durata_giorni": 30
+    },
+    {
+      "id": "1.1",
+      "wbs": "1.1",
+      "parent_id": "1",
+      "descrizione": "Realizzazione impianto elettrico",
       "tipo_attivita": "task",
-      "livello": 1
+      "data_inizio": "2026-01-13",
+      "data_fine": "2026-01-14",
+      "durata_giorni": 2
     }
   ]
 }
 
-REGOLE:
-- Estrai SOLO le attività principali (max 20 attività)
-- Date in formato YYYY-MM-DD
-- tipo_attivita: "task", "milestone", o "raggruppamento"
-- livello: 0 (fasi principali), 1 (attività normali)
-- Se data illeggibile: usa "2026-01-01"
-- Chiudi SEMPRE il JSON correttamente
+REGOLE FONDAMENTALI:
+- Estrai TUTTE le righe senza eccezioni, nessun limite numerico
+- "id" e "wbs": usa il codice WBS della riga (es. "1", "1.1", "1.2.3") oppure il numero ID visibile
+- "parent_id": id del nodo padre diretto nella gerarchia; null solo per i nodi radice di primo livello
+- "tipo_attivita": "raggruppamento" per fasi/gruppi che contengono figli, "task" per attività con durata, "milestone" per durata 0
+- Date in formato YYYY-MM-DD; se illeggibile usa "2026-01-01"
+- "durata_giorni": numero intero di giorni
+- Rispetta la struttura padre-figlio: ogni attività figlio deve avere parent_id che punta all'id del suo gruppo padre
 
 Rispondi SOLO con il JSON, niente spiegazioni.`;
 
@@ -41,9 +54,8 @@ function applyCors(req, res) {
     .map((item) => item.trim())
     .filter(Boolean);
 
-  if (process.env.NODE_ENV !== 'production') {
-    allowedOrigins.push('http://localhost:5173', 'http://localhost:4173');
-  }
+  // Sempre permesso in locale per sviluppo senza Express
+  allowedOrigins.push('http://localhost:5173', 'http://localhost:4173', 'http://localhost:3200', 'http://localhost:3000');
 
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -111,7 +123,7 @@ export default async function (req, res) {
       }],
       generationConfig: {
         temperature: 0,
-        maxOutputTokens: 16000
+        maxOutputTokens: 32000
       }
     };
 

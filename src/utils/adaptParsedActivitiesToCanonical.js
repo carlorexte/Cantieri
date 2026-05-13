@@ -72,6 +72,18 @@ export function adaptParsedActivitiesToCanonical(result, source, parserKey = 'ge
     order: index + 1
   }));
 
+  // Fallback: se un'attività non ha parent_id ma il WBS lo suggerisce, derivalo
+  const wbsToId = new Map(normalized.map((a) => [a.wbs, a.id]));
+  normalized.forEach((activity) => {
+    if (activity.parent_id) return;
+    const parts = String(activity.wbs || '').split('.');
+    if (parts.length > 1) {
+      const parentWbs = parts.slice(0, -1).join('.');
+      const parentId = wbsToId.get(parentWbs);
+      if (parentId) activity.parent_id = parentId;
+    }
+  });
+
   let macroAreas = normalized
     .filter((activity) => activity.type === 'raggruppamento')
     .map((activity) => ({
@@ -140,15 +152,7 @@ export function adaptParsedActivitiesToCanonical(result, source, parserKey = 'ge
       };
     });
 
-  const orphanActivities = activities.filter((activity) => !activity.macro_area_id);
-  if (orphanActivities.length > 0) {
-    const synthetic = createSyntheticMacroArea(source?.label, orphanActivities);
-    macroAreas = [synthetic, ...macroAreas];
-    orphanActivities.forEach((activity) => {
-      activity.macro_area_id = synthetic.id;
-      if (!activity.parent_id) activity.parent_id = synthetic.id;
-    });
-  }
+  // Nessun wrapper sintetico: le attività orfane rimangono senza macro_area_id
 
   const starts = [...macroAreas, ...activities].map((item) => item.start_date).filter(Boolean).sort();
   const ends = [...macroAreas, ...activities].map((item) => item.end_date).filter(Boolean).sort();

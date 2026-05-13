@@ -1050,7 +1050,7 @@ export default function PrimusGantt({
                     )}
                     <span className={`truncate ${
                       item.tipo_attivita === 'raggruppamento'
-                        ? (isExplicitMacroArea(item) ? 'font-semibold text-sky-950' : 'font-medium text-slate-700')
+                        ? (isExplicitMacroArea(item) ? 'font-bold text-sky-950' : 'font-bold text-slate-800')
                         : 'text-slate-700'
                     }`} title={item.descrizione}>
                       {item.descrizione}

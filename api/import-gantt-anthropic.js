@@ -1,31 +1,41 @@
-const SYSTEM_PROMPT = `Sei un esperto di pianificazione edile. Analizza il documento fornito ed estrai il cronoprogramma dei lavori.
+const SYSTEM_PROMPT = `Sei un esperto di pianificazione edile. Analizza il documento fornito ed estrai TUTTE le righe del cronoprogramma, rispettando la gerarchia esatta.
 
 IMPORTANTE: Rispondi SOLO con JSON valido. NESSUN altro testo.
 
 Struttura JSON richiesta:
 {
-  "projectName": "Nome del progetto",
-  "tasks": [
+  "attivita": [
     {
+      "id": "1",
       "wbs": "1",
-      "name": "Nome attività",
-      "level": 0,
-      "startDate": "2026-01-15",
-      "endDate": "2026-01-30",
-      "duration": 16,
-      "progress": 0
+      "parent_id": null,
+      "descrizione": "ALLESTIMENTO DEL CANTIERE",
+      "tipo_attivita": "raggruppamento",
+      "data_inizio": "2026-01-13",
+      "data_fine": "2026-02-11",
+      "durata_giorni": 30
+    },
+    {
+      "id": "1.1",
+      "wbs": "1.1",
+      "parent_id": "1",
+      "descrizione": "Realizzazione impianto elettrico",
+      "tipo_attivita": "task",
+      "data_inizio": "2026-01-13",
+      "data_fine": "2026-01-14",
+      "durata_giorni": 2
     }
   ]
 }
 
-REGOLE:
-- "level": 0 = fase principale, 1 = sottofase, 2 = attività foglia
-- "wbs": codice gerarchico (es. "1", "1.1", "1.1.1")
-- Date in formato YYYY-MM-DD
-- "duration": numero di giorni lavorativi
-- "progress": percentuale completamento (0-100)
-- Se data non leggibile: usa "2026-01-01"
-- Estrai fino a 50 attività
+REGOLE FONDAMENTALI:
+- Estrai TUTTE le righe senza eccezioni, nessun limite numerico
+- "id" e "wbs": codice WBS della riga (es. "1", "1.1", "1.2.3") o numero ID visibile
+- "parent_id": id del nodo padre diretto; null solo per nodi radice
+- "tipo_attivita": "raggruppamento" per fasi/gruppi con figli, "task" per attività con durata, "milestone" per durata 0
+- Date in formato YYYY-MM-DD; se illeggibile usa "2026-01-01"
+- "durata_giorni": numero intero di giorni
+- Rispetta la gerarchia: ogni figlio deve avere parent_id che punta all'id del suo gruppo padre
 
 Rispondi SOLO con il JSON, niente spiegazioni.`;
 
@@ -143,22 +153,16 @@ export default async function handler(req, res) {
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) responseText = jsonMatch[0];
 
-    let parsed;
+    // Valida JSON prima di restituire
     try {
-      parsed = JSON.parse(responseText);
+      JSON.parse(responseText);
     } catch (e) {
       console.error('[import-gantt-anthropic] JSON non valido:', e.message);
       return res.status(500).json({ error: 'Risposta AI non in formato JSON valido', raw: responseText.substring(0, 500) });
     }
 
-    if (!Array.isArray(parsed.tasks)) {
-      return res.status(500).json({ error: 'Struttura JSON non valida: campo "tasks" mancante o non è un array' });
-    }
-
-    return res.status(200).json({
-      projectName: parsed.projectName || null,
-      tasks: parsed.tasks,
-    });
+    // Restituisce responseText grezzo — stesso formato di /api/analyze-gantt
+    return res.status(200).json({ responseText });
   } catch (error) {
     console.error('[import-gantt-anthropic] Error:', error);
     return res.status(500).json({ error: error.message || 'Errore interno del server' });

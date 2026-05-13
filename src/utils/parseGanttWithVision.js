@@ -89,8 +89,8 @@ async function convertFileToBase64(file) {
 async function callGeminiVision(base64Image, mimeType) {
   // In dev punta direttamente alla produzione (nessun Express locale necessario)
   const apiUrl = import.meta.env.DEV
-    ? 'https://rcs.cantieri.pro/api/analyze-gantt'
-    : '/api/analyze-gantt';
+    ? 'https://rcs.cantieri.pro/api/import-gantt-anthropic'
+    : '/api/import-gantt-anthropic';
 
   console.log('[callGeminiVision] Chiamata Serverless Function...');
   console.log('[callGeminiVision] URL:', apiUrl);
@@ -107,7 +107,7 @@ async function callGeminiVision(base64Image, mimeType) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        base64Image,
+        fileContent: base64Image,
         mimeType
       }),
       signal: controller.signal
@@ -132,8 +132,8 @@ async function callGeminiVision(base64Image, mimeType) {
       if (response.status === 429) {
         throw new Error('Rate limit superato. Attendi qualche minuto e riprova.');
       }
-      if (response.status === 500 && errorData.error?.includes('GOOGLE_API_KEY')) {
-        throw new Error('GOOGLE_API_KEY_NOT_CONFIGURED');
+      if (response.status === 500 && errorData.error?.includes('ANTHROPIC_API_KEY')) {
+        throw new Error('ANTHROPIC_API_KEY non configurata nelle variabili d\'ambiente Vercel');
       }
 
       throw new Error(

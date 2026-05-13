@@ -1413,12 +1413,6 @@ export default function PrimusGantt({
                     className="w-24"
                   />
                   <span className="text-sm text-slate-500">%</span>
-                  <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${progressValue === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                      style={{ width: `${progressValue}%` }}
-                    />
-                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">

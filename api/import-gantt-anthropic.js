@@ -92,11 +92,32 @@ export default async function handler(req, res) {
 
     const isImage = mimeType.startsWith('image/');
     const isPdf = mimeType === 'application/pdf';
-    const isText = mimeType === 'text/plain' || mimeType === 'text/csv';
 
     let messageContent;
+    const anthropicHeaders = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    };
 
-    if (isImage || isPdf) {
+    if (isPdf) {
+      // PDF richiede type 'document' e header beta
+      anthropicHeaders['anthropic-beta'] = 'pdfs-2024-09-25';
+      messageContent = [
+        {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: fileContent,
+          },
+        },
+        {
+          type: 'text',
+          text: `Analizza questo documento (${fileName || 'file'}) ed estrai il cronoprogramma dei lavori edili.`,
+        },
+      ];
+    } else if (isImage) {
       messageContent = [
         {
           type: 'image',
@@ -123,11 +144,7 @@ export default async function handler(req, res) {
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers: anthropicHeaders,
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 8096,

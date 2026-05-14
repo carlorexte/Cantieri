@@ -53,6 +53,11 @@ function extractSourceRow(item) {
 }
 
 function compareRows(a, b) {
+  // Priorità all'ordine di inserimento (preserva l'ordine originale del documento)
+  const aOrder = typeof a?.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
+  const bOrder = typeof b?.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
+  if (aOrder !== bOrder) return aOrder - bOrder;
+  // Fallback: data inizio
   const aStart = a?._startDate instanceof Date ? a._startDate.getTime() : Number.MAX_SAFE_INTEGER;
   const bStart = b?._startDate instanceof Date ? b._startDate.getTime() : Number.MAX_SAFE_INTEGER;
   if (aStart !== bStart) return aStart - bStart;
@@ -1060,15 +1065,6 @@ export default function PrimusGantt({
                         <Boxes className="w-3 h-3 text-indigo-500" />
                       )}
                     </div>
-                    {item.tipo_attivita === 'raggruppamento' && (
-                      <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        isExplicitMacroArea(item)
-                          ? 'bg-sky-200 text-sky-900'
-                          : 'bg-slate-200 text-slate-700'
-                      }`}>
-                        {isExplicitMacroArea(item) ? 'Macro area' : 'Totale'}
-                      </span>
-                    )}
                   </div>
                 </div>
                 <div className="w-24 border-r border-slate-200 flex items-center justify-end font-mono text-[11px] px-2">

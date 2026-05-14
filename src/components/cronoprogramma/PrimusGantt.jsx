@@ -52,12 +52,26 @@ function extractSourceRow(item) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function compareWbs(a, b) {
+  const wbsA = String(a?.wbs_originale || a?.wbs || '');
+  const wbsB = String(b?.wbs_originale || b?.wbs || '');
+  if (wbsA && wbsB) {
+    const partsA = wbsA.split('.').map(Number);
+    const partsB = wbsB.split('.').map(Number);
+    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+      const diff = (partsA[i] ?? -1) - (partsB[i] ?? -1);
+      if (diff !== 0) return diff;
+    }
+    return 0;
+  }
+  return 0;
+}
+
 function compareRows(a, b) {
-  // Priorità all'ordine di inserimento (preserva l'ordine originale del documento)
-  const aOrder = typeof a?.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
-  const bOrder = typeof b?.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
-  if (aOrder !== bOrder) return aOrder - bOrder;
-  // Fallback: data inizio
+  // 1. WBS originale (preserva ordine del documento)
+  const wbsCmp = compareWbs(a, b);
+  if (wbsCmp !== 0) return wbsCmp;
+  // 2. Data inizio come fallback
   const aStart = a?._startDate instanceof Date ? a._startDate.getTime() : Number.MAX_SAFE_INTEGER;
   const bStart = b?._startDate instanceof Date ? b._startDate.getTime() : Number.MAX_SAFE_INTEGER;
   if (aStart !== bStart) return aStart - bStart;
@@ -1235,11 +1249,10 @@ export default function PrimusGantt({
                       {pos && (
                         item.tipo_attivita === 'raggruppamento' ? (
                           <div
-                            className="absolute h-3 bg-slate-800 opacity-80"
-                            style={{ left: pos.left, width: pos.width, top: (ROW_HEIGHT - 12) / 2 }}
+                            className="absolute"
+                            style={{ left: pos.left, width: pos.width, top: (ROW_HEIGHT - 10) / 2 }}
                           >
-                            <div className="absolute -left-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800" />
-                            <div className="absolute -right-1 top-3 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800" />
+                            <div className="h-2.5 bg-slate-400 rounded-sm opacity-70" style={{ width: '100%' }} />
                           </div>
                         ) : (
                           <ActivityBar

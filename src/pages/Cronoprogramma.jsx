@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Plus, Upload, RotateCcw, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -577,35 +578,19 @@ export default function CronoprogrammaPage() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 mb-1">Cantieri</p>
-                    <p className="text-2xl font-bold text-slate-900">{cantieri.length}</p>
-                  </div>
-                  <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-orange-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Stats compatte */}
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-sm text-sm">
+              <Building2 className="w-3.5 h-3.5 text-orange-500" />
+              <span className="text-slate-500">Cantieri</span>
+              <span className="font-bold text-slate-900">{cantieri.length}</span>
+            </div>
             {Object.entries(statoStats).map(([stato, cfg]) => (
-              <Card key={stato} className="border-0 shadow-sm bg-white">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 mb-1">{cfg.label}</p>
-                      <p className={`text-2xl font-bold ${cfg.accent}`}>{overallStats[stato] || 0}</p>
-                    </div>
-                    <div className={`w-9 h-9 rounded-lg ${cfg.color} flex items-center justify-center`}>
-                      <cfg.icon className="w-5 h-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={stato} className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-sm text-sm">
+                <span className={`w-2 h-2 rounded-full ${cfg.color.split(' ')[0]}`} />
+                <span className="text-slate-500">{cfg.label}</span>
+                <span className={`font-bold ${cfg.accent}`}>{overallStats[stato] || 0}</span>
+              </div>
             ))}
           </div>
 
@@ -659,14 +644,8 @@ export default function CronoprogrammaPage() {
               })}
             </div>
           ) : (
-            <div className="space-y-4">
-              {selectedCantiereId && (
-                <GanttImporter
-                  onImport={handleGanttImport}
-                  disabled={!selectedCantiereId}
-                />
-              )}
-            <div style={{ height: 'calc(100vh - 18rem)' }}>
+            <div>
+            <div style={{ height: 'calc(100vh - 11rem)' }}>
               {selectedCantiereId && currentCantiere ? (
                 <PlanningGantt
                   planningActivities={selectedPlanningActivities}
@@ -700,14 +679,39 @@ export default function CronoprogrammaPage() {
       <Dialog open={showImportForm} onOpenChange={setShowImportForm}>
         <DialogContent className="w-[96vw] max-w-[96vw] h-[92vh] overflow-hidden p-0 sm:max-w-[96vw]">
           <DialogHeader className="px-6 py-4 border-b border-slate-200">
-            <DialogTitle>Importa Cronoprogramma da File</DialogTitle>
+            <DialogTitle>Importa Cronoprogramma</DialogTitle>
           </DialogHeader>
-          <div className="h-[calc(92vh-73px)] overflow-y-auto px-6 py-4">
-            <ImportCronoprogrammaForm
-              cantieri={cantieri}
-              onSuccess={handleImportSuccess}
-              onCancel={() => setShowImportForm(false)}
-            />
+          <div className="h-[calc(92vh-73px)] overflow-y-auto">
+            <Tabs defaultValue="strutturato" className="h-full flex flex-col">
+              <TabsList className="mx-6 mt-4 mb-0 w-fit">
+                <TabsTrigger value="strutturato">Excel / JSON / Sheet</TabsTrigger>
+                <TabsTrigger value="ai">Analisi AI (PDF/Excel)</TabsTrigger>
+              </TabsList>
+              <TabsContent value="strutturato" className="flex-1 px-6 py-4 overflow-y-auto">
+                <ImportCronoprogrammaForm
+                  cantieri={cantieri}
+                  onSuccess={handleImportSuccess}
+                  onCancel={() => setShowImportForm(false)}
+                />
+              </TabsContent>
+              <TabsContent value="ai" className="px-6 py-4">
+                <div className="max-w-xl">
+                  <p className="text-sm text-slate-500 mb-4">
+                    Carica un PDF o Excel — Claude AI estrae automaticamente tutte le attività con la gerarchia corretta.
+                  </p>
+                  <GanttImporter
+                    onImport={(tasks) => {
+                      handleGanttImport(tasks);
+                      setShowImportForm(false);
+                    }}
+                    disabled={!selectedCantiereId}
+                  />
+                  {!selectedCantiereId && (
+                    <p className="text-xs text-amber-600 mt-2">Seleziona prima un cantiere dalla pagina principale.</p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </DialogContent>
       </Dialog>
